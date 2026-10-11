@@ -2,6 +2,10 @@ package com.music.bitchord.desktop
 
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.bitchord.ui.components.LocalShelfRowChrome
+import com.music.bitchord.ui.components.ExplicitBadge
+import com.music.bitchord.ui.components.LocalExplicitBlocked
+import com.music.bitchord.playback.ExplicitFilter
+import com.music.bitchord.playback.ExplicitFilterMode
 import com.music.bitchord.ui.components.ShelfRowChrome
 import com.music.bitchord.ui.components.ShelfRow
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -116,6 +120,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Explicit
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.rounded.AccountCircle
@@ -183,6 +188,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -635,6 +641,8 @@ fun BitChordDesktopApp() {
     // Settings is a modal over whatever page is open, the way Music puts its own preferences in a
     // sheet rather than a navigation destination.
     var autoplay by remember { mutableStateOf(persistence.boolean("autoplay", true)) }
+    // An explicit song the filter stopped, and what to do once it's allowed (issue #720).
+    var explicitPrompt by remember { mutableStateOf<Pair<Song, () -> Unit>?>(null) }
     var dontRepeatSuggestions by remember {
         mutableStateOf(persistence.boolean(KEY_DONT_REPEAT_SUGGESTIONS, false))
     }
@@ -919,10 +927,37 @@ fun BitChordDesktopApp() {
         }
     }
 
+    /**
+     * Runs [proceed] unless [song] is one the explicit filter blocks outright; then asks first,
+     * and a yes allows that song from then on. Every "play this" and "queue this" passes through
+     * here; what AutoPlay and radio pick is filtered in [DesktopAutoplay.tracksFor] instead.
+     */
+    fun gateExplicit(song: Song?, sourceId: String?, proceed: () -> Unit) {
+        if (song != null && song.desktopExplicitBlocked(sourceId = sourceId ?: song.playbackSourceId)) {
+            explicitPrompt = song to proceed
+        } else {
+            proceed()
+        }
+    }
+
+    /** [playSong] for a tap or click: asks first when the explicit filter blocks the song. */
+    fun playSongFromUser(song: Song, source: DesktopQueueSource? = null) =
+        gateExplicit(song, source?.id) { playSong(song, source = source) }
+
     fun playSongs(songs: List<Song>, startIndex: Int = 0, source: DesktopQueueSource? = null) {
+        // The picked row is the one worth asking about; the rest of the list is held to the
+        // explicit filter quietly, below.
+        val picked = songs.getOrNull(startIndex)
+        if (picked != null && picked.desktopExplicitBlocked(sourceId = source?.id ?: picked.playbackSourceId)) {
+            explicitPrompt = picked to { playSongs(songs, startIndex, source) }
+            return
+        }
         // A Spotify playlist's rows still being matched to YouTube Music, or with no match, have
         // nothing to play: they stay out of the queue, and the pick moves to the next playable row.
-        val resolved = songs.withIndex().filterNot { it.value.isUnresolvedSpotify }
+        val resolved = songs.withIndex().filterNot {
+            it.value.isUnresolvedSpotify ||
+                (it.index != startIndex && it.value.desktopExplicitBlocked(sourceId = source?.id ?: it.value.playbackSourceId))
+        }
         if (resolved.isEmpty()) return
         if (partyTrackChangeBlocked()) return
         val playable = resolved.map { canonicalSong(it.value).withSource(source) }
@@ -1027,13 +1062,17 @@ fun BitChordDesktopApp() {
     }
 
     /** Slots a track in right after the one playing. */
-    fun playNext(song: Song) = enqueue(song, next = true)
+    fun playNext(song: Song) = gateExplicit(song, null) { enqueue(song, next = true) }
 
     /** Puts a track at the end of what the listener queued — not the end of the queue. */
-    fun addToQueue(song: Song) = enqueue(song, next = false)
+    fun addToQueue(song: Song) = gateExplicit(song, null) { enqueue(song, next = false) }
 
     /** Starts the station YouTube Music builds around one track. */
     fun startRadio(song: Song) {
+        if (song.desktopExplicitBlocked()) {
+            explicitPrompt = song to { startRadio(song) }
+            return
+        }
         if (partyTrackChangeBlocked()) return
         val seed = canonicalSong(song).copy(radioName = song.title)
         scope.launch {
@@ -1653,6 +1692,37 @@ fun BitChordDesktopApp() {
         playbackEngine.pause()
         partySync.onLocalIntent()
     }
+
+    // The explicit filter applied to the queue as it stands (issue #720): upcoming blocked tracks
+    // go, and a playing one that has just become blocked — taken off the allowed list, or blocking
+    // switched on mid-song — is skipped, or paused when nothing allowed follows it. AutoPlay's
+    // tail is judged as a suggestion. Not in a party, whose queue is everyone's.
+    val explicitPolicy = rememberDesktopExplicitPolicy()
+    LaunchedEffect(explicitPolicy, liveQueue.current?.videoId) {
+        if (explicitPolicy.mode == ExplicitFilterMode.OFF) return@LaunchedEffect
+        if (DesktopListenTogether.state.value.inParty) return@LaunchedEffect
+        val queue = liveQueue
+        val kept = queue.songs.filterIndexed { at, song ->
+            at <= queue.index ||
+                ExplicitFilter.permits(song, explicitPolicy, suggestion = song.queueTier == QueueTier.AUTOPLAY)
+        }
+        if (kept.size != queue.songs.size) {
+            liveQueue = queue.copy(songs = kept)
+            saveQueue()
+        }
+        val current = liveQueue.current ?: return@LaunchedEffect
+        if (ExplicitFilter.permits(current, explicitPolicy, suggestion = current.queueTier == QueueTier.AUTOPLAY)) {
+            return@LaunchedEffect
+        }
+        DesktopTrackLog.log("explicit: '${current.title}' is now blocked; ${if (liveQueue.hasNext) "skipping" else "pausing"}")
+        if (liveQueue.hasNext) playNext() else pauseFromUser()
+    }
+    // What an opened playlist says about who made it, for "Allow explicit songs in my playlists".
+    LaunchedEffect(openedCollection?.browseId, openedCollection?.owned) {
+        val collection = openedCollection ?: return@LaunchedEffect
+        val owned = collection.owned ?: return@LaunchedEffect
+        if (collection.type == BrowseType.PLAYLIST) DesktopExplicit.noteOwnership(collection.browseId, owned)
+    }
     val mprisController = remember(playbackEngine) {
         DesktopMprisController(
             onPlay = ::playFromUser,
@@ -2084,7 +2154,7 @@ fun BitChordDesktopApp() {
         when {
             videoId != null -> {
                 val source = shelfTitle?.let { DesktopQueueSource(it, PlaybackSourceType.HOME) }
-                playSong(item.toSong(), source = source)
+                playSongFromUser(item.toSong(), source = source)
             }
             // An artist is a page of its own, not a list of tracks with a photograph on top.
             browseTypeOf(browseId.orEmpty()) == BrowseType.ARTIST ->
@@ -2998,6 +3068,8 @@ fun BitChordDesktopApp() {
         CompositionLocalProvider(
             LocalContentColor provides Color.White,
             LocalNowPlaying provides selectedSong,
+            // Greys out songs the explicit filter blocks, in every shared row and card.
+            LocalExplicitBlocked provides rememberDesktopRowBlocked(explicitPolicy),
         ) {
             DesktopFrame(
                 // The phone's page is black, not the near-black of its cards.
@@ -3479,6 +3551,27 @@ fun BitChordDesktopApp() {
                             onDismiss = ::closePlaylistDialogs,
                         )
                     }
+                    explicitPrompt?.let { (song, proceed) ->
+                        // Keyed on the song so a second blocked click starts a fresh card rather
+                        // than reusing one that is animating out.
+                        key(song.videoId) {
+                            DesktopExplicitBlockedDialog(song) { choice ->
+                                explicitPrompt = null
+                                when (choice) {
+                                    DesktopExplicitChoice.ALLOW_SONG -> {
+                                        DesktopExplicit.setAllowed(song, true)
+                                        proceed()
+                                    }
+                                    // Back to filtering only what the app picks.
+                                    DesktopExplicitChoice.TURN_OFF_BLOCKING -> {
+                                        DesktopExplicit.setMode(ExplicitFilterMode.SUGGESTIONS)
+                                        proceed()
+                                    }
+                                    DesktopExplicitChoice.CANCEL -> Unit
+                                }
+                            }
+                        }
+                    }
                     if (overlays.downloadManager) {
                         DesktopDownloadManagerDialog(onDismiss = { overlays.downloadManager = false })
                     }
@@ -3751,6 +3844,7 @@ fun BitChordDesktopApp() {
                                     },
                                     onOpenIntegrations = { overlays.settingsPage = DesktopSettingsPage.INTEGRATIONS },
                                     onOpenLicenses = { overlays.settingsPage = DesktopSettingsPage.LICENSES },
+                                    onOpenAllowedExplicit = { overlays.settingsPage = DesktopSettingsPage.ALLOWED_EXPLICIT },
                                 )
                                 DesktopSettingsPage.EQUALIZER -> DesktopEqualizerDialog(onDismiss = ::goBack)
                                 DesktopSettingsPage.AUDIO_OUTPUT -> DesktopAudioOutputDialog(onDismiss = ::goBack)
@@ -3809,6 +3903,7 @@ fun BitChordDesktopApp() {
                                     onDismiss = ::goBack,
                                 )
                                 DesktopSettingsPage.LICENSES -> DesktopLicensesPage(onDismiss = ::goBack)
+                                DesktopSettingsPage.ALLOWED_EXPLICIT -> DesktopAllowedExplicitDialog(onDismiss = ::goBack)
                             }
                             }
                         }
@@ -3817,7 +3912,7 @@ fun BitChordDesktopApp() {
                             period = replayPeriod,
                             holder = replayHolder,
                             onPeriodChange = { replayPeriod = it },
-                            onPlaySong = { playSong(it) },
+                            onPlaySong = { playSongFromUser(it) },
                             onOpenArtist = ::openArtistByName,
                             contentPadding = contentPadding,
                         )
@@ -3832,7 +3927,7 @@ fun BitChordDesktopApp() {
                                 playSongs(songs, index, openedArtist?.let { artistSource(it) })
                             },
                             onShuffle = { songs ->
-                                playSongs(songs, 0, openedArtist?.let { artistSource(it) })
+                                playSongs(songs, songs.desktopFirstPlayable(openedArtist?.browseId), openedArtist?.let { artistSource(it) })
                             },
                             onOpenMenu = { song -> openMenu(song) },
                             onShelfItemClick = ::openShelfItem,
@@ -3852,35 +3947,45 @@ fun BitChordDesktopApp() {
                                 }
                             }
                         }
-                        openedCollection != null -> DesktopCollectionPage(
-                            collection = openedCollection!!,
-                            loadingMore = collectionLoadingMore,
-                            onLoadMore = ::loadMoreCollectionSongs,
-                            onRename = { overlays.rename = true }.takeIf { openedCollection?.owned == true },
-                            onShare = openedCollection
-                                ?.takeIf { it.type == BrowseType.ALBUM || it.type == BrowseType.PLAYLIST }
-                                ?.let { collection -> { shareCollection(collection) } },
-                            onDelete = { overlays.delete = true }.takeIf { openedCollection?.owned == true },
-                            onRemoveFromPlaylist = ::removeFromOpenPlaylist
-                                .takeIf { openedCollection?.owned == true },
-                            likedIds = likedIds,
-                            onPlaySongs = { songs, index ->
-                                playSongs(songs, index, openedCollection?.let { collectionSource(it) })
-                            },
-                            onShuffle = { songs ->
-                                playSongs(songs.shuffled(), 0, openedCollection?.let { collectionSource(it) })
-                            },
-                            onDownloadAll = ::downloadAll,
-                            animatedCanvas = animatedCanvas,
-                            onToggleLike = { song ->
-                                toggleLike(song)
-                            },
-                            onAddToPlaylist = { playlistTarget = it },
-                            onDownload = ::downloadSong,
-                            downloadedIds = downloads.map(Song::videoId).toSet(),
-                            downloadInProgress = downloadInProgress,
-                            contentPadding = contentPadding,
-                        )
+                        openedCollection != null -> CompositionLocalProvider(
+                            // Rows here play from this page, so the own-playlist exception is judged against it.
+                            LocalExplicitBlocked provides rememberDesktopRowBlocked(explicitPolicy, openedCollection?.browseId),
+                        ) {
+                            DesktopCollectionPage(
+                                collection = openedCollection!!,
+                                loadingMore = collectionLoadingMore,
+                                onLoadMore = ::loadMoreCollectionSongs,
+                                onRename = { overlays.rename = true }.takeIf { openedCollection?.owned == true },
+                                onShare = openedCollection
+                                    ?.takeIf { it.type == BrowseType.ALBUM || it.type == BrowseType.PLAYLIST }
+                                    ?.let { collection -> { shareCollection(collection) } },
+                                onDelete = { overlays.delete = true }.takeIf { openedCollection?.owned == true },
+                                onRemoveFromPlaylist = ::removeFromOpenPlaylist
+                                    .takeIf { openedCollection?.owned == true },
+                                likedIds = likedIds,
+                                onPlaySongs = { songs, index ->
+                                    playSongs(songs, index, openedCollection?.let { collectionSource(it) })
+                                },
+                                onShuffle = { songs ->
+                                    val shuffled = songs.shuffled()
+                                    playSongs(
+                                        shuffled,
+                                        shuffled.desktopFirstPlayable(openedCollection?.browseId),
+                                        openedCollection?.let { collectionSource(it) },
+                                    )
+                                },
+                                onDownloadAll = ::downloadAll,
+                                animatedCanvas = animatedCanvas,
+                                onToggleLike = { song ->
+                                    toggleLike(song)
+                                },
+                                onAddToPlaylist = { playlistTarget = it },
+                                onDownload = ::downloadSong,
+                                downloadedIds = downloads.map(Song::videoId).toSet(),
+                                downloadInProgress = downloadInProgress,
+                                contentPadding = contentPadding,
+                            )
+                        }
                         destination == DesktopDestination.LISTEN_NOW -> HomeScreen(
                             state = homeState,
                             listState = homeListState,
@@ -3951,7 +4056,7 @@ fun BitChordDesktopApp() {
                             onSongClick = { songs, index ->
                                 songs.getOrNull(index)?.let { song ->
                                     recordSongSearch(song)
-                                    playSong(song, source = DesktopQueueSource(DesktopStrings["search", "Search"], PlaybackSourceType.SEARCH))
+                                    playSongFromUser(song, source = DesktopQueueSource(DesktopStrings["search", "Search"], PlaybackSourceType.SEARCH))
                                 }
                             },
                             onSongLongPress = ::openMenu,
@@ -3960,7 +4065,7 @@ fun BitChordDesktopApp() {
                             },
                             onTopResultPlay = { song ->
                                 recordSongSearch(song)
-                                playSong(song, source = DesktopQueueSource(DesktopStrings["search", "Search"], PlaybackSourceType.SEARCH))
+                                playSongFromUser(song, source = DesktopQueueSource(DesktopStrings["search", "Search"], PlaybackSourceType.SEARCH))
                             },
                             onTopResultPlaylist = { song ->
                                 recordSongSearch(song)
@@ -3985,7 +4090,7 @@ fun BitChordDesktopApp() {
                             onHistoryClick = { entity ->
                                 // Going back to a recent does not record it again, as on the phone.
                                 when (entity.entityType) {
-                                    EntityType.TRACK -> playSong(
+                                    EntityType.TRACK -> playSongFromUser(
                                         Song(
                                             videoId = entity.id,
                                             title = entity.title,
@@ -4087,7 +4192,7 @@ fun BitChordDesktopApp() {
                             // The account's history when there is one, and what
                             // this computer played when there is not.
                             history = remoteHistory.ifEmpty { history },
-                            onSongClick = { playSong(it, source = DesktopQueueSource(DesktopStrings["history", "History"], PlaybackSourceType.HISTORY)) },
+                            onSongClick = { playSongFromUser(it, source = DesktopQueueSource(DesktopStrings["history", "History"], PlaybackSourceType.HISTORY)) },
                             onDownload = ::downloadSong,
                             onAddToPlaylist = { playlistTarget = it },
                             downloadedIds = downloads.map(Song::videoId).toSet(),
@@ -4098,7 +4203,7 @@ fun BitChordDesktopApp() {
                         destination == DesktopDestination.DOWNLOADS -> Box(Modifier.fillMaxSize()) {
                             DesktopDownloadsPage(
                                 downloads = downloads,
-                                onSongClick = { playSong(it, source = DesktopQueueSource(DesktopStrings["downloads", "Downloads"], PlaybackSourceType.BROWSE)) },
+                                onSongClick = { playSongFromUser(it, source = DesktopQueueSource(DesktopStrings["downloads", "Downloads"], PlaybackSourceType.BROWSE)) },
                                 contentPadding = contentPadding,
                                 menu = { song -> songMenu(song) },
                             )
@@ -4116,7 +4221,7 @@ fun BitChordDesktopApp() {
                         }
                         destination == DesktopDestination.LOCAL_MUSIC -> DesktopLocalMusicPage(
                             songs = localSongs,
-                            onSongClick = { playSong(it, source = DesktopQueueSource(DesktopStrings["local_music", "Local Music"], PlaybackSourceType.BROWSE)) },
+                            onSongClick = { playSongFromUser(it, source = DesktopQueueSource(DesktopStrings["local_music", "Local Music"], PlaybackSourceType.BROWSE)) },
                             contentPadding = contentPadding,
                             menu = { song -> songMenu(song) },
                         )
@@ -5028,7 +5133,7 @@ private fun DesktopArtistPage(
                                 }
                                 DesktopPlayPill(
                                     label = DesktopStrings["play", "Play"],
-                                    onClick = { if (top.isNotEmpty()) onPlaySongs(top, 0) },
+                                    onClick = { if (top.isNotEmpty()) onPlaySongs(top, top.desktopFirstPlayable()) },
                                 )
                                 DesktopCircleButton(BitChordIcons.Shuffle, DesktopStrings["shuffle", "Shuffle"], onClick = { onShuffle(top) })
                             }
@@ -5577,6 +5682,8 @@ private fun DesktopSettingsScreen(
     onTestSource: (DesktopSourceConfig) -> Unit,
     onOpenIntegrations: () -> Unit,
     onOpenLicenses: () -> Unit,
+    /** Opens the songs let past the explicit filter. */
+    onOpenAllowedExplicit: () -> Unit,
 ) {
     var editingSource by remember { mutableStateOf<DesktopSourceConfig?>(null) }
     val sourceProbeKey = sourceConfigs
@@ -6017,6 +6124,7 @@ private fun DesktopSettingsScreen(
                         dontRepeatSuggestions,
                         onDontRepeatSuggestionsChange,
                     )
+                    DesktopExplicitSettings(onOpenAllowedExplicit = onOpenAllowedExplicit)
                     SettingsToggle(
                         DesktopStrings["d_tray_icon", "Tray icon"],
                         DesktopStrings[
@@ -6673,7 +6781,7 @@ private fun DesktopCollectionPage(
                             DesktopCircleButton(BitChordIcons.Shuffle, DesktopStrings["shuffle", "Shuffle"], onClick = { onShuffle(songs) })
                             DesktopPlayPill(
                                 label = DesktopStrings["play", "Play"],
-                                onClick = { if (songs.isNotEmpty()) onPlaySongs(songs, 0) },
+                                onClick = { if (songs.isNotEmpty()) onPlaySongs(songs, songs.desktopFirstPlayable(collection.browseId)) },
                                 iconOnly = true,
                             )
                             DesktopCircleButton(
@@ -6809,10 +6917,12 @@ private fun DesktopCollectionSongRow(
     // A Spotify track still being matched to YouTube Music, or with no match: listed, but there is
     // nothing yet to play, like, save or remove.
     val unresolved = song.isUnresolvedSpotify
+    // Greyed, not hidden, when the explicit filter blocks it; a click still asks to allow it.
+    val explicitBlocked = LocalExplicitBlocked.current(song)
     Row(
         Modifier
             .fillMaxWidth()
-            .alpha(if (song.isMatchMissing) 0.45f else 1f)
+            .alpha(if (song.isMatchMissing || explicitBlocked) 0.45f else 1f)
             .clip(RoundedCornerShape(6.dp))
             .background(if (striped) Color.White.copy(alpha = 0.04f) else Color.Transparent)
             .clickable(enabled = !unresolved) { onClick(song) }
@@ -6838,14 +6948,20 @@ private fun DesktopCollectionSongRow(
             DesktopArtwork(song.thumbnailUrl, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), px = ROW_ART_PX)
             Spacer(Modifier.width(12.dp))
         }
-        Text(
-            song.title,
-            Modifier.weight(0.42f),
-            color = if (nowPlaying) Color.White else Color.White.copy(alpha = 0.75f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            fontWeight = FontWeight.Medium,
-        )
+        Row(Modifier.weight(0.42f), verticalAlignment = Alignment.CenterVertically) {
+            val titleColor = if (nowPlaying) Color.White else Color.White.copy(alpha = 0.75f)
+            if (song.isExplicit == true) {
+                ExplicitBadge(titleColor)
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(
+                song.title,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.Medium,
+            )
+        }
         Text(
             song.artist,
             Modifier.weight(0.20f).padding(horizontal = 8.dp),
@@ -7247,6 +7363,7 @@ private fun DesktopSongRow(
     Row(
         Modifier
             .fillMaxWidth()
+            .alpha(if (LocalExplicitBlocked.current(song)) 0.45f else 1f)
             .clip(RoundedCornerShape(10.dp))
             .background(DesktopGlass.copy(alpha = 0.38f))
             .clickable { onClick(song) }
@@ -7270,13 +7387,20 @@ private fun DesktopSongRow(
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                song.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Medium,
-                color = if (song.isNowPlaying()) Color.White else Color.White.copy(alpha = 0.75f),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val titleColor = if (song.isNowPlaying()) Color.White else Color.White.copy(alpha = 0.75f)
+                if (song.isExplicit == true) {
+                    ExplicitBadge(titleColor)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    song.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Medium,
+                    color = titleColor,
+                )
+            }
             Text(listOfNotNull(song.artist.takeIf(String::isNotBlank), song.durationText).joinToString(" · "), color = DesktopSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         song.sourceQuality?.let { quality ->
@@ -7524,6 +7648,55 @@ internal fun DesktopBareSlider(
         },
         modifier = modifier,
     )
+}
+
+/**
+ * The explicit filter's rows (issue #720), in the same order and wording as the phone's: filter
+ * what the app picks, optionally block explicit songs everywhere, optionally still allow them from
+ * the listener's own playlists, and the list of songs allowed one at a time.
+ */
+@Composable
+private fun DesktopExplicitSettings(onOpenAllowedExplicit: () -> Unit) {
+    val mode by DesktopExplicit.mode.collectAsState()
+    val allowOwn by DesktopExplicit.allowOwnPlaylists.collectAsState()
+    val allowed by DesktopExplicit.allowList.songs.collectAsState()
+    SettingsToggle(
+        DesktopStrings["d_filter_explicit_content", "Filter explicit content"],
+        DesktopStrings["d_filter_explicit_content_subtitle", "AutoPlay and radio won\u2019t add songs marked explicit"],
+        mode != ExplicitFilterMode.OFF,
+    ) { on -> DesktopExplicit.setMode(if (on) ExplicitFilterMode.SUGGESTIONS else ExplicitFilterMode.OFF) }
+    if (mode != ExplicitFilterMode.OFF) {
+        SettingsToggle(
+            DesktopStrings["d_block_explicit_everywhere", "Block explicit songs everywhere"],
+            DesktopStrings["d_block_explicit_everywhere_subtitle", "Explicit songs won\u2019t play unless you allow them one at a time"],
+            mode == ExplicitFilterMode.EVERYWHERE,
+        ) { on -> DesktopExplicit.setMode(if (on) ExplicitFilterMode.EVERYWHERE else ExplicitFilterMode.SUGGESTIONS) }
+    }
+    if (mode == ExplicitFilterMode.EVERYWHERE) {
+        SettingsToggle(
+            DesktopStrings["d_allow_explicit_in_my_playlists", "Allow explicit songs in my playlists"],
+            DesktopStrings[
+                "d_allow_explicit_in_my_playlists_subtitle",
+                "Songs you added to playlists you made play normally, even when blocked elsewhere",
+            ],
+            allowOwn,
+            DesktopExplicit::setAllowOwnPlaylists,
+        )
+    }
+    // While the filter is on, so the list can be found before anything is on it; and afterwards
+    // for as long as something is, so turning the filter off never hides songs still allowed.
+    if (mode != ExplicitFilterMode.OFF || allowed.isNotEmpty()) {
+        SettingsRow(
+            icon = Icons.Rounded.Explicit,
+            title = DesktopStrings["d_allowed_explicit_songs", "Allowed explicit songs"],
+            subtitle = if (allowed.size == 1) {
+                DesktopStrings["d_one_song_allowed", "1 song allowed past the filter"]
+            } else {
+                DesktopStrings["d_songs_allowed", "%1\$d songs allowed past the filter"].replace("%1\$d", allowed.size.toString())
+            },
+            onClick = onOpenAllowedExplicit,
+        )
+    }
 }
 
 @Composable

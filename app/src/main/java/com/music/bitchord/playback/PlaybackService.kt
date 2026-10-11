@@ -972,6 +972,10 @@ class PlaybackService : MediaLibraryService() {
             autoplayLoadJob?.cancel()
             autoplayLoadJob = null
             autoplaySeed = null
+            // Catches queues that never passed through the app's own play
+            // actions — one restored from the last session, a deep link, a
+            // car head unit — before the blocked track reaches the front.
+            dropBlockedExplicitFromQueue()
             loadAutoplayForCurrentTrack()
             loadLyricsForCurrentTrack()
             if (exoPlayer.isPlaying) startLyricsTicker()
@@ -2592,6 +2596,51 @@ class PlaybackService : MediaLibraryService() {
             exoPlayer.removeMediaItem(index)
         }
         return dropped.reversed()
+    }
+
+    /**
+     * Applies the explicit filter to the queue as it stands — see
+     * [ExplicitFilter]. AutoPlay's tail is judged as a suggestion and the rest
+     * as the listener's own picks, so under [ExplicitFilterMode.SUGGESTIONS]
+     * only AutoPlay's tracks can go.
+     *
+     * Upcoming blocked tracks are removed. The playing track, if it is now
+     * blocked too — the listener took it off the allowed list mid-song, or
+     * switched blocking on while it played — is skipped rather than removed, so
+     * it stays in the history behind and the queue doesn't shift under them.
+     * With nothing allowed after it, playback pauses at its start instead.
+     * Blocking that waited for the song to end would read as the setting not
+     * having worked.
+     *
+     * History behind the current track is left alone; it doesn't play again by
+     * itself.
+     *
+     * Not in a party. The queue there is everyone's, and one member's filter
+     * silently deleting or skipping other people's picks would be a fight, not
+     * a setting.
+     */
+    private fun dropBlockedExplicitFromQueue() {
+        if (AppSettings.explicitFilter.value == ExplicitFilterMode.OFF) return
+        if (ListenTogether.state.value.inParty) return
+        val exoPlayer = player ?: return
+        for (index in exoPlayer.mediaItemCount - 1 downTo exoPlayer.currentMediaItemIndex + 1) {
+            val item = exoPlayer.getMediaItemAt(index)
+            if (item.toSong().explicitBlocked(suggestion = item.fromAutoplay)) {
+                exoPlayer.removeMediaItem(index)
+            }
+        }
+        val current = exoPlayer.currentMediaItem ?: return
+        if (!current.toSong().explicitBlocked(suggestion = current.fromAutoplay)) return
+        if (exoPlayer.hasNextMediaItem()) {
+            TrackLog.d("BitChord", "playing track is now blocked by the explicit filter — skipping", current.mediaId)
+            // Everything after it was just filtered, so the next item is one
+            // the listener is allowed to hear.
+            exoPlayer.seekToNextMediaItem()
+        } else {
+            TrackLog.d("BitChord", "playing track is now blocked by the explicit filter — pausing", current.mediaId)
+            exoPlayer.pause()
+            exoPlayer.seekTo(0)
+        }
     }
 
     /** Clears the queue's AutoPlay tail for the duration of repeat-all, keeping it to put back. */
@@ -5950,6 +5999,19 @@ class PlaybackService : MediaLibraryService() {
     private fun observeSettings() {
         scope.launch {
             AppSettings.skipSilence.collect { on -> eachPlayer { it.skipSilenceEnabled = on } }
+        }
+        scope.launch {
+            // Turning the explicit filter on (or taking a song back off the
+            // allowed list) applies to what is already lined up, not only to
+            // what gets queued from now on.
+            combine(
+                AppSettings.explicitFilter,
+                AppSettings.explicitAllowed,
+                AppSettings.explicitAllowOwnPlaylists,
+                AppSettings.explicitOwnPlaylistIds,
+            ) { _, _, _, _ -> }
+                .drop(1)
+                .collect { dropBlockedExplicitFromQueue() }
         }
         scope.launch {
             // Re-evaluate the already queued next track immediately when this

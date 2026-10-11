@@ -30,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.Animation
 import androidx.compose.material.icons.rounded.BarChart
@@ -52,6 +53,8 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.Gradient
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Explicit
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Translate
@@ -110,6 +113,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -148,6 +152,8 @@ import com.music.bitchord.data.settings.DownloadQuality
 import com.music.bitchord.data.settings.ThemeMode
 import com.music.bitchord.data.stats.Backup
 import com.music.bitchord.playback.AudioCache
+import com.music.bitchord.data.settings.ExplicitAllowList
+import com.music.bitchord.playback.ExplicitFilterMode
 import com.music.bitchord.ui.player.fullBleedArtworkAvailable
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -178,6 +184,8 @@ fun SettingsScreen(
     onListenTogether: () -> Unit,
     onSpotifyCanvasAuth: () -> Unit,
     onAppLanguage: () -> Unit,
+    /** Opens the list of songs let past the explicit filter. */
+    onAllowedExplicitSongs: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -229,6 +237,9 @@ fun SettingsScreen(
     val showQueueHistory by AppSettings.showQueueHistory.collectAsStateWithLifecycle()
     val swipeToPlayNext by AppSettings.swipeToPlayNext.collectAsStateWithLifecycle()
     val dontRepeatSuggestions by AppSettings.dontRepeatSuggestions.collectAsStateWithLifecycle()
+    val explicitFilter by AppSettings.explicitFilter.collectAsStateWithLifecycle()
+    val allowedExplicitSongs by ExplicitAllowList.songs.collectAsStateWithLifecycle()
+    val explicitAllowOwnPlaylists by AppSettings.explicitAllowOwnPlaylists.collectAsStateWithLifecycle()
     val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
     val smartVersionAlignment by AppSettings.smartVersionAlignment.collectAsStateWithLifecycle()
     val filterNonMusicAudio by AppSettings.filterNonMusicAudio.collectAsStateWithLifecycle()
@@ -1266,6 +1277,109 @@ fun SettingsScreen(
                     },
                     onClick = { AppSettings.setDontRepeatSuggestions(!dontRepeatSuggestions) },
                 )
+            }
+            // Issue #720. Two switches rather than a three-way picker because
+            // that is how listeners already know it from Spotify and Amazon
+            // Music: one to keep explicit songs out of what the app picks, one
+            // to keep them out of everything.
+            val filterExplicitTitle = stringResource(R.string.filter_explicit_content)
+            row(filterExplicitTitle, "explicit", "clean", "parental", "autoplay", "radio") {
+                val on = explicitFilter != ExplicitFilterMode.OFF
+                val toggle = {
+                    AppSettings.setExplicitFilter(
+                        if (on) ExplicitFilterMode.OFF else ExplicitFilterMode.SUGGESTIONS,
+                    )
+                }
+                SettingsRow(
+                    icon = Icons.Rounded.Explicit,
+                    title = filterExplicitTitle,
+                    subtitle = stringResource(R.string.filter_explicit_content_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = on,
+                            onCheckedChange = { toggle() },
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = toggle,
+                )
+            }
+            val blockExplicitTitle = stringResource(R.string.block_explicit_everywhere)
+            row(blockExplicitTitle, "explicit", "clean", "parental", "block") {
+                val available = explicitFilter != ExplicitFilterMode.OFF
+                val everywhere = explicitFilter == ExplicitFilterMode.EVERYWHERE
+                val toggle = {
+                    AppSettings.setExplicitFilter(
+                        if (everywhere) ExplicitFilterMode.SUGGESTIONS else ExplicitFilterMode.EVERYWHERE,
+                    )
+                }
+                SettingsRow(
+                    icon = Icons.Rounded.Block,
+                    title = blockExplicitTitle,
+                    subtitle = stringResource(R.string.block_explicit_everywhere_subtitle),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = everywhere,
+                            onCheckedChange = { toggle() },
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) toggle else null,
+                )
+            }
+            // Only under the full block: with suggestions-only filtering,
+            // anything played from a playlist is already the listener's pick.
+            val allowOwnPlaylistsTitle = stringResource(R.string.allow_explicit_in_my_playlists)
+            row(allowOwnPlaylistsTitle, "explicit", "playlist", "my playlists") {
+                val available = explicitFilter == ExplicitFilterMode.EVERYWHERE
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                    title = allowOwnPlaylistsTitle,
+                    subtitle = stringResource(R.string.allow_explicit_in_my_playlists_subtitle),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = explicitAllowOwnPlaylists,
+                            onCheckedChange = AppSettings::setExplicitAllowOwnPlaylists,
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) {
+                        { AppSettings.setExplicitAllowOwnPlaylists(!explicitAllowOwnPlaylists) }
+                    } else {
+                        null
+                    },
+                )
+            }
+            // While the filter is on, so the list can be found before anything
+            // is on it; and afterwards for as long as something is, so turning
+            // the filter off never hides songs that are still allowed.
+            if (explicitFilter != ExplicitFilterMode.OFF || allowedExplicitSongs.isNotEmpty()) {
+                val allowedTitle = stringResource(R.string.allowed_explicit_songs)
+                row(allowedTitle, "explicit", "allowed", "exceptions") {
+                    SettingsRow(
+                        icon = Icons.Rounded.Explicit,
+                        title = allowedTitle,
+                        subtitle = pluralStringResource(
+                            R.plurals.allowed_explicit_songs_count,
+                            allowedExplicitSongs.size,
+                            allowedExplicitSongs.size,
+                        ),
+                        onClick = onAllowedExplicitSongs,
+                    )
+                }
             }
             val stopMusicOnCloseTitle = stringResource(R.string.stop_music_on_close)
             row(stopMusicOnCloseTitle, "notification", "background") {

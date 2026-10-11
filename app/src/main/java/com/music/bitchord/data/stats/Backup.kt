@@ -3,7 +3,9 @@ package com.music.bitchord.data.stats
 import android.content.Context
 import android.net.Uri
 import com.music.bitchord.BuildConfig
+import com.music.bitchord.data.settings.AllowedExplicitSong
 import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.data.settings.ExplicitAllowList
 import com.music.bitchord.data.settings.SearchHistory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -70,6 +72,7 @@ object Backup {
                     PrefValue.of(value)?.let { key to it }
                 }.toMap(),
                 listening = buckets,
+                explicitAllowed = ExplicitAllowList.songs.value,
             )
             val text = json.encodeToString(BackupFile.serializer(), file)
             context.contentResolver.openOutputStream(target, "wt")
@@ -101,6 +104,9 @@ object Backup {
 
             ListeningStats.importAll(file.listening)
             AppSettings.importPrefs(file.settings.mapValues { it.value.decoded() })
+            // Its own file, so importPrefs doesn't reach it. Replaced like the
+            // settings are, so a restore doesn't leave two devices' lists mixed.
+            ExplicitAllowList.replaceAll(file.explicitAllowed)
             // Shares AppSettings' preference file, so it has already been
             // overwritten by the line above — it just doesn't know yet.
             SearchHistory.reload()
@@ -139,6 +145,11 @@ object Backup {
         val exportedAt: String = "",
         val settings: Map<String, PrefValue> = emptyMap(),
         val listening: List<StoredBucket> = emptyList(),
+        /**
+         * Songs let past the explicit filter. Defaulted, so older files still
+         * read and older builds skip it; no schema bump needed.
+         */
+        val explicitAllowed: List<AllowedExplicitSong> = emptyList(),
     )
 
     /** One preference, with the type it has to be restored as. */

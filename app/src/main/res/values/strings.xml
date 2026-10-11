@@ -353,6 +353,32 @@
     <string name="full_screen_cover_art_subtitle">Runs the cover to the edges of the player instead of a square sleeve</string>
     <string name="animated_cover_art_subtitle">Plays the looping video some releases ship instead of a still sleeve</string>
     <string name="dont_repeat_songs_subtitle">AutoPlay won’t suggest a song already played or suggested this session</string>
+    <string name="filter_explicit_content">Filter explicit content</string>
+    <string name="filter_explicit_content_subtitle">AutoPlay and radio won’t add songs marked explicit</string>
+    <string name="block_explicit_everywhere">Block explicit songs everywhere</string>
+    <string name="block_explicit_everywhere_subtitle">Explicit songs won’t play unless you allow them one at a time</string>
+    <string name="allow_explicit_in_my_playlists">Allow explicit songs in my playlists</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Songs you added to playlists you made play normally, even when blocked elsewhere</string>
+    <string name="allowed_explicit_songs">Allowed explicit songs</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d song allowed past the filter</item>
+        <item quantity="other">%1$d songs allowed past the filter</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">These play even when the filter blocks explicit songs. Remove one to block it again.</string>
+    <string name="allowed_explicit_songs_empty">No songs allowed yet. Tap a greyed-out song and choose Allow, or use “Allow this explicit song” in its menu.</string>
+    <string name="clear_all">Clear all</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">Remove %1$d song</item>
+        <item quantity="other">Remove all %1$d songs</item>
+    </plurals>
+    <string name="explicit_song_blocked">Explicit song</string>
+    <string name="explicit_song_blocked_message">“%1$s” is marked explicit and your filter is blocking it.</string>
+    <string name="allow_this_song">Allow this song</string>
+    <string name="turn_off_blocking">Turn off blocking</string>
+    <string name="tap_again_to_confirm">Tap again to confirm</string>
+    <string name="allow_explicit_song">Allow this explicit song</string>
+    <string name="block_explicit_song">Block this explicit song again</string>
+    <string name="explicit_songs_skipped">Explicit songs skipped by your filter</string>
     <string name="download_quality_subtitle">%1$s per track, whatever the connection</string>
     <string name="filter_non_music_audio">Filter non-music audio</string>
     <string name="filter_non_music_audio_subtitle">Hides clips under 30 seconds, WAV files, voice notes, recordings and system sounds</string>

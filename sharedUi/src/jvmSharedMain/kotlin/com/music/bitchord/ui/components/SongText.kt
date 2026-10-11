@@ -28,6 +28,19 @@ fun Modifier.thumbnailBorder(shape: Shape): Modifier = composed {
     )
 }
 
+/** The catalogue-standard outlined E for explicit audio, drawn in [color]. */
+@Composable
+fun ExplicitBadge(color: Color, modifier: Modifier = Modifier) {
+    Text(
+        text = "E",
+        style = MaterialTheme.typography.labelSmall,
+        color = color,
+        modifier = modifier
+            .border(1.dp, color.copy(alpha = 0.72f), RoundedCornerShape(2.dp))
+            .padding(horizontal = 3.dp),
+    )
+}
+
 /** A song title with the catalogue-standard outlined E for explicit audio. */
 @Composable
 fun ExplicitSongTitle(
@@ -38,14 +51,7 @@ fun ExplicitSongTitle(
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         if (song.isExplicit == true) {
-            Text(
-                text = "E",
-                style = MaterialTheme.typography.labelSmall,
-                color = color,
-                modifier = Modifier
-                    .border(1.dp, color.copy(alpha = 0.72f), RoundedCornerShape(2.dp))
-                    .padding(horizontal = 3.dp),
-            )
+            ExplicitBadge(color)
             Spacer(Modifier.width(6.dp))
         }
         Text(
