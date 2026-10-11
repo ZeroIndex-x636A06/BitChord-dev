@@ -81,22 +81,42 @@ object CleanVersionMatcher {
      * remix, karaoke, a slowed or sped-up edit, a live take, a lip sync…), and
      * runs within [MAX_LENGTH_DIFFERENCE_SEC] of the original. Its length has
      * to be known: an upload is too loose a match to take on trust.
+     *
+     * A song with a featured artist is often released as "<featured> Remix" —
+     * Tame Impala's *Dracula (feat. JENNIE)* is "Dracula (JENNIE Remix)" — so
+     * a remix named for one of the song's own featured artists is the song,
+     * not a remix of it. Such a song can also have a solo version of the same
+     * name, so an upload that names the featured artist is preferred; one that
+     * doesn't is still taken when it's all there is, since plenty of uploads
+     * leave the featured credit off.
      */
     fun pickVideo(explicit: Song, videos: List<Song>): Song? {
         val wantedTitle = coreTitle(explicit.title)
         if (wantedTitle.isBlank()) return null
         val names = artistNames(explicit)
-        return videos
+        val featured = featuredNames(explicit)
+        val matches = videos
             .asSequence()
             .filter { it.videoId != explicit.videoId && it.isExplicit != true }
             .filter { CLEAN_MARK.containsMatchIn(fold(it.title)) }
-            .filter { video -> REJECT.findAll(fold(video.title)).none { it.value !in wantedTitle } }
+            .filter { video ->
+                val title = " ${fold(video.title).tidy()} "
+                REJECT.findAll(fold(video.title)).none { word ->
+                    word.value !in wantedTitle && !(word.value == "remix" && featured.any { " $it remix " in title })
+                }
+            }
             .filter { video -> titleParts(video.title, names).any { it == wantedTitle } }
             .filter { video ->
                 val title = " ${coreTitle(video.title)} "
                 names.any { " $it " in title } || TrackMatcher.sharesArtist(explicit.artist, video.artist)
             }
-            .closestIn(explicit, requireLength = true)
+            .toList()
+        val namingFeatured = matches.filter { video ->
+            val title = " ${fold(video.title).tidy()} "
+            featured.any { " $it " in title }
+        }
+        return namingFeatured.asSequence().closestIn(explicit, requireLength = true)
+            ?: matches.asSequence().closestIn(explicit, requireLength = true)
     }
 
     private fun Sequence<Song>.closestIn(explicit: Song, requireLength: Boolean): Song? {
@@ -147,6 +167,19 @@ object CleanVersionMatcher {
             .filter { it.length >= 2 }
             .distinct()
 
+    /** The song's featured artists: its "(feat. …)" credit and every credited artist after the first. */
+    private fun featuredNames(song: Song): List<String> {
+        val credit = FEATURING.find(fold(song.title))?.value
+            ?.replace(FEATURING_WORD, " ")
+            ?.split(ARTIST_BREAK)
+            .orEmpty()
+        val credited = song.artists.drop(1).map { it.name } + song.artist.split(ARTIST_BREAK).drop(1)
+        return (credit + credited)
+            .map { it.tidyName() }
+            .filter { it.length >= 2 }
+            .distinct()
+    }
+
     private fun String.tidyName() = fold(this).tidy()
 
     private fun fold(text: String): String =
@@ -164,6 +197,7 @@ object CleanVersionMatcher {
     private val SOURCE_TAG = Regex("""[(\[]\s*from\s[^)\]]*[)\]]""")
     private val SOURCE_SUFFIX = Regex("""\s+-\s+from\s.*$""")
     private val FEATURING = Regex("""[(\[]\s*(?:feat\.?|ft\.?|featuring|with)\s[^)\]]*[)\]]""")
+    private val FEATURING_WORD = Regex("""^[(\[]\s*(?:feat\.?|ft\.?|featuring|with)\s|[)\]]$""")
     private val FEATURING_BARE = Regex("""\b(?:feat\.?|ft\.?|featuring)\s.*$""")
     private val BRACKETED = Regex("""[(\[][^)\]]*[)\]]""")
     private val PART_BREAK = Regex("""\s+[-–—|]\s+|\s*\|\s*|:\s+""")
@@ -293,7 +327,7 @@ object CleanVersions {
 
     private suspend fun lookUp(song: Song): Song? {
         val name = TrackMatcher.queries(TrackMatcher.targetOf(song)).firstOrNull() ?: return null
-        var answered = false
+        var failed = false
         val steps = listOf(
             Triple(name, SearchFilter.SONGS, false),
             Triple("$name clean", SearchFilter.SONGS, false),
@@ -303,9 +337,9 @@ object CleanVersions {
             val candidates = search(query, filter)
             if (candidates == null) {
                 TrackLog.d(TAG, "clean version: \"$query\" (${filter.name}) failed", song.videoId)
+                failed = true
                 continue
             }
-            answered = true
             val clean = if (videos) {
                 CleanVersionMatcher.pickVideo(song, candidates)?.let { song.asCleanUpload(it) }
             } else {
@@ -318,9 +352,12 @@ object CleanVersions {
             }
             TrackLog.d(TAG, "clean version: \"$query\" (${filter.name}) — ${candidates.size} rows, no match", song.videoId)
         }
-        // Only a search that came back and simply had no clean release counts
-        // as "none" — a failed one says nothing about the catalogue.
-        if (answered) rememberMissing(song.videoId, System.currentTimeMillis())
+        // Only "none" when every search came back and none had a clean
+        // release. If one failed — the uploads search, say, after both Songs
+        // searches came back empty — the answer may be in the one that failed,
+        // so nothing is remembered and the next look asks again.
+        if (!failed) rememberMissing(song.videoId, System.currentTimeMillis())
+        else TrackLog.d(TAG, "clean version: not looked up fully, will ask again", song.videoId)
         return null
     }
 
@@ -439,7 +476,8 @@ object CleanVersions {
             releases += id
         }
         // "None" from an older lookup isn't believed: it may have been asked in
-        // a way that couldn't see the clean release (signed in, before 2).
+        // a way that couldn't see the clean release (signed in, before 2), or
+        // saved after a search that failed partway (before 3).
         val sameLookup = (root["v"] as? JsonPrimitive)?.longOrNull == LOOKUP_VERSION.toLong()
         if (sameLookup) (root["missing"] as? JsonArray)?.forEach { element ->
             val o = element as? JsonObject ?: return@forEach
@@ -468,7 +506,7 @@ object CleanVersions {
     private const val TAG = "BitChord"
 
     /** Bumped when the lookup changes in a way that could now find what it missed. */
-    private const val LOOKUP_VERSION = 2
+    private const val LOOKUP_VERSION = 3
 
     /** Searches a batch of suggestions may have running together. */
     private const val LOOKUPS_AT_ONCE = 4

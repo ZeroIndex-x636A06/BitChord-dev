@@ -1,5 +1,6 @@
 package com.music.bitchord.playback
 
+import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.Song
 import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
@@ -118,6 +119,25 @@ class CleanVersionsTest {
     }
 
     @Test
+    fun `a featured artist's own remix is the featured version`() {
+        // Real results for "dracula tame impala clean": the version with JENNIE
+        // is released as "Dracula (JENNIE Remix)", and the solo one shares its name.
+        val withJennie = song("e", title = "Dracula (feat. JENNIE)", artist = "Tame Impala", length = "3:30", explicit = true)
+        val uploads = listOf(
+            video("solo", "Tame Impala - Dracula (clean version)", "McDuxx", "3:26"),
+            video("jennie", "Tame Impala, JENNIE - Dracula (JENNIE Remix) (Clean - Lyrics) (feat. JENNIE)", "Tame Impala", "3:31"),
+            video("slowed", "Tame Impala, JENNIE - Dracula (JENNIE Remix) (slowed & reverb)", "Jamie Deen Music", "3:30"),
+        )
+        assertEquals("jennie", CleanVersionMatcher.pickVideo(withJennie, uploads)?.videoId)
+        // The solo song takes the solo upload, and never somebody else's remix.
+        val solo = song("e2", title = "Dracula", artist = "Tame Impala", length = "3:26", explicit = true)
+        assertEquals("solo", CleanVersionMatcher.pickVideo(solo, uploads)?.videoId)
+        assertNull(CleanVersionMatcher.pickVideo(solo, uploads.drop(1)))
+        // With no upload naming the featured artist, one that leaves the credit off still counts.
+        assertEquals("solo", CleanVersionMatcher.pickVideo(withJennie, uploads.take(1))?.videoId)
+    }
+
+    @Test
     fun `a different length is a different cut`() {
         assertNull(CleanVersionMatcher.pick(explicit, listOf(song("short", length = "3:30"))))
         // Unknown length on either side doesn't rule it out.
@@ -212,6 +232,13 @@ class CleanVersionsTest {
     @Test
     fun `a failed search is not remembered as missing`() = runBlocking {
         CleanVersions.search = { _, _ -> null }
+        assertNull(CleanVersions.find(explicit))
+        assertFalse(CleanVersions.isMissing(explicit))
+    }
+
+    @Test
+    fun `a lookup whose uploads search failed is not remembered as missing`() = runBlocking {
+        CleanVersions.search = { _, filter -> if (filter == SearchFilter.VIDEOS) null else emptyList() }
         assertNull(CleanVersions.find(explicit))
         assertFalse(CleanVersions.isMissing(explicit))
     }
