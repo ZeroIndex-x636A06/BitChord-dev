@@ -17,12 +17,22 @@ import java.util.concurrent.ConcurrentHashMap
  * explicit content" reads the lyrics the app already knows how to fetch and
  * counts what's in them.
  *
- * Counted, not matched once: a single "damn" or a band called the Dead
- * Kennedys shouldn't block a song. Strong words ([STRONG]: the f-word, the
- * s-word, slurs and the like) count [STRONG_POINTS] each, milder ones
- * ([MILD]: "ass", "ho", …) one each, and a song is explicit at [THRESHOLD]
- * points — two strong words, or one and a couple of mild ones, or four mild
- * ones. "Hell", "damn" and "God" never count: whole clean catalogues use them.
+ * Weighed, not matched once. The words that earn a record its label by
+ * themselves — the f-word and slurs — count [SEVERE_POINTS], enough on their
+ * own, since that is how explicit labels are given. Other strong words (the
+ * s-word, the b-word, …) count [STRONG_POINTS], so it takes two, or one and a
+ * couple of milder ones; mild words ("ass", "ho" used as a noun, …) count one.
+ * A song is explicit at [THRESHOLD] points. "Hell", "damn" and "God" never
+ * count: whole clean catalogues use them. Nor does "ho" on its own — Santa's
+ * "ho ho ho", "Heigh-Ho", "Yo ho", *Ho Hey*.
+ *
+ * Tuned against real lyrics from LRCLIB for about a hundred songs. None of
+ * the clean ones reach the threshold — Christmas standards, *Ho Hey*,
+ * *Heigh-Ho*, *Highway to Hell*, *Uptown Funk* (one b-word), *Baby Got Back*.
+ * The two that catch people out do contain the words: *Bad Romance* says the
+ * b-word five times, and *Money for Nothing* has a slur. What it can't catch
+ * is a song explicit for what it's *about* (*Pumped Up Kicks*, *Low*) rather
+ * than the words it uses.
  *
  * Lyrics sites usually print the uncensored words even for an edited release,
  * so this can flag a clean edit. That is why the result is kept per video id
@@ -34,53 +44,69 @@ object ExplicitLyrics {
     /** Points at which a song's lyrics make it explicit. */
     const val THRESHOLD = 4
 
+    /** Points for a word that makes a song explicit by itself. */
+    const val SEVERE_POINTS = THRESHOLD
+
     /** Points for each strong word. */
     const val STRONG_POINTS = 2
 
-    fun score(lyrics: String): Int {
-        // Santa's "ho ho ho" isn't the word being counted.
-        val text = lyrics.lowercase(Locale.ROOT).replace(LAUGH, " ")
-        val strong = STRONG.sumOf { it.findAll(text).count() } + CENSORED.sumOf { it.findAll(text).count() }
-        val mild = MILD.sumOf { it.findAll(text).count() }
-        return strong * STRONG_POINTS + mild
-    }
+    fun score(lyrics: String): Int = matches(lyrics).entries.sumOf { (term, count) -> term.points * count }
 
     fun isExplicit(lines: List<String>): Boolean = score(lines.joinToString("\n")) >= THRESHOLD
 
+    /** One counted word: how it's listed in a report, what it's worth, and how to find it. */
+    class Term(val name: String, val points: Int, val pattern: Regex) {
+        override fun toString() = name
+    }
+
+    /**
+     * Which counted words [lyrics] contains, and how often. [score] is built on
+     * this; it also says *why* a song was flagged, which is what the tests check.
+     */
+    fun matches(lyrics: String): Map<Term, Int> {
+        // A laugh or a shanty isn't the word being counted: "ho ho ho", "ho, ho"
+        // and the like are taken out before anything is looked for.
+        val text = lyrics.lowercase(Locale.ROOT).replace(LAUGH, " ")
+        return TERMS.associateWith { it.pattern.findAll(text).count() }.filterValues { it > 0 }
+    }
+
     private val LAUGH = Regex("""(?<![\p{L}\p{N}])ho(?:[\s,!.-]+ho)+(?![\p{L}\p{N}])""")
 
-    private fun words(vararg patterns: String) = patterns.map { Regex("""(?<![\p{L}\p{N}])(?:$it)(?![\p{L}\p{N}])""") }
+    private fun term(name: String, points: Int, pattern: String) =
+        Term(name, points, Regex("""(?<![\p{L}\p{N}])(?:$pattern)(?![\p{L}\p{N}])"""))
 
-    private val STRONG = words(
-        """(?:mother|mutha|motha)?f+u+c*k+\w*""",
-        """f+u+k+(?:in|ing|ed|er|ers)?""",
-        """(?:bull|horse)?shit(?:s|ty|tier|tiest|tin|ting|ted|head|heads|hole|holes)?""",
-        """bitch\w*""",
-        """cunts?""",
-        """cock(?:sucker)?s?""",
-        """puss(?:y|ies)""",
-        """nigg(?:a|er|ah|az|as|ers)""",
-        """whores?""",
-        """sluts?""",
-        """fag(?:got)?s?""",
-        """ass ?holes?""",
-    )
+    private fun severe(name: String, pattern: String) = term(name, SEVERE_POINTS, pattern)
+    private fun strong(name: String, pattern: String) = term(name, STRONG_POINTS, pattern)
+    private fun mild(name: String, pattern: String) = term(name, 1, pattern)
 
-    /** Starred-out spellings some lyrics sites print instead. */
-    private val CENSORED = listOf(
-        Regex("""(?<![\p{L}\p{N}])f[*#@]+c?k\w*"""),
-        Regex("""(?<![\p{L}\p{N}])sh?[*#@]+t\w*"""),
-        Regex("""(?<![\p{L}\p{N}])b[*#@]+t?ch\w*"""),
-        Regex("""(?<![\p{L}\p{N}])n[*#@]+gg?(?:a|er)s?"""),
-    )
-
-    private val MILD = words(
-        """ass(?:es)?""",
-        """dicks?""",
-        """hoe?s?""",
-        """bastards?""",
-        """piss(?:ed)?""",
-        """tits""",
+    private val TERMS = listOf(
+        severe("f-word", """(?:mother|mutha|motha)?f+u+c*k+\w*|f+u+k+(?:in|ing|ed|er|ers)?"""),
+        strong("s-word", """(?:bull|horse)?shit(?:s|ty|tier|tiest|tin|ting|ted|head|heads|hole|holes)?"""),
+        strong("b-word", """bitch\w*"""),
+        severe("c-word", """cunts?"""),
+        severe("cocksucker", """cocksuckers?"""),
+        // Not "pussycat", "pussy cat" or "pussy willow".
+        strong("p-word", """puss(?:y|ies)(?! ?cats?| willows?)"""),
+        severe("n-word", """nigg(?:a|er|ah|az|as|ers)"""),
+        strong("whore", """whores?"""),
+        strong("slut", """sluts?"""),
+        severe("f-slur", """fag(?:got)?s?"""),
+        strong("asshole", """ass ?holes?"""),
+        // Starred-out spellings some lyrics sites print instead.
+        Term("f-word (starred)", SEVERE_POINTS, Regex("""(?<![\p{L}\p{N}])f[*#@]+c?k\w*""")),
+        Term("s-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])sh?[*#@]+t\w*""")),
+        Term("b-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])b[*#@]+t?ch\w*""")),
+        Term("n-word (starred)", SEVERE_POINTS, Regex("""(?<![\p{L}\p{N}])n[*#@]+gg?(?:a|er)s?""")),
+        mild("ass", """ass(?:es)?"""),
+        mild("dick", """dicks?"""),
+        // A rooster's "cock-a-doodle" and "cock of the walk" are why this one is mild.
+        mild("cock", """cocks?"""),
+        // Only as a noun. On its own "ho" is a laugh, a shanty ("yo ho"),
+        // a call ("land ho", "heigh-ho", "Ho Hey") — never counted.
+        mild("ho", """(?:a|the|that|this|your|my|his|her|some|dumb|stupid|lil|little|old|broke) hoe?s?|hoes|hos|ho's"""),
+        mild("bastard", """bastards?"""),
+        mild("piss", """piss(?:ed|es|ing)?"""),
+        mild("tits", """tits|titties"""),
     )
 }
 

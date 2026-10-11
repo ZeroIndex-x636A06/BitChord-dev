@@ -17,7 +17,13 @@ class ExplicitLyricsTest {
 
     @Test
     fun `two strong words make a song explicit`() {
-        assertTrue(ExplicitLyrics.isExplicit(listOf("What the fuck", "this is bullshit")))
+        assertTrue(ExplicitLyrics.isExplicit(listOf("Oh shit", "you son of a bitch")))
+    }
+
+    @Test
+    fun `a single f-word is enough`() {
+        // In da Club, Hot in Herre and Sabotage each have just the one.
+        assertTrue(ExplicitLyrics.isExplicit(listOf("Fuck it, let's go", "then nothing else")))
     }
 
     @Test
@@ -28,7 +34,7 @@ class ExplicitLyricsTest {
     @Test
     fun `a strong word and a few mild ones add up`() {
         // The shape of Jump Around: one strong word, an "ass", two "ho"s.
-        val lines = listOf("I'll serve your ass", "smacking the ho", "you son of a bitch", "another ho")
+        val lines = listOf("I'll serve your ass", "smacking the ho", "you son of a bitch")
         assertTrue(ExplicitLyrics.isExplicit(lines))
     }
 
@@ -43,13 +49,33 @@ class ExplicitLyricsTest {
     }
 
     @Test
+    fun `ho on its own is never counted`() {
+        val lines = listOf(
+            "Up on the housetop, ho, ho, ho! Who wouldn't go?",
+            "Heigh-ho, heigh-ho, it's home from work we go",
+            "Yo ho, yo ho, a pirate's life for me",
+            "Ho! Hey! Ho! Hey!", "Land ho!", "Westward ho", "Tally-ho",
+            "Cock-a-doodle-doo", "What's new, pussycat?", "pussy willow",
+        )
+        // The rooster is the one mild word left in there.
+        assertEquals(1, ExplicitLyrics.score(lines.joinToString("\n")))
+        assertFalse(ExplicitLyrics.isExplicit(lines))
+    }
+
+    @Test
+    fun `ho as a noun still counts`() {
+        val found = ExplicitLyrics.matches("smacking the ho\nall these hoes\nyour ho").mapKeys { it.key.name }
+        assertEquals(mapOf("ho" to 3), found)
+    }
+
+    @Test
     fun `starred-out spellings still count`() {
         assertTrue(ExplicitLyrics.isExplicit(listOf("f**k it", "sh*t happens")))
     }
 
     @Test
     fun `case and inflection don't hide a word`() {
-        assertEquals(2 * ExplicitLyrics.STRONG_POINTS, ExplicitLyrics.score("FUCKING Motherfucker"))
+        assertEquals(2 * ExplicitLyrics.SEVERE_POINTS, ExplicitLyrics.score("FUCKING Motherfucker"))
     }
 
     // ---- Memory ------------------------------------------------------------
