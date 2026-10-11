@@ -1,6 +1,10 @@
 package com.music.bitchord.ui.screens
 
 import com.music.bitchord.ui.components.contextClick
+import com.music.bitchord.ui.components.ExplicitBadge
+import com.music.bitchord.ui.components.explicitDimmed
+import com.music.bitchord.ui.components.isExplicitBlocked
+import com.music.bitchord.ui.components.showsExplicit
 import com.music.bitchord.ui.AppUi
 import com.music.bitchord.sharedui.resources.*
 import org.jetbrains.compose.resources.painterResource
@@ -413,15 +417,19 @@ private fun RecentTrackRow(
     isCurrent: Boolean,
     isPlaying: Boolean,
 ) {
-    CompactTrackRow(
-        title = item.title,
-        subtitle = item.subtitle,
-        thumbnailUrl = item.thumbnailUrl,
-        onClick = onClick,
-        onLongPress = onLongPress,
-        isCurrent = isCurrent,
-        isPlaying = isPlaying,
-    )
+    // Recently played keeps what was played before the filter went on, greyed.
+    Box(Modifier.explicitDimmed(item.isExplicitBlocked())) {
+        CompactTrackRow(
+            title = item.title,
+            subtitle = item.subtitle,
+            thumbnailUrl = item.thumbnailUrl,
+            onClick = onClick,
+            onLongPress = onLongPress,
+            isCurrent = isCurrent,
+            isPlaying = isPlaying,
+            explicit = item.showsExplicit(),
+        )
+    }
 }
 
 /**
@@ -438,6 +446,8 @@ fun CompactTrackRow(
     onLongPress: (() -> Unit)?,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    /** Draws the outlined E before the title, as song rows elsewhere do. */
+    explicit: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -462,13 +472,20 @@ fun CompactTrackRow(
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val titleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (explicit) {
+                    ExplicitBadge(titleColor)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
@@ -785,6 +802,7 @@ private fun HeroCard(
 ) {
     Box(
         modifier = modifier
+            .explicitDimmed(item.isExplicitBlocked())
             .aspectRatio(HERO_CARD_RATIO)
             .clip(RoundedCornerShape(18.dp))
             .thumbnailBorder(RoundedCornerShape(18.dp))
@@ -810,13 +828,20 @@ private fun HeroCard(
                 )
                 .padding(start = 16.dp, end = 16.dp, top = 34.dp, bottom = 14.dp),
         ) {
-            Text(
-                text = item.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = if (isCurrent) PlayingAccent else Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val heroTitleColor = if (isCurrent) PlayingAccent else Color.White
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (item.showsExplicit()) {
+                    ExplicitBadge(heroTitleColor)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = heroTitleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             if (item.subtitle.isNotBlank()) {
                 val displaySubtitle = localizeCardSubtitle(item.subtitle)
                 Text(
@@ -974,6 +999,7 @@ internal fun ShelfCard(
 ) {
     Column(
         modifier = modifier
+            .explicitDimmed(item.isExplicitBlocked())
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onLongPress),
     ) {
@@ -1054,10 +1080,15 @@ internal fun ShelfCard(
                 )
                 Spacer(Modifier.width(4.dp))
             }
+            val cardTitleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
+            if (item.showsExplicit()) {
+                ExplicitBadge(cardTitleColor)
+                Spacer(Modifier.width(6.dp))
+            }
             Text(
                 text = item.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
+                color = cardTitleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),

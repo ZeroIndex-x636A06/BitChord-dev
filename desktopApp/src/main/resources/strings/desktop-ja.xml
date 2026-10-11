@@ -89,4 +89,26 @@
     <string name="d_translation_unavailable">翻訳を利用できません</string>
     <string name="d_what_the_translate_button_translates_into">歌詞の翻訳ボタンが翻訳する言語</string>
     <string name="d_off">オフ</string>
+    <string name="d_explicit_song">露骨な表現を含む曲</string>
+    <string name="d_explicit_song_blocked_message">「%1$s」は露骨な表現を含む曲として指定されており、フィルターでブロックされています。</string>
+    <string name="d_turn_off_blocking">ブロックをオフにする</string>
+    <string name="d_allow_this_song">この曲を許可</string>
+    <string name="d_allowed_explicit_songs">許可した露骨な表現を含む曲</string>
+    <string name="d_allowed_explicit_songs_empty">許可した曲はまだありません。グレー表示の曲をタップして「許可」を選ぶか、曲のメニューで「この曲を許可」を使ってください。</string>
+    <string name="d_allowed_explicit_songs_description">これらの曲はフィルターでブロック中でも再生されます。削除すると再びブロックされます。</string>
+    <string name="d_block_this_explicit_song_again">この曲を再びブロック</string>
+    <string name="d_allow_this_explicit_song">この曲を許可</string>
+    <string name="d_click_again_to_remove_all">もう一度タップして確定</string>
+    <string name="d_clear_all">すべて消去</string>
+    <string name="d_filter_explicit_content">露骨な表現を含むコンテンツを除外</string>
+    <string name="d_filter_explicit_content_subtitle">自動再生とラジオで、露骨な表現として指定された曲を追加しません</string>
+    <string name="d_block_explicit_everywhere">露骨な表現を含む曲をすべてブロック</string>
+    <string name="d_block_explicit_everywhere_subtitle">1曲ずつ許可しない限り、露骨な表現を含む曲は再生されません</string>
+    <string name="d_allow_explicit_in_my_playlists">自分のプレイリストでは許可</string>
+    <string name="d_allow_explicit_in_my_playlists_subtitle">自分で作成したプレイリストに追加した曲は、他の場所でブロックされていても通常どおり再生されます</string>
+    <string name="d_one_song_allowed">1曲をフィルターの対象外にしています</string>
+    <string name="d_songs_allowed">%1$d曲をフィルターの対象外にしています</string>
+    <string name="d_check_lyrics_explicit">歌詞の露骨な表現をチェック</string>
+    <string name="d_check_lyrics_explicit_subtitle">YouTube Music で露骨と表示されていなくても、歌詞に汚い言葉が複数ある曲もブロックします</string>
+    <string name="d_explicit_lyrics_blocked_message">「%1$s」の歌詞には露骨な表現が含まれるため、フィルターでブロックされています。</string>
 </resources>

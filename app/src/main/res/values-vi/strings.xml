@@ -1206,4 +1206,32 @@
     <string name="spotify_sign_in">Đăng nhập bằng Spotify</string>
     <string name="spotify_use_spdc_token">Dùng token sp_dc</string>
     <string name="spotify_track_unavailable">Không tìm thấy bài hát đó trên YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Lọc nội dung nhạy cảm</string>
+    <string name="filter_explicit_content_subtitle">Tự động phát và radio sẽ không thêm bài hát được gắn nhãn nhạy cảm</string>
+    <string name="block_explicit_everywhere">Chặn bài hát nhạy cảm ở mọi nơi</string>
+    <string name="block_explicit_everywhere_subtitle">Bài hát nhạy cảm sẽ không phát trừ khi bạn cho phép từng bài</string>
+    <string name="allow_explicit_in_my_playlists">Cho phép bài hát nhạy cảm trong danh sách phát của tôi</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Bài hát bạn thêm vào danh sách phát do bạn tạo sẽ phát bình thường, kể cả khi bị chặn ở nơi khác</string>
+    <string name="allowed_explicit_songs">Bài hát nhạy cảm được cho phép</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="other">%1$d bài hát được cho phép vượt bộ lọc</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Các bài này vẫn phát ngay cả khi bộ lọc chặn bài hát nhạy cảm. Xóa một bài để chặn lại.</string>
+    <string name="allowed_explicit_songs_empty">Chưa có bài hát nào được cho phép. Nhấn vào bài hát bị làm mờ và chọn Cho phép, hoặc dùng “Cho phép bài hát nhạy cảm này” trong menu của bài.</string>
+    <string name="clear_all">Xóa tất cả</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="other">Xóa tất cả %1$d bài hát</item>
+    </plurals>
+    <string name="explicit_song_blocked">Bài hát nhạy cảm</string>
+    <string name="explicit_song_blocked_message">“%1$s” được gắn nhãn nhạy cảm và bộ lọc của bạn đang chặn bài này.</string>
+    <string name="allow_this_song">Cho phép bài hát này</string>
+    <string name="turn_off_blocking">Tắt chặn</string>
+    <string name="tap_again_to_confirm">Nhấn lần nữa để xác nhận</string>
+    <string name="allow_explicit_song">Cho phép bài hát nhạy cảm này</string>
+    <string name="block_explicit_song">Chặn lại bài hát nhạy cảm này</string>
+    <string name="explicit_songs_skipped">Bộ lọc đã bỏ qua các bài hát nhạy cảm</string>
+    <string name="check_lyrics_explicit">Kiểm tra lời bài hát nhạy cảm</string>
+    <string name="check_lyrics_explicit_subtitle">Chặn cả bài hát có nhiều từ tục trong lời, kể cả khi YouTube Music không đánh dấu là nhạy cảm</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” có lời nhạy cảm và bộ lọc của bạn đang chặn bài này.</string>
 </resources>

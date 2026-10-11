@@ -73,6 +73,10 @@ import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.model.isSameTrackAs
 import com.music.bitchord.data.model.UiState
 import com.music.bitchord.data.model.SearchHistoryEntity
+import com.music.bitchord.ui.components.showsExplicit
+import com.music.bitchord.ui.components.explicitDimmed
+import com.music.bitchord.ui.components.ExplicitBadge
+import com.music.bitchord.ui.components.LocalExplicitBlocked
 import com.music.bitchord.data.model.EntityType
 import com.music.bitchord.ui.components.MessageState
 import com.music.bitchord.ui.components.PAGE_GUTTER
@@ -771,10 +775,16 @@ private fun RecentSearchEntityRow(
     onClick: () -> Unit,
     onRemove: () -> Unit,
 ) {
+    // A recent track meets the explicit filter like a result row does: greyed
+    // when blocked, with its E. The tap is where the filter asks.
+    val track = entity.takeIf { it.entityType == EntityType.TRACK && !it.id.startsWith("q:") }?.asSong()
+    val explicitBlocked = track != null && LocalExplicitBlocked.current(track)
+    val explicit = track?.showsExplicit() == true
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .explicitDimmed(explicitBlocked)
             .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -794,13 +804,20 @@ private fun RecentSearchEntityRow(
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = entity.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val titleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (explicit) {
+                    ExplicitBadge(titleColor)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = entity.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Spacer(Modifier.height(2.dp))
             Text(
                 text = entity.subtitle.ifBlank { entity.entityType.name.lowercase(Locale.ROOT).replaceFirstChar { it.uppercase(Locale.ROOT) } },

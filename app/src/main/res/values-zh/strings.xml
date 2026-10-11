@@ -1268,4 +1268,32 @@
     <string name="spotify_sign_in">使用 Spotify 登录</string>
     <string name="spotify_use_spdc_token">使用 sp_dc 令牌</string>
     <string name="spotify_track_unavailable">在 YouTube Music 上找不到该歌曲</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">过滤露骨内容</string>
+    <string name="filter_explicit_content_subtitle">自动播放和电台不会添加标记为露骨的歌曲</string>
+    <string name="block_explicit_everywhere">在所有位置屏蔽露骨歌曲</string>
+    <string name="block_explicit_everywhere_subtitle">除非你逐首允许，否则露骨歌曲不会播放</string>
+    <string name="allow_explicit_in_my_playlists">允许我的歌单中的露骨歌曲</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">你添加到自己创建的歌单中的歌曲会正常播放，即使在其他地方被屏蔽</string>
+    <string name="allowed_explicit_songs">已允许的露骨歌曲</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="other">已允许 %1$d 首歌曲通过过滤</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">即使过滤器屏蔽露骨歌曲，这些歌曲也会播放。移除一首即可再次屏蔽。</string>
+    <string name="allowed_explicit_songs_empty">还没有允许任何歌曲。点按灰显的歌曲并选择“允许”，或在歌曲菜单中使用“允许这首露骨歌曲”。</string>
+    <string name="clear_all">全部清除</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="other">移除全部 %1$d 首歌曲</item>
+    </plurals>
+    <string name="explicit_song_blocked">露骨歌曲</string>
+    <string name="explicit_song_blocked_message">“%1$s”被标记为露骨，你的过滤器正在屏蔽它。</string>
+    <string name="allow_this_song">允许这首歌曲</string>
+    <string name="turn_off_blocking">关闭屏蔽</string>
+    <string name="tap_again_to_confirm">再次点按以确认</string>
+    <string name="allow_explicit_song">允许这首露骨歌曲</string>
+    <string name="block_explicit_song">重新屏蔽这首露骨歌曲</string>
+    <string name="explicit_songs_skipped">过滤器已跳过露骨歌曲</string>
+    <string name="check_lyrics_explicit">检查歌词中的露骨内容</string>
+    <string name="check_lyrics_explicit_subtitle">即使 YouTube Music 未标记为露骨，歌词中含多个脏话的歌曲也会被屏蔽</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s”的歌词含露骨内容，已被你的过滤器屏蔽。</string>
 </resources>

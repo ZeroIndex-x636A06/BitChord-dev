@@ -27,6 +27,8 @@ import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Explicit
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Check
@@ -171,6 +173,14 @@ fun SongActionsSheet(
     /** Which cut is playing now, so the row can offer the other one. */
     isAudioVersion: Boolean = false,
     onShare: (() -> Unit)? = null,
+    /**
+     * Lets this explicit song through the explicit filter, or stops letting it
+     * through. Null hides the row — the caller offers it only for an explicit
+     * track while the filter is on. See [com.music.bitchord.playback.ExplicitFilter].
+     */
+    onToggleExplicitAllowed: (() -> Unit)? = null,
+    /** Whether this song is already on the allowed list, so the row can offer the other way. */
+    explicitAllowed: Boolean = false,
     /**
      * Copies what the app logged while starting this track. Null everywhere
      * except the player, where "this track" means something.
@@ -350,6 +360,16 @@ fun SongActionsSheet(
             ActionRow(
                 icon = Icons.Rounded.Tune,
                 label = stringResource(R.string.lyrics_offset),
+                accent = palette.accent,
+                onClick = it,
+            )
+        }
+        onToggleExplicitAllowed?.let {
+            ActionRow(
+                icon = if (explicitAllowed) Icons.Rounded.Block else Icons.Rounded.Explicit,
+                label = stringResource(
+                    if (explicitAllowed) R.string.block_explicit_song else R.string.allow_explicit_song,
+                ),
                 accent = palette.accent,
                 onClick = it,
             )

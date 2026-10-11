@@ -1329,4 +1329,38 @@
     <string name="spotify_sign_in">Zaloguj się przez Spotify</string>
     <string name="spotify_use_spdc_token">Użyj tokena sp_dc</string>
     <string name="spotify_track_unavailable">Nie znaleziono tego utworu w YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Filtruj treści dla dorosłych</string>
+    <string name="filter_explicit_content_subtitle">Autoodtwarzanie i radio nie dodadzą utworów oznaczonych jako dla dorosłych</string>
+    <string name="block_explicit_everywhere">Blokuj utwory dla dorosłych wszędzie</string>
+    <string name="block_explicit_everywhere_subtitle">Utwory dla dorosłych nie będą odtwarzane, chyba że zezwolisz na nie pojedynczo</string>
+    <string name="allow_explicit_in_my_playlists">Zezwalaj na utwory dla dorosłych w moich playlistach</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Utwory dodane do Twoich playlist odtwarzają się normalnie, nawet jeśli gdzie indziej są zablokowane</string>
+    <string name="allowed_explicit_songs">Dozwolone utwory dla dorosłych</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d utwór dozwolony mimo filtra</item>
+        <item quantity="few">%1$d utwory dozwolone mimo filtra</item>
+        <item quantity="many">%1$d utworów dozwolonych mimo filtra</item>
+        <item quantity="other">%1$d utworu dozwolonego mimo filtra</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Te utwory grają, nawet gdy filtr blokuje utwory dla dorosłych. Usuń jeden, aby znów go zablokować.</string>
+    <string name="allowed_explicit_songs_empty">Brak dozwolonych utworów. Dotknij wyszarzonego utworu i wybierz Zezwól lub użyj opcji „Zezwól na ten utwór dla dorosłych” w jego menu.</string>
+    <string name="clear_all">Wyczyść wszystko</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">Usuń %1$d utwór</item>
+        <item quantity="few">Usuń wszystkie %1$d utwory</item>
+        <item quantity="many">Usuń wszystkie %1$d utworów</item>
+        <item quantity="other">Usuń wszystkie %1$d utworu</item>
+    </plurals>
+    <string name="explicit_song_blocked">Utwór dla dorosłych</string>
+    <string name="explicit_song_blocked_message">„%1$s” jest oznaczony jako dla dorosłych i Twój filtr go blokuje.</string>
+    <string name="allow_this_song">Zezwól na ten utwór</string>
+    <string name="turn_off_blocking">Wyłącz blokowanie</string>
+    <string name="tap_again_to_confirm">Dotknij ponownie, aby potwierdzić</string>
+    <string name="allow_explicit_song">Zezwól na ten utwór dla dorosłych</string>
+    <string name="block_explicit_song">Ponownie blokuj ten utwór dla dorosłych</string>
+    <string name="explicit_songs_skipped">Filtr pominął utwory dla dorosłych</string>
+    <string name="check_lyrics_explicit">Sprawdzaj teksty pod kątem wulgaryzmów</string>
+    <string name="check_lyrics_explicit_subtitle">Blokuj też utwory z kilkoma wulgaryzmami w tekście, nawet jeśli YouTube Music nie oznacza ich jako explicit</string>
+    <string name="explicit_lyrics_blocked_message">„%1$s” ma wulgarny tekst i jest blokowany przez filtr.</string>
 </resources>

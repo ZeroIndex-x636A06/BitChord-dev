@@ -12,9 +12,13 @@ import com.music.bitchord.auth.AuthStore
 import com.music.bitchord.data.canvas.SpotifyToken
 import com.music.bitchord.data.lyrics.LyricsSource
 import com.music.bitchord.data.sources.SourceKind
+import com.music.bitchord.data.model.Song
 import com.music.bitchord.playback.EqLayout
+import com.music.bitchord.playback.ExplicitFilterMode
+import com.music.bitchord.playback.ExplicitPolicy
 import com.music.bitchord.playback.EqualizerPreset
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 
 /**
@@ -385,6 +389,51 @@ object AppSettings {
 
     /** Once a song has been suggested or played this session, AutoPlay won't offer it again. */
     val dontRepeatSuggestions = MutableStateFlow(false)
+
+    /** How explicit tracks are kept out of the queue — see [com.music.bitchord.playback.ExplicitFilter]. */
+    val explicitFilter = MutableStateFlow(ExplicitFilterMode.OFF)
+
+    /**
+     * Keys of the explicit songs the listener has let through one at a time —
+     * see [ExplicitAllowList], which keeps the readable list in a file of its
+     * own. Survives the filter being switched off and back on, so turning it
+     * on again doesn't forget every exception.
+     */
+    val explicitAllowed: StateFlow<Set<String>> = ExplicitAllowList.keys
+
+    /** Under "block everywhere", still play explicit songs from playlists the listener made. */
+    val explicitAllowOwnPlaylists = MutableStateFlow(false)
+
+    /**
+     * Browse ids of playlists known to be the listener's, mirrored from the
+     * account so [PlaybackService][com.music.bitchord.playback.PlaybackService]
+     * can apply [explicitAllowOwnPlaylists] to a queue restored before the
+     * library has loaded. Grows as ownership is learned, and loses a playlist
+     * only when it is found not to be theirs.
+     */
+    val explicitOwnPlaylistIds = MutableStateFlow<Set<String>>(emptySet())
+
+    /**
+     * Also treat songs as explicit when their lyrics are — see
+     * [com.music.bitchord.playback.ExplicitLyrics]. Off by default: it fetches
+     * lyrics for songs before they play.
+     */
+    val explicitLyricsCheck = MutableStateFlow(false)
+
+    /** The explicit filter's settings, read together. */
+    fun explicitPolicy(): ExplicitPolicy = ExplicitPolicy(
+        mode = explicitFilter.value,
+        allowed = explicitAllowed.value,
+        allowOwnPlaylists = explicitAllowOwnPlaylists.value,
+        ownPlaylistIds = explicitOwnPlaylistIds.value,
+        lyricsFlagged = if (explicitLyricsCheck.value) ExplicitLyricsCheck.store.flagged.value else emptySet(),
+    )
+
+    /** Whether [song]'s lyrics still have to be read before the filter can judge it. */
+    fun explicitNeedsLyricsCheck(song: Song): Boolean =
+        explicitFilter.value != ExplicitFilterMode.OFF &&
+            explicitLyricsCheck.value &&
+            ExplicitLyricsCheck.checker.needsCheck(song)
 
     /**
      * Prefer the catalogue audio release when the selected result is a music
@@ -760,6 +809,8 @@ object AppSettings {
         prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         this.authStore = authStore
         com.music.bitchord.data.spotify.LocalPlaylistStore.init(context)
+        ExplicitAllowList.init(context)
+        ExplicitLyricsCheck.init(context)
         readAll()
         watchConnection(context)
     }
@@ -841,6 +892,12 @@ object AppSettings {
         showQueueHistory.value = prefs.getBoolean(KEY_SHOW_QUEUE_HISTORY, false)
         swipeToPlayNext.value = prefs.getBoolean(KEY_SWIPE_TO_PLAY_NEXT, false)
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
+        explicitFilter.value = runCatching {
+            ExplicitFilterMode.valueOf(prefs.getString(KEY_EXPLICIT_FILTER, null) ?: ExplicitFilterMode.OFF.name)
+        }.getOrDefault(ExplicitFilterMode.OFF)
+        explicitAllowOwnPlaylists.value = prefs.getBoolean(KEY_EXPLICIT_ALLOW_OWN_PLAYLISTS, false)
+        explicitOwnPlaylistIds.value = prefs.getStringSet(KEY_EXPLICIT_OWN_PLAYLISTS, null)?.toSet().orEmpty()
+        explicitLyricsCheck.value = prefs.getBoolean(KEY_EXPLICIT_LYRICS_CHECK, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
@@ -1230,6 +1287,41 @@ object AppSettings {
         dontRepeatSuggestions.value = value
         prefs.edit().putBoolean(KEY_DONT_REPEAT_SUGGESTIONS, value).apply()
     }
+
+    fun setExplicitFilter(value: ExplicitFilterMode) {
+        explicitFilter.value = value
+        prefs.edit().putString(KEY_EXPLICIT_FILTER, value.name).apply()
+    }
+
+    /** Every song on the explicit allow list, with the keys it's matched by. */
+    fun explicitAllowedSongs(): List<AllowedExplicitSong> = ExplicitAllowList.songs.value
+
+    /** Lets [song] through the explicit filter from now on, or stops letting it through. */
+    fun setExplicitAllowed(song: Song, allowed: Boolean) {
+        if (allowed) ExplicitAllowList.allow(song) else ExplicitAllowList.remove(song)
+    }
+
+    fun setExplicitAllowOwnPlaylists(value: Boolean) {
+        explicitAllowOwnPlaylists.value = value
+        prefs.edit().putBoolean(KEY_EXPLICIT_ALLOW_OWN_PLAYLISTS, value).apply()
+    }
+
+    fun setExplicitLyricsCheck(value: Boolean) {
+        explicitLyricsCheck.value = value
+        prefs.edit().putBoolean(KEY_EXPLICIT_LYRICS_CHECK, value).apply()
+    }
+
+    /** Folds what the account now says about playlist ownership into [explicitOwnPlaylistIds]. */
+    fun noteOwnPlaylists(owned: Map<String, Boolean>) {
+        val current = explicitOwnPlaylistIds.value
+        val next = current + owned.filterValues { it }.keys - owned.filterValues { !it }.keys
+        if (next == current) return
+        explicitOwnPlaylistIds.value = next
+        prefs.edit().putStringSet(KEY_EXPLICIT_OWN_PLAYLISTS, HashSet(next)).apply()
+    }
+
+    /** Forgets every per-song exception to the explicit filter. */
+    fun clearExplicitAllowed() = ExplicitAllowList.clear()
 
     fun setPreferMusicOnly(value: Boolean) {
         preferMusicOnly.value = value
@@ -1912,6 +2004,9 @@ object AppSettings {
      * Downloads page would read as empty while the space stayed used.
      */
     private val DEVICE_LOCAL = setOf(
+        // A mirror of the signed-in account, not a choice: restoring it onto
+        // another account would treat strangers' playlists as this one's.
+        KEY_EXPLICIT_OWN_PLAYLISTS,
         "downloaded_tracks",
         "downloaded_tracks_metadata",
         "downloaded_collections",
@@ -1979,6 +2074,10 @@ object AppSettings {
     private const val KEY_SHOW_QUEUE_HISTORY = "show_queue_history"
     private const val KEY_SWIPE_TO_PLAY_NEXT = "swipe_to_play_next"
     private const val KEY_DONT_REPEAT_SUGGESTIONS = "dont_repeat_suggestions"
+    private const val KEY_EXPLICIT_FILTER = "explicit_filter"
+    private const val KEY_EXPLICIT_ALLOW_OWN_PLAYLISTS = "explicit_allow_own_playlists"
+    private const val KEY_EXPLICIT_OWN_PLAYLISTS = "explicit_own_playlists"
+    private const val KEY_EXPLICIT_LYRICS_CHECK = "explicit_lyrics_check"
     private const val KEY_PREFER_MUSIC_ONLY = "prefer_music_only"
     private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"
     private const val KEY_REDUCE_BLUR = "reduce_dynamic_blur"

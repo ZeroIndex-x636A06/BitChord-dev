@@ -89,4 +89,26 @@
     <string name="d_translation_unavailable">Tradução indisponível</string>
     <string name="d_what_the_translate_button_translates_into">Para qual idioma o botão de traduzir da letra traduz</string>
     <string name="d_off">Desligado</string>
+    <string name="d_explicit_song">Música explícita</string>
+    <string name="d_explicit_song_blocked_message">“%1$s” está marcada como explícita e seu filtro a está bloqueando.</string>
+    <string name="d_turn_off_blocking">Desativar bloqueio</string>
+    <string name="d_allow_this_song">Permitir esta música</string>
+    <string name="d_allowed_explicit_songs">Músicas explícitas permitidas</string>
+    <string name="d_allowed_explicit_songs_empty">Nenhuma música permitida ainda. Toque em uma música esmaecida e escolha Permitir, ou use “Permitir esta música explícita” no menu dela.</string>
+    <string name="d_allowed_explicit_songs_description">Estas tocam mesmo quando o filtro bloqueia músicas explícitas. Remova uma para bloqueá-la de novo.</string>
+    <string name="d_block_this_explicit_song_again">Bloquear esta música explícita de novo</string>
+    <string name="d_allow_this_explicit_song">Permitir esta música explícita</string>
+    <string name="d_click_again_to_remove_all">Toque novamente para confirmar</string>
+    <string name="d_clear_all">Limpar tudo</string>
+    <string name="d_filter_explicit_content">Filtrar conteúdo explícito</string>
+    <string name="d_filter_explicit_content_subtitle">A reprodução automática e o rádio não adicionarão músicas marcadas como explícitas</string>
+    <string name="d_block_explicit_everywhere">Bloquear músicas explícitas em todo lugar</string>
+    <string name="d_block_explicit_everywhere_subtitle">Músicas explícitas não tocarão, a menos que você as permita uma a uma</string>
+    <string name="d_allow_explicit_in_my_playlists">Permitir músicas explícitas nas minhas playlists</string>
+    <string name="d_allow_explicit_in_my_playlists_subtitle">Músicas que você adicionou às suas próprias playlists tocam normalmente, mesmo se bloqueadas em outros lugares</string>
+    <string name="d_one_song_allowed">1 música permitida pelo filtro</string>
+    <string name="d_songs_allowed">%1$d músicas permitidas pelo filtro</string>
+    <string name="d_check_lyrics_explicit">Verificar letras explícitas</string>
+    <string name="d_check_lyrics_explicit_subtitle">Bloqueia também músicas cuja letra tem vários palavrões, mesmo que o YouTube Music não as marque como explícitas</string>
+    <string name="d_explicit_lyrics_blocked_message">“%1$s” tem letra explícita e seu filtro está bloqueando.</string>
 </resources>

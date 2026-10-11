@@ -89,4 +89,26 @@
     <string name="d_translation_unavailable">Çeviri kullanılamıyor</string>
     <string name="d_what_the_translate_button_translates_into">Şarkı sözlerindeki çevir düğmesinin çevirdiği dil</string>
     <string name="d_off">Kapalı</string>
+    <string name="d_explicit_song">Müstehcen şarkı</string>
+    <string name="d_explicit_song_blocked_message">“%1$s” müstehcen olarak işaretli ve filtreniz onu engelliyor.</string>
+    <string name="d_turn_off_blocking">Engellemeyi kapat</string>
+    <string name="d_allow_this_song">Bu şarkıya izin ver</string>
+    <string name="d_allowed_explicit_songs">İzin verilen müstehcen şarkılar</string>
+    <string name="d_allowed_explicit_songs_empty">Henüz izin verilen şarkı yok. Gri görünen bir şarkıya dokunup İzin ver\'i seçin veya menüsündeki “Bu müstehcen şarkıya izin ver” seçeneğini kullanın.</string>
+    <string name="d_allowed_explicit_songs_description">Bunlar, filtre müstehcen şarkıları engellese bile çalar. Yeniden engellemek için birini kaldırın.</string>
+    <string name="d_block_this_explicit_song_again">Bu müstehcen şarkıyı yeniden engelle</string>
+    <string name="d_allow_this_explicit_song">Bu müstehcen şarkıya izin ver</string>
+    <string name="d_click_again_to_remove_all">Onaylamak için tekrar dokunun</string>
+    <string name="d_clear_all">Tümünü temizle</string>
+    <string name="d_filter_explicit_content">Müstehcen içeriği filtrele</string>
+    <string name="d_filter_explicit_content_subtitle">Otomatik oynatma ve radyo, müstehcen olarak işaretlenmiş şarkıları eklemez</string>
+    <string name="d_block_explicit_everywhere">Müstehcen şarkıları her yerde engelle</string>
+    <string name="d_block_explicit_everywhere_subtitle">Müstehcen şarkılar, tek tek izin vermediğiniz sürece çalmaz</string>
+    <string name="d_allow_explicit_in_my_playlists">Çalma listelerimde müstehcen şarkılara izin ver</string>
+    <string name="d_allow_explicit_in_my_playlists_subtitle">Oluşturduğunuz çalma listelerine eklediğiniz şarkılar, başka yerde engelli olsalar bile normal çalar</string>
+    <string name="d_one_song_allowed">Filtreden geçmesine izin verilen 1 şarkı</string>
+    <string name="d_songs_allowed">Filtreden geçmesine izin verilen %1$d şarkı</string>
+    <string name="d_check_lyrics_explicit">Şarkı sözlerini müstehcen içerik için kontrol et</string>
+    <string name="d_check_lyrics_explicit_subtitle">YouTube Music müstehcen olarak işaretlemese bile sözlerinde birkaç küfür olan şarkıları da engeller</string>
+    <string name="d_explicit_lyrics_blocked_message">“%1$s” müstehcen sözler içeriyor ve filtren onu engelliyor.</string>
 </resources>

@@ -1266,4 +1266,32 @@
     <string name="spotify_sign_in">Masuk dengan Spotify</string>
     <string name="spotify_use_spdc_token">Gunakan token sp_dc</string>
     <string name="spotify_track_unavailable">Lagu itu tidak ditemukan di YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Filter konten eksplisit</string>
+    <string name="filter_explicit_content_subtitle">Putar Otomatis dan radio tidak akan menambahkan lagu bertanda eksplisit</string>
+    <string name="block_explicit_everywhere">Blokir lagu eksplisit di mana saja</string>
+    <string name="block_explicit_everywhere_subtitle">Lagu eksplisit tidak akan diputar kecuali Anda mengizinkannya satu per satu</string>
+    <string name="allow_explicit_in_my_playlists">Izinkan lagu eksplisit di playlist saya</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Lagu yang Anda tambahkan ke playlist buatan Anda diputar seperti biasa, meski diblokir di tempat lain</string>
+    <string name="allowed_explicit_songs">Lagu eksplisit yang diizinkan</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="other">%1$d lagu diizinkan melewati filter</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Lagu ini tetap diputar meski filter memblokir lagu eksplisit. Hapus salah satu untuk memblokirnya lagi.</string>
+    <string name="allowed_explicit_songs_empty">Belum ada lagu yang diizinkan. Ketuk lagu yang berwarna abu-abu lalu pilih Izinkan, atau gunakan “Izinkan lagu eksplisit ini” di menunya.</string>
+    <string name="clear_all">Hapus semua</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="other">Hapus %1$d lagu</item>
+    </plurals>
+    <string name="explicit_song_blocked">Lagu eksplisit</string>
+    <string name="explicit_song_blocked_message">“%1$s” ditandai eksplisit dan diblokir oleh filter Anda.</string>
+    <string name="allow_this_song">Izinkan lagu ini</string>
+    <string name="turn_off_blocking">Matikan pemblokiran</string>
+    <string name="tap_again_to_confirm">Ketuk lagi untuk mengonfirmasi</string>
+    <string name="allow_explicit_song">Izinkan lagu eksplisit ini</string>
+    <string name="block_explicit_song">Blokir lagu eksplisit ini lagi</string>
+    <string name="explicit_songs_skipped">Lagu eksplisit dilewati oleh filter Anda</string>
+    <string name="check_lyrics_explicit">Periksa lirik eksplisit</string>
+    <string name="check_lyrics_explicit_subtitle">Blokir juga lagu yang liriknya berisi beberapa kata kasar, meski YouTube Music tidak menandainya eksplisit</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” memiliki lirik eksplisit dan diblokir oleh filter Anda.</string>
 </resources>

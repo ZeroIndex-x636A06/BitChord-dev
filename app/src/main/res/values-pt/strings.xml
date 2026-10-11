@@ -1294,4 +1294,34 @@
     <string name="spotify_sign_in">Entrar com Spotify</string>
     <string name="spotify_use_spdc_token">Usar token sp_dc</string>
     <string name="spotify_track_unavailable">Não foi possível encontrar essa música no YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Filtrar conteúdo explícito</string>
+    <string name="filter_explicit_content_subtitle">A reprodução automática e o rádio não adicionarão músicas marcadas como explícitas</string>
+    <string name="block_explicit_everywhere">Bloquear músicas explícitas em todo lugar</string>
+    <string name="block_explicit_everywhere_subtitle">Músicas explícitas não tocarão, a menos que você as permita uma a uma</string>
+    <string name="allow_explicit_in_my_playlists">Permitir músicas explícitas nas minhas playlists</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Músicas que você adicionou às suas próprias playlists tocam normalmente, mesmo se bloqueadas em outros lugares</string>
+    <string name="allowed_explicit_songs">Músicas explícitas permitidas</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d música permitida pelo filtro</item>
+        <item quantity="other">%1$d músicas permitidas pelo filtro</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Estas tocam mesmo quando o filtro bloqueia músicas explícitas. Remova uma para bloqueá-la de novo.</string>
+    <string name="allowed_explicit_songs_empty">Nenhuma música permitida ainda. Toque em uma música esmaecida e escolha Permitir, ou use “Permitir esta música explícita” no menu dela.</string>
+    <string name="clear_all">Limpar tudo</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">Remover %1$d música</item>
+        <item quantity="other">Remover todas as %1$d músicas</item>
+    </plurals>
+    <string name="explicit_song_blocked">Música explícita</string>
+    <string name="explicit_song_blocked_message">“%1$s” está marcada como explícita e seu filtro a está bloqueando.</string>
+    <string name="allow_this_song">Permitir esta música</string>
+    <string name="turn_off_blocking">Desativar bloqueio</string>
+    <string name="tap_again_to_confirm">Toque novamente para confirmar</string>
+    <string name="allow_explicit_song">Permitir esta música explícita</string>
+    <string name="block_explicit_song">Bloquear esta música explícita de novo</string>
+    <string name="explicit_songs_skipped">Músicas explícitas ignoradas pelo seu filtro</string>
+    <string name="check_lyrics_explicit">Verificar letras explícitas</string>
+    <string name="check_lyrics_explicit_subtitle">Bloqueia também músicas cuja letra tem vários palavrões, mesmo que o YouTube Music não as marque como explícitas</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” tem letra explícita e seu filtro está bloqueando.</string>
 </resources>
