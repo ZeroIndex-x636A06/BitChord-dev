@@ -63,3 +63,42 @@ E|Party Up (Up in Here)|DMX
 E|Get Low|Lil Jon & The East Side Boyz
 E|Ignition (Remix)|R. Kelly
 E|Hot in Herre|Nelly
+C|Last Christmas|Wham!
+C|All I Want for Christmas Is You|Mariah Carey
+C|Feliz Navidad|José Feliciano
+C|Santa Baby|Eartha Kitt
+C|Christmas Wrapping|The Waitresses
+C|Jingle Bells|Frank Sinatra
+C|Let It Go|Idina Menzel
+C|Under the Sea|Samuel E. Wright
+C|Jolene|Dolly Parton
+C|Ring of Fire|Johnny Cash
+C|Friends in Low Places|Garth Brooks
+C|Redneck Woman|Gretchen Wilson
+C|Before He Cheats|Carrie Underwood
+C|Fancy|Reba McEntire
+C|Livin' on a Prayer|Bon Jovi
+C|Back in Black|AC/DC
+C|Pour Some Sugar on Me|Def Leppard
+C|Cherry Pie|Warrant
+C|Margaritaville|Jimmy Buffett
+C|Sk8er Boi|Avril Lavigne
+C|Bad Romance|Lady Gaga
+C|Blank Space|Taylor Swift
+C|Mr. Jones|Counting Crows
+C|Dude (Looks Like a Lady)|Aerosmith
+C|Africa|Toto
+C|Don't Stop Believin'|Journey
+C|Wannabe|Spice Girls
+C|Gimme! Gimme! Gimme!|ABBA
+?|The Bitch Is Back|Elton John
+?|Hollaback Girl|Gwen Stefani
+?|Thank U, Next|Ariana Grande
+?|Bad Guy|Billie Eilish
+?|Smack That|Akon
+E|Ni**as in Paris|JAY-Z & Kanye West
+E|Bodak Yellow|Cardi B
+E|Mask Off|Future
+E|XO Tour Llif3|Lil Uzi Vert
+E|Love the Way You Lie|Eminem
+E|Sicko Mode|Travis Scott

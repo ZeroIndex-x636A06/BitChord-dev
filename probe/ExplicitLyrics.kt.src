@@ -17,13 +17,18 @@ import java.util.concurrent.ConcurrentHashMap
  * explicit content" reads the lyrics the app already knows how to fetch and
  * counts what's in them.
  *
- * Counted, not matched once: a single "damn" or a band called the Dead
- * Kennedys shouldn't block a song. Strong words (the f-word, the s-word, slurs
- * and the like) count [STRONG_POINTS] each, milder ones ("ass", "ho" used as
- * a noun, …) one each, and a song is explicit at [THRESHOLD] points — two
- * strong words, or one and a couple of mild ones, or four mild ones. "Hell",
- * "damn" and "God" never count: whole clean catalogues use them. Nor does
- * "ho" on its own — Santa's "ho ho ho", "Heigh-Ho", "Yo ho", *Ho Hey*.
+ * Weighed, not matched once. The words that earn a record its label by
+ * themselves — the f-word and slurs — count [SEVERE_POINTS], enough on their
+ * own, since that is how explicit labels are given. Other strong words (the
+ * s-word, the b-word, …) count [STRONG_POINTS], so it takes two, or one and a
+ * couple of milder ones; mild words ("ass", "ho" used as a noun, …) count one.
+ * A song is explicit at [THRESHOLD] points. "Hell", "damn" and "God" never
+ * count: whole clean catalogues use them. Nor does "ho" on its own — Santa's
+ * "ho ho ho", "Heigh-Ho", "Yo ho", *Ho Hey*.
+ *
+ * Tuned against real lyrics from LRCLIB: across thirty-odd clean songs
+ * (Christmas standards, *Ho Hey*, *Highway to Hell*, *Uptown Funk*, *Baby Got
+ * Back*…) none reach the threshold.
  *
  * Lyrics sites usually print the uncensored words even for an edited release,
  * so this can flag a clean edit. That is why the result is kept per video id
@@ -34,6 +39,9 @@ object ExplicitLyrics {
 
     /** Points at which a song's lyrics make it explicit. */
     const val THRESHOLD = 4
+
+    /** Points for a word that makes a song explicit by itself. */
+    const val SEVERE_POINTS = THRESHOLD
 
     /** Points for each strong word. */
     const val STRONG_POINTS = 2
@@ -63,27 +71,28 @@ object ExplicitLyrics {
     private fun term(name: String, points: Int, pattern: String) =
         Term(name, points, Regex("""(?<![\p{L}\p{N}])(?:$pattern)(?![\p{L}\p{N}])"""))
 
+    private fun severe(name: String, pattern: String) = term(name, SEVERE_POINTS, pattern)
     private fun strong(name: String, pattern: String) = term(name, STRONG_POINTS, pattern)
     private fun mild(name: String, pattern: String) = term(name, 1, pattern)
 
     private val TERMS = listOf(
-        strong("f-word", """(?:mother|mutha|motha)?f+u+c*k+\w*|f+u+k+(?:in|ing|ed|er|ers)?"""),
+        severe("f-word", """(?:mother|mutha|motha)?f+u+c*k+\w*|f+u+k+(?:in|ing|ed|er|ers)?"""),
         strong("s-word", """(?:bull|horse)?shit(?:s|ty|tier|tiest|tin|ting|ted|head|heads|hole|holes)?"""),
         strong("b-word", """bitch\w*"""),
-        strong("c-word", """cunts?"""),
-        strong("cocksucker", """cocksuckers?"""),
+        severe("c-word", """cunts?"""),
+        severe("cocksucker", """cocksuckers?"""),
         // Not "pussycat", "pussy cat" or "pussy willow".
         strong("p-word", """puss(?:y|ies)(?! ?cats?| willows?)"""),
-        strong("n-word", """nigg(?:a|er|ah|az|as|ers)"""),
+        severe("n-word", """nigg(?:a|er|ah|az|as|ers)"""),
         strong("whore", """whores?"""),
         strong("slut", """sluts?"""),
-        strong("f-slur", """fag(?:got)?s?"""),
+        severe("f-slur", """fag(?:got)?s?"""),
         strong("asshole", """ass ?holes?"""),
         // Starred-out spellings some lyrics sites print instead.
-        Term("f-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])f[*#@]+c?k\w*""")),
+        Term("f-word (starred)", SEVERE_POINTS, Regex("""(?<![\p{L}\p{N}])f[*#@]+c?k\w*""")),
         Term("s-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])sh?[*#@]+t\w*""")),
         Term("b-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])b[*#@]+t?ch\w*""")),
-        Term("n-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])n[*#@]+gg?(?:a|er)s?""")),
+        Term("n-word (starred)", SEVERE_POINTS, Regex("""(?<![\p{L}\p{N}])n[*#@]+gg?(?:a|er)s?""")),
         mild("ass", """ass(?:es)?"""),
         mild("dick", """dicks?"""),
         // A rooster's "cock-a-doodle" and "cock of the walk" are why this one is mild.

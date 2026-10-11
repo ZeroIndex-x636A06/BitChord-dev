@@ -13,7 +13,7 @@ fun main(args: Array<String>) {
         val terms = ExplicitLyrics.matches(text).entries.joinToString(", ") { "${it.key.name}×${it.value}" }
         val score = ExplicitLyrics.score(text)
         val verdict = if (score >= ExplicitLyrics.THRESHOLD) "FLAG" else "pass"
-        val mark = if ((verdict == "FLAG") == (expect == "E")) "ok " else "!! "
+        val mark = if (expect == "?") "?? " else if ((verdict == "FLAG") == (expect == "E")) "ok " else "!! "
         println("$mark$expect | $verdict ${score.toString().padStart(2)} | $title — $artist | ${terms.ifEmpty { "-" }}")
     }
 }
