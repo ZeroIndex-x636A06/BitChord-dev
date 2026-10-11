@@ -101,10 +101,23 @@ private val HOME_TITLE_LIFT = 28.dp
 private const val RECENTS_TITLE = "Recents"
 private const val RECENT_TRACKS_PER_COLUMN = 4
 
-private fun ShelfItem.matchesCurrentlyPlaying(song: Song?): Boolean {
+/**
+ * Whether this card is the track playing, for the now-playing highlight.
+ *
+ * A card carries no length, so the name-and-credit match [Song.isSameTrackAs]
+ * narrows with duration can't be narrowed here. What a shelf can do instead is
+ * prefer an exact card: when one card in [shelf] is the very video playing, it
+ * alone lights up, and a namesake beside it — Xscape's two "Chicago"s in
+ * Recents — stays dark. The name only stands in when no card is the video
+ * itself, which is the case it exists for: the same song reached under
+ * another id.
+ */
+private fun ShelfItem.matchesCurrentlyPlaying(song: Song?, shelf: List<ShelfItem>): Boolean {
     song ?: return false
     if (videoId == null) return false
-    return videoId == song.videoId || (title == song.title && subtitle == song.artist)
+    if (videoId == song.videoId) return true
+    if (shelf.any { it.videoId == song.videoId }) return false
+    return title == song.title && subtitle == song.artist
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -320,8 +333,8 @@ private fun RecentShelf(
                                     item = item,
                                     onClick = { onItemClick(item) },
                                     onLongPress = onItemLongPress?.let { { it(item) } },
-                                    isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                                    isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                                    isCurrent = item.matchesCurrentlyPlaying(currentSong, shelf.items),
+                                    isPlaying = item.matchesCurrentlyPlaying(currentSong, shelf.items) && isPlaying,
                                 )
                             }
                         }
@@ -341,8 +354,8 @@ private fun RecentShelf(
                             onClick = { onItemClick(item) },
                             onLongPress = onItemLongPress?.let { { it(item) } },
                             modifier = Modifier.width(cardWidth),
-                            isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                            isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                            isCurrent = item.matchesCurrentlyPlaying(currentSong, shelf.items),
+                            isPlaying = item.matchesCurrentlyPlaying(currentSong, shelf.items) && isPlaying,
                         )
                     }
                 }
@@ -784,8 +797,8 @@ private fun HeroShelf(
                         onClick = { onItemClick(item) },
                         onLongPress = onItemLongPress?.let { { it(item) } },
                         modifier = Modifier.width(cardWidth),
-                        isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                        isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                        isCurrent = item.matchesCurrentlyPlaying(currentSong, shelf.items),
+                        isPlaying = item.matchesCurrentlyPlaying(currentSong, shelf.items) && isPlaying,
                     )
                 }
             }
@@ -889,8 +902,8 @@ internal fun Shelf(
                     item = item,
                     onClick = { onItemClick(item) },
                     onLongPress = onItemLongPress?.let { { it(item) } },
-                    isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                    isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                    isCurrent = item.matchesCurrentlyPlaying(currentSong, shelf.items),
+                    isPlaying = item.matchesCurrentlyPlaying(currentSong, shelf.items) && isPlaying,
                 )
             }
         }

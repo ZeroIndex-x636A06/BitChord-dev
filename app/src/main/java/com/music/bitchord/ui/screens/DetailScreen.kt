@@ -134,6 +134,7 @@ import com.music.bitchord.data.model.UiState
 import com.music.bitchord.data.model.artworkAt
 import com.music.bitchord.data.model.durationMillis
 import com.music.bitchord.data.model.isSameTrackAs
+import com.music.bitchord.data.model.nowPlayingMatcher
 import com.music.bitchord.data.settings.AppSettings
 import com.music.bitchord.ui.components.DownloadedBadge
 import com.music.bitchord.ui.components.ExplicitSongTitle
@@ -356,6 +357,9 @@ fun DetailScreen(
     // list. When no filter is active, matches contains the full running order
     // and plays the complete release/playlist from the tapped position.
     val queue = remember(matches) { matches.map { it.value } }
+    // Matched against the whole release, not the filtered rows: the playing
+    // entry is still this list's own even while a filter hides it.
+    val isNowPlaying = remember(songs, currentSong) { songs.nowPlayingMatcher(currentSong) }
     val suggested = remember(page.suggestedSongs, query) {
         page.suggestedSongs.matching(query).map { it.value }
     }
@@ -615,7 +619,7 @@ fun DetailScreen(
                         key = { _, entry -> "${entry.index}_${entry.value.videoId}" },
                     ) { position, entry ->
                         val song = entry.value
-                        val isCurrent = song.isSameTrackAs(currentSong)
+                        val isCurrent = isNowPlaying(song)
                         SongRow(
                             song = if (numbered) {
                                 song
