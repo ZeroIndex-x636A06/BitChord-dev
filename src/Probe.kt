@@ -34,26 +34,26 @@ fun search(query: String, params: String?): List<Song> {
 fun Song.line() = "$title — $artist — ${if (isExplicit == true) "E" else "-"}${if (isVideo) "V" else "-"} ${durationText ?: "?"} [$videoId]"
 
 fun main(args: Array<String>) {
+    var hits = 0; var total = 0
     for (line in File(args[0]).readLines().filter { it.isNotBlank() }) {
         val (title, artist) = line.split("|")
-        val out = StringBuilder("### $title — $artist\n")
         val first = search("$title $artist", SONGS)
         val explicit = first.firstOrNull { it.isExplicit == true && TrackMatcher.sharesArtist(artist, it.artist) }
-        if (explicit == null) {
-            out.append("no explicit row; top: ").append(first.take(3).joinToString(" | ") { it.line() }).append("\n")
-        } else {
-            out.append("explicit: ${explicit.line()}\n")
-            val queries = TrackMatcher.queries(TrackMatcher.targetOf(explicit)).take(2).map { it to SONGS } +
-                listOf("${explicit.title} ${artist} clean" to SONGS, "${explicit.title} ${artist} clean" to VIDEOS)
-            for ((q, f) in queries) {
-                val got = if (q == "$title $artist" && f == SONGS) first else search(q, f)
-                val pick = CleanVersionMatcher.pick(explicit, got)
-                out.append("  q=\"$q\" ${if (f == SONGS) "SONGS" else "VIDEOS"}: ${got.size} rows; pick=${pick?.line() ?: "none"}\n")
-                got.filter { TrackMatcher.sharesArtist(artist, it.artist) || it.title.contains(explicit.title.take(6), ignoreCase = true) }
-                    .take(8).forEach { out.append("     · ${it.line()}  core=${CleanVersionMatcher.coreTitle(it.title)}\n") }
+        if (explicit == null) { println("NO-E  $title — $artist"); continue }
+        total++
+        val name = TrackMatcher.queries(TrackMatcher.targetOf(explicit)).first()
+        var how = "none"
+        var pick: Song? = CleanVersionMatcher.pick(explicit, search(name, SONGS))
+        if (pick != null) how = "songs" else {
+            pick = CleanVersionMatcher.pick(explicit, search("$name clean", SONGS))
+            if (pick != null) how = "songs+clean" else {
+                pick = CleanVersionMatcher.pickVideo(explicit, search("$name clean", VIDEOS))
+                if (pick != null) how = "video"
             }
         }
-        println(out)
-        Thread.sleep(400)
+        if (pick != null) hits++
+        println("${if (pick != null) "FOUND" else "none "} [$how] $title — $artist -> ${pick?.line() ?: "-"}")
+        Thread.sleep(300)
     }
+    println("found $hits of $total")
 }
