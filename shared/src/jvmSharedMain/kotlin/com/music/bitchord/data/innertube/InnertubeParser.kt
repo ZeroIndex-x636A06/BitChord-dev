@@ -42,8 +42,21 @@ object InnertubeParser {
     fun parseSearchSongs(response: JsonObject): List<Song> =
         parseSearch(response).filterIsInstance<SearchResult.Track>().map { it.song }
 
-    /** One page of search rows, plus the token for the next page if YouTube offers one. */
-    data class SearchPage(val rows: List<SearchResult>, val continuation: String?)
+    /**
+     * One page of search rows, plus the token for the next page if YouTube offers one.
+     *
+     * [topVideo] is the promoted result when YouTube made a music video of it.
+     * The All page leaves videos out, so that card is not among [rows] — but it
+     * is very often *the* answer: searching a song by its exact name promotes
+     * its official video, where a misspelling promotes something else. Kept
+     * here so the caller can put the song that video is of in its place; see
+     * [com.music.bitchord.data.SearchTopResult].
+     */
+    data class SearchPage(
+        val rows: List<SearchResult>,
+        val continuation: String?,
+        val topVideo: Song? = null,
+    )
 
     /**
      * Search results are heterogeneous: songs carry a videoId, while albums,
@@ -76,6 +89,11 @@ object InnertubeParser {
                 collectRenderers(card, "musicResponsiveListItemRenderer").map { it to credit }
             }
         }
+
+        val topVideo = topResults.asSequence()
+            .filterIsInstance<SearchResult.TopTrack>()
+            .map { it.song }
+            .firstOrNull { it.isVideo }
 
         val seen = HashSet<String>()
         val parsed = buildList {
@@ -111,7 +129,7 @@ object InnertubeParser {
                 }
             }
         }
-        return SearchPage(parsed, continuationToken(response))
+        return SearchPage(parsed, continuationToken(response), topVideo)
     }
 
     /**

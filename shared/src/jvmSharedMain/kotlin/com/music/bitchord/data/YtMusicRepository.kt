@@ -299,9 +299,25 @@ object YtMusicRepository {
                 Innertube.search(query, filter.params),
                 includeVideos = filter == SearchFilter.VIDEOS,
             ).let { page ->
-                SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
+                SearchPage(withTopSong(page).distinctBy { it.identityKey() }, page.continuation)
             }
         }
+
+    /**
+     * The page's rows, led by the song its promoted music video is of — see
+     * [SearchTopResult]. Found on the page when it is there; otherwise one
+     * Songs search, the same lookup (and cache) "Prefer music-only version"
+     * uses, and only for a page whose top result would have gone missing.
+     */
+    private suspend fun withTopSong(page: InnertubeParser.SearchPage): List<SearchResult> {
+        val video = page.topVideo ?: return page.rows
+        if (page.rows.any { it is SearchResult.TopTrack }) return page.rows
+        SearchTopResult.promoteFromPage(page.rows, video)?.let { return it }
+        val audio = runCatching { resolveAudio(video) }.getOrNull()
+            ?.takeIf { !it.isVideo && it.videoId != video.videoId }
+            ?: return page.rows
+        return SearchTopResult.withTopResult(page.rows, audio)
+    }
 
     /** Fetches the next page of a search only when the result list needs it. */
     suspend fun searchContinuation(token: String, filter: SearchFilter): Result<SearchPage> = call("search:continuation") {
@@ -354,7 +370,12 @@ object YtMusicRepository {
                 Innertube.searchTypeahead(input),
                 includeVideos = false,
             ).let { page ->
-                SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
+                // From the page only: a lookup per keystroke is not worth it
+                // for a list the next keystroke replaces.
+                val rows = page.topVideo
+                    ?.let { SearchTopResult.promoteFromPage(page.rows, it) }
+                    ?: page.rows
+                SearchPage(rows.distinctBy { it.identityKey() }, page.continuation)
             }
         }
 
