@@ -1322,6 +1322,11 @@ private fun BitChordApp(
             ) {
                 optimisticVersionSong = target
             }
+            // Asked for by name, so "Prefer music-only version" must not take
+            // it straight back: without this the automatic switch below saw
+            // the video arrive as a fresh item and converted it to audio again
+            // before a frame of it had played.
+            keepVideoId = target.videoId
             // Released before the handover for the same reason as the
             // music-only path above: the service owns the flag from here, and
             // the finally only exists for the paths that never send.
@@ -3289,6 +3294,12 @@ private fun BitChordApp(
                             // order — play the one tapped and build a station from it.
                             onSongClick = { songs, index ->
                                 songs.getOrNull(index)?.let { song ->
+                                    // A hit picked off the Videos tab is the video on
+                                    // purpose; the music-only preference is for videos
+                                    // that turn up anywhere else.
+                                    if (filter == SearchFilter.VIDEOS && song.isVideo) {
+                                        keepVideoId = song.videoId
+                                    }
                                     viewModel.recordEntity(SearchHistoryEntity(
                                         id = song.videoId,
                                         title = song.title,
