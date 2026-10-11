@@ -1,0 +1,31 @@
+name: probe search shapes
+on:
+  push:
+    branches: [probe/search-shapes]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query YouTube Music
+        working-directory: probe
+        run: |
+          set -u
+          SONGS='EgWKAQIIAWoKEAkQChAFEAMQBA=='
+          for q in "rap god" "rap gos" "eminem rap god" "rap god eminem" "Rap God"; do
+            ./probe.sh "$q"
+            ./probe.sh "$q" "$SONGS"
+          done
+          for f in resp-*.json; do
+            s=$(jq -r -f summarize.jq "$f" 2>&1 | head -c 3500)
+            s="${s//'%'/'%25'}"; s="${s//$'\n'/'%0A'}"; s="${s//$'\r'/'%0D'}"
+            echo "::notice title=${f}::${s}"
+          done
+      - name: Commit raw responses
+        run: |
+          git config user.name probe-bot
+          git config user.email probe@users.noreply.github.com
+          git add -f probe/resp-*.json
+          git commit -qm "probe: raw responses" && git push -q
