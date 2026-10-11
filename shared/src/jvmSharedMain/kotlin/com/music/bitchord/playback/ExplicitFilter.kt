@@ -38,6 +38,8 @@ enum class ExplicitFilterMode {
  * @param ownPlaylistIds browse ids of playlists known to be the listener's.
  * @param lyricsFlagged video ids whose lyrics made them explicit — see
  *   [ExplicitLyrics]. Empty unless "Check lyrics for explicit content" is on.
+ * @param swapToClean play a blocked track's clean release in its place, when
+ *   it has one, rather than skipping it or asking — see [CleanVersions].
  */
 data class ExplicitPolicy(
     val mode: ExplicitFilterMode,
@@ -45,6 +47,7 @@ data class ExplicitPolicy(
     val allowOwnPlaylists: Boolean = false,
     val ownPlaylistIds: Set<String> = emptySet(),
     val lyricsFlagged: Set<String> = emptySet(),
+    val swapToClean: Boolean = false,
 ) {
     companion object {
         val OFF = ExplicitPolicy(ExplicitFilterMode.OFF)
@@ -117,6 +120,27 @@ object ExplicitFilter {
                 !suggestion && policy.allowOwnPlaylists && sourceId != null && sourceId in policy.ownPlaylistIds
         }
     }
+
+    /**
+     * Whether [song] is blocked but will be played as its clean release
+     * instead: [ExplicitPolicy.swapToClean] is on and the track isn't one
+     * already known to have no clean release ([missing], from
+     * [CleanVersions.missing]). Such a track is not skipped, dimmed or asked
+     * about — it is swapped when it plays.
+     */
+    fun swapsToClean(
+        song: Song,
+        policy: ExplicitPolicy,
+        suggestion: Boolean,
+        sourceId: String? = song.playbackSourceId,
+        missing: Set<String> = emptySet(),
+    ): Boolean =
+        policy.swapToClean &&
+            // Only what the catalogue badged has a "clean release" to find; a
+            // song caught by its lyrics has no edited twin to swap to.
+            song.isExplicit == true &&
+            song.videoId !in missing &&
+            !permits(song, policy, suggestion, sourceId)
 
     fun filter(
         songs: List<Song>,

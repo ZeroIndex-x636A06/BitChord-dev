@@ -183,11 +183,13 @@ class ExplicitLyricsChecker(
 
     /** Whether [song] still has to be read before the filter can judge it. */
     fun needsCheck(song: Song): Boolean =
-        song.isExplicit != true && song.localUri == null && song.localPath == null && !store.knows(song.videoId)
+        song.isExplicit != true && song.localUri == null && song.localPath == null &&
+            !CleanVersions.isCleanRelease(song) && !store.knows(song.videoId)
 
     /** The verdict for [song] — read now if it hasn't been — or null when it couldn't be read. */
     suspend fun check(song: Song): Boolean? {
         if (song.isExplicit == true) return true
+        if (CleanVersions.isCleanRelease(song)) return false
         if (store.knows(song.videoId)) return song.videoId in store.flagged.value
         val mine = CompletableDeferred<Boolean?>()
         inFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }

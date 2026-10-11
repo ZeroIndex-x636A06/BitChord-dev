@@ -43,6 +43,14 @@ fun ShelfItem.showsExplicit(): Boolean {
 private fun ShelfItem.asCardSong(id: String) =
     Song(videoId = id, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl, isExplicit = isExplicit)
 
+/**
+ * Whether an explicit row will be played as its clean release — the filter's
+ * "Play clean versions instead". Such a row isn't dimmed, and wears a faded
+ * "C" where the "E" would be, the way Apple Music marks a clean version, so
+ * it's clear the words won't be in it. Default: nothing swaps.
+ */
+val LocalExplicitSwapped = compositionLocalOf<(Song) -> Boolean> { { false } }
+
 /** How far a blocked row is dimmed — the same as a Spotify track with no match. */
 const val BLOCKED_ROW_ALPHA = 0.45f
 
@@ -52,6 +60,15 @@ fun ShelfItem.isExplicitBlocked(): Boolean {
     val id = videoId ?: return false
     val blocked = LocalExplicitBlocked.current
     return blocked(asCardSong(id))
+}
+
+/** [LocalExplicitSwapped] for a feed card. */
+@Composable
+fun ShelfItem.isCleanSwapped(): Boolean {
+    val id = videoId ?: return false
+    if (isExplicit != true) return false
+    val swapped = LocalExplicitSwapped.current
+    return swapped(Song(videoId = id, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl, isExplicit = true))
 }
 
 /** Dims to [BLOCKED_ROW_ALPHA] when [blocked]. */

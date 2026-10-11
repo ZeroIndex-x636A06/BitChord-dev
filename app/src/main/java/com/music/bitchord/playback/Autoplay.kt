@@ -108,7 +108,13 @@ suspend fun loadAutoplayTracks(
     // explicit tracks still tops the queue up with clean ones rather than
     // coming back short. AutoPlay and every radio start share this helper,
     // which is what makes it the one place suggestions need checking.
-    val permitted = ExplicitFilter.filter(related, AppSettings.explicitPolicy(), suggestion = true)
+    // With "Play clean versions instead" on, a blocked suggestion is swapped
+    // for its clean release rather than left out — see [CleanVersions].
+    val permitted = CleanVersions.applyToSuggestions(
+        related,
+        AppSettings.explicitPolicy(),
+        lookUpTo = limit * 2,
+    )
     val extra = QueueBuilder.extend(existing, permitted, limit)
     if (extra.isEmpty()) return Result.success(emptyList())
 

@@ -56,7 +56,10 @@ private const val ENTER_MS = 200
 private const val EXIT_MS = 150
 
 /** What the listener chose when an explicit song was blocked. */
-internal enum class DesktopExplicitChoice { ALLOW_SONG, TURN_OFF_BLOCKING, CANCEL }
+internal enum class DesktopExplicitChoice { PLAY_CLEAN, ALLOW_SONG, TURN_OFF_BLOCKING, CANCEL }
+
+/** Where the prompt's "Play clean version" stands — the phone's `CleanVersionOffer`. */
+internal enum class DesktopCleanOffer { HIDDEN, SEARCHING, AVAILABLE, NONE }
 
 /**
  * Asks what to do about a song the explicit filter is blocking: allow it from
@@ -68,6 +71,7 @@ internal enum class DesktopExplicitChoice { ALLOW_SONG, TURN_OFF_BLOCKING, CANCE
 @Composable
 internal fun DesktopExplicitBlockedDialog(
     song: Song,
+    cleanVersion: DesktopCleanOffer = DesktopCleanOffer.HIDDEN,
     onChoice: (DesktopExplicitChoice) -> Unit,
 ) {
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
@@ -138,6 +142,37 @@ internal fun DesktopExplicitBlockedDialog(
                     color = DesktopSecondary,
                     modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 6.dp),
                 )
+                if (cleanVersion == DesktopCleanOffer.NONE) {
+                    Text(
+                        DesktopStrings["d_no_clean_version_found", "No clean version was found."],
+                        style = MaterialTheme.typography.bodySmall,
+                        color = DesktopSecondary,
+                        modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 4.dp),
+                    )
+                }
+                val offeringClean = cleanVersion == DesktopCleanOffer.SEARCHING ||
+                    cleanVersion == DesktopCleanOffer.AVAILABLE
+                // On a line of its own, so four choices don't crowd one row; and the accented one
+                // while it's there — the answer most likely wanted by someone who blocks explicit
+                // songs.
+                if (offeringClean) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        val available = cleanVersion == DesktopCleanOffer.AVAILABLE
+                        TextButton(onClick = { choose(DesktopExplicitChoice.PLAY_CLEAN) }, enabled = available) {
+                            Text(
+                                if (available) {
+                                    DesktopStrings["d_play_clean_version", "Play clean version"]
+                                } else {
+                                    DesktopStrings["d_looking_for_clean_version", "Looking for a clean version\u2026"]
+                                },
+                                color = if (available) DesktopAccent else DesktopSecondary,
+                            )
+                        }
+                    }
+                }
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.End,
@@ -150,7 +185,10 @@ internal fun DesktopExplicitBlockedDialog(
                         Text(DesktopStrings["d_turn_off_blocking", "Turn off blocking"], color = DesktopSecondary)
                     }
                     TextButton(onClick = { choose(DesktopExplicitChoice.ALLOW_SONG) }) {
-                        Text(DesktopStrings["d_allow_this_song", "Allow this song"], color = DesktopAccent)
+                        Text(
+                            DesktopStrings["d_allow_this_song", "Allow this song"],
+                            color = if (offeringClean) Color.White else DesktopAccent,
+                        )
                     }
                 }
             }

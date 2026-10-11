@@ -1,7 +1,8 @@
 package com.music.bitchord.ui.screens
 
 import com.music.bitchord.ui.components.contextClick
-import com.music.bitchord.ui.components.ExplicitBadge
+import com.music.bitchord.ui.components.ExplicitMark
+import com.music.bitchord.ui.components.isCleanSwapped
 import com.music.bitchord.ui.components.explicitDimmed
 import com.music.bitchord.ui.components.isExplicitBlocked
 import com.music.bitchord.ui.components.showsExplicit
@@ -428,6 +429,7 @@ private fun RecentTrackRow(
             isCurrent = isCurrent,
             isPlaying = isPlaying,
             explicit = item.showsExplicit(),
+            cleanSwapped = item.isCleanSwapped(),
         )
     }
 }
@@ -448,6 +450,8 @@ fun CompactTrackRow(
     isPlaying: Boolean = false,
     /** Draws the outlined E before the title, as song rows elsewhere do. */
     explicit: Boolean = false,
+    /** The E is a faded C instead: this track will play as its clean version. */
+    cleanSwapped: Boolean = false,
 ) {
     Row(
         modifier = Modifier
@@ -475,7 +479,7 @@ fun CompactTrackRow(
             val titleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (explicit) {
-                    ExplicitBadge(titleColor)
+                    ExplicitMark(cleanSwapped, titleColor)
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
@@ -831,7 +835,7 @@ private fun HeroCard(
             val heroTitleColor = if (isCurrent) PlayingAccent else Color.White
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (item.showsExplicit()) {
-                    ExplicitBadge(heroTitleColor)
+                    ExplicitMark(item.isCleanSwapped(), heroTitleColor)
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
@@ -1082,7 +1086,7 @@ internal fun ShelfCard(
             }
             val cardTitleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
             if (item.showsExplicit()) {
-                ExplicitBadge(cardTitleColor)
+                ExplicitMark(item.isCleanSwapped(), cardTitleColor)
                 Spacer(Modifier.width(6.dp))
             }
             Text(

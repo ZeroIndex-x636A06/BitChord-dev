@@ -291,6 +291,8 @@ private fun Song.canStartStation(): Boolean =
 @UnstableApi
 /** How many tracks after the playing one have their lyrics read ahead of time. */
 private const val LYRICS_CHECK_LOOKAHEAD = 2
+/** How many tracks ahead a blocked one is swapped for its clean release. */
+private const val CLEAN_SWAP_LOOKAHEAD = 3
 
 class PlaybackService : MediaLibraryService() {
 
@@ -2609,9 +2611,12 @@ class PlaybackService : MediaLibraryService() {
      * as the listener's own picks, so under [ExplicitFilterMode.SUGGESTIONS]
      * only AutoPlay's tracks can go.
      *
-     * Upcoming blocked tracks are removed. The playing track, if it is now
-     * blocked too — the listener took it off the allowed list mid-song, or
-     * switched blocking on while it played — is skipped rather than removed, so
+     * Upcoming blocked tracks are removed — or, with "Play clean versions
+     * instead" on, swapped for their clean release a few tracks before they
+     * come up ([CLEAN_SWAP_LOOKAHEAD]), and removed only if there turns out to
+     * be none. The playing track, if it is now blocked too — the listener took
+     * it off the allowed list mid-song, or switched blocking on while it
+     * played — is swapped the same way, or else skipped rather than removed, so
      * it stays in the history behind and the queue doesn't shift under them.
      * With nothing allowed after it, playback pauses at its start instead.
      * Blocking that waited for the song to end would read as the setting not
@@ -2628,25 +2633,41 @@ class PlaybackService : MediaLibraryService() {
         if (AppSettings.explicitFilter.value == ExplicitFilterMode.OFF) return
         if (ListenTogether.state.value.inParty) return
         val exoPlayer = player ?: return
-        for (index in exoPlayer.mediaItemCount - 1 downTo exoPlayer.currentMediaItemIndex + 1) {
+        val currentIndex = exoPlayer.currentMediaItemIndex
+        for (index in exoPlayer.mediaItemCount - 1 downTo currentIndex + 1) {
             val item = exoPlayer.getMediaItemAt(index)
-            if (item.queuedSong().explicitBlocked(suggestion = item.fromAutoplay)) {
-                exoPlayer.removeMediaItem(index)
+            val song = item.queuedSong()
+            if (!song.explicitBlocked(suggestion = item.fromAutoplay)) continue
+            if (song.explicitSwapsToClean(suggestion = item.fromAutoplay)) {
+                if (index <= currentIndex + CLEAN_SWAP_LOOKAHEAD) swapUpcomingToClean(song)
+                continue
             }
+            exoPlayer.removeMediaItem(index)
         }
         val current = exoPlayer.currentMediaItem ?: return
-        val playing = current.queuedSong()
-        val blocked = playing.explicitBlocked(suggestion = current.fromAutoplay)
+        val song = current.queuedSong()
+        val blocked = song.explicitBlocked(suggestion = current.fromAutoplay)
         TrackLog.d(
             "BitChord",
-            "explicit filter: checked the playing track — explicit=${playing.isExplicit} blocked=$blocked",
+            "explicit filter: checked the playing track — explicit=${song.isExplicit} blocked=$blocked",
             current.mediaId,
         )
         if (!blocked) return
+        if (song.explicitSwapsToClean(suggestion = current.fromAutoplay)) {
+            swapCurrentToClean(song)
+        } else {
+            skipBlockedCurrent()
+        }
+    }
+
+    /** The playing track is blocked and has no clean stand-in: move off it. */
+    private fun skipBlockedCurrent() {
+        val exoPlayer = player ?: return
+        val current = exoPlayer.currentMediaItem ?: return
         if (exoPlayer.hasNextMediaItem()) {
             TrackLog.d("BitChord", "playing track is now blocked by the explicit filter — skipping", current.mediaId)
             // Everything after it was just filtered, so the next item is one
-            // the listener is allowed to hear.
+            // the listener is allowed to hear (or one about to be swapped).
             exoPlayer.seekToNextMediaItem()
         } else {
             TrackLog.d("BitChord", "playing track is now blocked by the explicit filter — pausing", current.mediaId)
@@ -2692,6 +2713,68 @@ class PlaybackService : MediaLibraryService() {
             val song = exoPlayer.getMediaItemAt(index).toSong()
             if (!ExplicitLyricsCheck.checker.needsCheck(song)) continue
             scope.launch(Dispatchers.IO) { ExplicitLyricsCheck.checker.check(song) }
+        }
+    }
+
+    /** Lookups for upcoming clean swaps, one per track, so a re-check doesn't start another. */
+    private val cleanSwapJobs = HashMap<String, Job>()
+
+    /**
+     * Swaps the upcoming entry for [song] for its clean release once that is
+     * found, or drops it if there is none. Found again by id when the answer
+     * comes back, since the queue may have moved meanwhile.
+     */
+    private fun swapUpcomingToClean(song: Song) {
+        if (cleanSwapJobs[song.videoId]?.isActive == true) return
+        CleanVersions.cached(song)?.let { clean ->
+            replaceUpcoming(song.videoId, clean)
+            return
+        }
+        cleanSwapJobs[song.videoId] = scope.launch {
+            val clean = CleanVersions.find(song)
+            replaceUpcoming(song.videoId, clean)
+        }
+    }
+
+    private fun replaceUpcoming(videoId: String, clean: Song?) {
+        val exoPlayer = player ?: return
+        for (index in exoPlayer.mediaItemCount - 1 downTo exoPlayer.currentMediaItemIndex + 1) {
+            val item = exoPlayer.getMediaItemAt(index)
+            if (item.mediaId != videoId) continue
+            val queued = item.toSong()
+            if (clean != null) {
+                TrackLog.d("BitChord", "explicit filter: queued '${queued.title}' swapped for its clean version", clean.videoId)
+                exoPlayer.replaceMediaItem(index, queued.cleanStandIn(clean).toMediaItem())
+            } else if (queued.explicitBlocked(suggestion = item.fromAutoplay)) {
+                exoPlayer.removeMediaItem(index)
+            }
+        }
+    }
+
+    /**
+     * Swaps the playing track for its clean release. Held paused while that is
+     * looked up — not a line of the explicit version is meant to be heard —
+     * and started from the top once it's in.
+     */
+    private fun swapCurrentToClean(song: Song) {
+        val exoPlayer = player ?: return
+        val index = exoPlayer.currentMediaItemIndex
+        val wasPlaying = exoPlayer.playWhenReady
+        val cached = CleanVersions.cached(song)
+        if (cached == null) exoPlayer.pause()
+        scope.launch {
+            val clean = cached ?: CleanVersions.find(song)
+            val active = player ?: return@launch
+            val item = active.currentMediaItem ?: return@launch
+            if (active.currentMediaItemIndex != index || item.mediaId != song.videoId) return@launch
+            if (clean == null) {
+                skipBlockedCurrent()
+                return@launch
+            }
+            TrackLog.d("BitChord", "explicit filter: playing the clean version of '${song.title}'", clean.videoId)
+            active.replaceMediaItem(index, item.toSong().cleanStandIn(clean).toMediaItem())
+            active.seekTo(index, 0)
+            if (wasPlaying) active.play()
         }
     }
 
@@ -6061,7 +6144,8 @@ class PlaybackService : MediaLibraryService() {
                 AppSettings.explicitAllowed,
                 AppSettings.explicitAllowOwnPlaylists,
                 AppSettings.explicitOwnPlaylistIds,
-            ) { _, _, _, _ -> }
+                AppSettings.explicitSwapClean,
+            ) { _, _, _, _, _ -> }
                 .drop(1)
                 .collect {
                     TrackLog.d("BitChord", "explicit filter: settings changed; re-checking the queue")

@@ -97,6 +97,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -206,6 +207,13 @@ import com.music.bitchord.ui.components.rememberExplicitByLyrics
 import com.music.bitchord.ui.components.LocalExplicitByLyrics
 import com.music.bitchord.data.settings.ExplicitLyricsCheck
 import com.music.bitchord.data.settings.SearchHistory
+import com.music.bitchord.ui.components.rememberExplicitRowSwapped
+import com.music.bitchord.ui.components.LocalExplicitSwapped
+import com.music.bitchord.ui.components.CleanVersionOffer
+import com.music.bitchord.playback.CleanVersions
+import com.music.bitchord.playback.cleanStandIn
+import com.music.bitchord.playback.explicitSkipped
+import com.music.bitchord.playback.explicitSwapsToClean
 import com.music.bitchord.playback.explicitBlocked
 import com.music.bitchord.playback.firstPlayableIndex
 import com.music.bitchord.playback.randomPlayableIndex
@@ -400,12 +408,14 @@ class MainActivity : AppCompatActivity() {
                 val rootExplicitPolicy = rememberExplicitPolicy()
                 val explicitRowBlocked = rememberExplicitRowBlocked(rootExplicitPolicy)
                 val explicitByLyrics = rememberExplicitByLyrics(rootExplicitPolicy)
+                val explicitRowSwapped = rememberExplicitRowSwapped(rootExplicitPolicy)
                 CompositionLocalProvider(
                     LocalOverscrollFactory provides iosOverscrollFactory,
                     LocalLiquidGlassEnabled provides liquidGlassEnabled,
                     LocalAppBackdrop provides appBackdrop,
                     LocalExplicitBlocked provides explicitRowBlocked,
                     LocalExplicitByLyrics provides explicitByLyrics,
+                    LocalExplicitSwapped provides explicitRowSwapped,
                 ) {
                 // The window's width, measured rather than asked for.
                 //
@@ -592,7 +602,7 @@ private fun BitChordApp(
     var editingSource by remember { mutableStateOf<SourceConfig?>(null) }
     var confirmJioSaavn by remember { mutableStateOf(false) }
     /** An explicit song the filter stopped, and what to do once it's allowed. */
-    var explicitPrompt by remember { mutableStateOf<Pair<Song, () -> Unit>?>(null) }
+    var explicitPrompt by remember { mutableStateOf<ExplicitPrompt?>(null) }
     // Read as state so the track menu recomposes when a song is allowed or
     // blocked again, and pages re-dim their rows when a setting changes.
     val explicitPolicy = rememberExplicitPolicy()
@@ -1327,12 +1337,35 @@ private fun BitChordApp(
      * this" action below passes through here; what AutoPlay and radio pick is
      * filtered in [loadAutoplayTracks] instead, where nobody is there to ask.
      */
-    fun gateExplicitNow(song: Song?, sourceId: String?, proceed: () -> Unit) {
-        if (song != null && song.explicitBlocked(sourceId = sourceId ?: song.playbackSourceId)) {
-            explicitPrompt = song to proceed
-        } else {
+    fun gateExplicitNow(
+        song: Song?,
+        sourceId: String?,
+        playClean: ((Song) -> Unit)? = null,
+        proceed: () -> Unit,
+    ) {
+        val from = sourceId ?: song?.playbackSourceId
+        if (song == null || !song.explicitBlocked(sourceId = from)) {
             proceed()
+            return
         }
+        // "Play clean versions instead": no question unless there turns out
+        // to be no clean version — then the usual one, saying so.
+        if (playClean != null && song.explicitSwapsToClean(sourceId = from)) {
+            CleanVersions.cached(song)?.let { clean ->
+                playClean(song.cleanStandIn(clean))
+                return
+            }
+            scope.launch {
+                val clean = CleanVersions.find(song)
+                if (clean != null) {
+                    playClean(song.cleanStandIn(clean))
+                } else {
+                    explicitPrompt = ExplicitPrompt(song, proceed, playClean = null, noCleanVersion = true)
+                }
+            }
+            return
+        }
+        explicitPrompt = ExplicitPrompt(song, proceed, playClean)
     }
     // "Check lyrics for explicit content": a song nobody has read yet is read
     // before it plays, so the first play of Jump Around is the blocked one.
@@ -1340,12 +1373,17 @@ private fun BitChordApp(
     // it comes up. A second tap while the first is still being read is
     // dropped rather than queued behind it.
     var lyricsCheckPending by remember { mutableStateOf<String?>(null) }
-    val gateExplicit: (Song?, String?, () -> Unit) -> Unit = gate@{ song, sourceId, proceed ->
+    fun gateExplicit(
+        song: Song?,
+        sourceId: String?,
+        playClean: ((Song) -> Unit)? = null,
+        proceed: () -> Unit,
+    ) {
         if (song == null || !AppSettings.explicitNeedsLyricsCheck(song)) {
-            gateExplicitNow(song, sourceId, proceed)
-            return@gate
+            gateExplicitNow(song, sourceId, playClean, proceed)
+            return
         }
-        if (lyricsCheckPending == song.videoId) return@gate
+        if (lyricsCheckPending == song.videoId) return
         lyricsCheckPending = song.videoId
         scope.launch {
             try {
@@ -1353,7 +1391,7 @@ private fun BitChordApp(
             } finally {
                 lyricsCheckPending = null
             }
-            gateExplicitNow(song, sourceId, proceed)
+            gateExplicitNow(song, sourceId, playClean, proceed)
         }
     }
 
@@ -1367,7 +1405,9 @@ private fun BitChordApp(
         val tapped = allSongs.getOrNull(allIndex)
         val songs = allSongs.filter {
             !it.isUnresolvedSpotify &&
-                (it == tapped || !it.explicitBlocked(sourceId = source.id ?: it.playbackSourceId))
+                // Ones that will be swapped for their clean release stay; the
+                // service swaps them as they come up.
+                (it == tapped || !it.explicitSkipped(sourceId = source.id ?: it.playbackSourceId))
         }
         val index = songs.indexOf(tapped).coerceAtLeast(0)
         playRequestGeneration++
@@ -1409,7 +1449,17 @@ private fun BitChordApp(
         }
     }
     val playFrom: (List<Song>, Int, QueueSource) -> Unit = { allSongs, allIndex, source ->
-        gateExplicit(allSongs.getOrNull(allIndex), source.id) { playFromUnchecked(allSongs, allIndex, source) }
+        gateExplicit(
+            allSongs.getOrNull(allIndex),
+            source.id,
+            playClean = { clean ->
+                playFromUnchecked(
+                    allSongs.mapIndexed { i, song -> if (i == allIndex) clean else song },
+                    allIndex,
+                    source,
+                )
+            },
+        ) { playFromUnchecked(allSongs, allIndex, source) }
     }
     // Kept for entry points whose rows already carry their origin (notably a
     // collection action fetched before this callback). The explicit wrappers
@@ -1517,7 +1567,9 @@ private fun BitChordApp(
     }
 
     val playRadio: (Song, QueueSource) -> Unit = { song, source ->
-        gateExplicit(song, source.id) { playRadioUnchecked(song, source) }
+        gateExplicit(song, source.id, playClean = { playRadioUnchecked(it, source) }) {
+            playRadioUnchecked(song, source)
+        }
     }
 
     /**
@@ -1600,7 +1652,9 @@ private fun BitChordApp(
             }
         }
     }
-    val startRadio: (Song) -> Unit = { song -> gateExplicit(song, null) { startRadioUnchecked(song) } }
+    val startRadio: (Song) -> Unit = { song ->
+        gateExplicit(song, null, playClean = startRadioUnchecked) { startRadioUnchecked(song) }
+    }
     val addToQueueUnchecked: (Song) -> Unit = { song ->
         scope.launch {
             if (refusedByHost()) return@launch
@@ -1633,7 +1687,9 @@ private fun BitChordApp(
             }
         }
     }
-    val addToQueue: (Song) -> Unit = { song -> gateExplicit(song, null) { addToQueueUnchecked(song) } }
+    val addToQueue: (Song) -> Unit = { song ->
+        gateExplicit(song, null, playClean = addToQueueUnchecked) { addToQueueUnchecked(song) }
+    }
     val playNextUnchecked: (Song) -> Unit = { song ->
         scope.launch {
             if (refusedByHost()) return@launch
@@ -1664,7 +1720,9 @@ private fun BitChordApp(
             }
         }
     }
-    val playNext: (Song) -> Unit = { song -> gateExplicit(song, null) { playNextUnchecked(song) } }
+    val playNext: (Song) -> Unit = { song ->
+        gateExplicit(song, null, playClean = playNextUnchecked) { playNextUnchecked(song) }
+    }
     val onSongSwipe: (Song) -> Unit = { song ->
         if (AppSettings.swipeToPlayNext.value) playNext(song) else addToQueue(song)
     }
@@ -1745,7 +1803,7 @@ private fun BitChordApp(
     val queueSongs: (List<Song>, Boolean) -> Unit = { requested, next ->
         // Adding a whole release is not asking for each track by name, so the
         // explicit filter drops what it blocks instead of asking about each.
-        val songs = requested.filterNot { it.explicitBlocked() }
+        val songs = requested.filterNot { it.explicitSkipped() }
         if (songs.isEmpty() && requested.isNotEmpty()) {
             showQueueNotice(context.getString(R.string.explicit_songs_skipped))
         }
@@ -3035,7 +3093,11 @@ private fun BitChordApp(
                         // Rows here play from this page, so the own-playlist exception (when
                         // it's on) is judged against the page rather than each row.
                         val pageExplicitBlocked = rememberExplicitRowBlocked(explicitPolicy, page.browseId)
-                        CompositionLocalProvider(LocalExplicitBlocked provides pageExplicitBlocked) {
+                        val pageExplicitSwapped = rememberExplicitRowSwapped(explicitPolicy, page.browseId)
+                        CompositionLocalProvider(
+                            LocalExplicitBlocked provides pageExplicitBlocked,
+                            LocalExplicitSwapped provides pageExplicitSwapped,
+                        ) {
                             DetailScreen(
                                 page = page,
                                 currentSong = player.song,
@@ -5379,17 +5441,44 @@ private fun BitChordApp(
             )
         }
 
-        explicitPrompt?.let { (song, proceed) ->
+        explicitPrompt?.let { prompt ->
+            val (song, proceed) = prompt
             BackHandler { explicitPrompt = null }
             // Keyed on the song so a second blocked tap starts a fresh card
             // rather than reusing one that is already animating out.
             key(song.videoId) {
+                // Looked for while the card is up, so the answer is usually in
+                // before a choice is made.
+                val cleanOffer by produceState(
+                    initialValue = when {
+                        prompt.noCleanVersion -> CleanVersionOffer.NONE
+                        prompt.playClean == null -> CleanVersionOffer.HIDDEN
+                        CleanVersions.cached(song) != null -> CleanVersionOffer.AVAILABLE
+                        CleanVersions.isMissing(song) -> CleanVersionOffer.NONE
+                        else -> CleanVersionOffer.SEARCHING
+                    },
+                    key1 = prompt,
+                ) {
+                    if (value == CleanVersionOffer.SEARCHING) {
+                        value = when {
+                            CleanVersions.find(song) != null -> CleanVersionOffer.AVAILABLE
+                            CleanVersions.isMissing(song) -> CleanVersionOffer.NONE
+                            // The search failed rather than came back empty.
+                            else -> CleanVersionOffer.HIDDEN
+                        }
+                    }
+                }
                 ExplicitBlockedAlert(
                     song = song,
                     hazeState = hazeState,
+                    cleanVersion = cleanOffer,
                     onChoice = { choice ->
                         explicitPrompt = null
                         when (choice) {
+                            ExplicitBlockedChoice.PLAY_CLEAN -> {
+                                val clean = CleanVersions.cached(song)
+                                if (clean != null) prompt.playClean?.invoke(song.cleanStandIn(clean))
+                            }
                             ExplicitBlockedChoice.ALLOW_SONG -> {
                                 AppSettings.setExplicitAllowed(song, true)
                                 proceed()
@@ -5654,3 +5743,19 @@ private const val TAB_SEARCH = 3
  * prefix has to be the one thing both the writing and the reading agree on.
  */
 private const val TAB_KEY = "tab:"
+
+/**
+ * A song the explicit filter stopped, waiting on the listener.
+ *
+ * @param proceed plays it as asked, once allowed.
+ * @param playClean plays a clean release in its place; null where there's
+ *   nothing to offer.
+ * @param noCleanVersion "Play clean versions instead" looked and found none —
+ *   the reason this is being asked at all.
+ */
+private data class ExplicitPrompt(
+    val song: Song,
+    val proceed: () -> Unit,
+    val playClean: ((Song) -> Unit)? = null,
+    val noCleanVersion: Boolean = false,
+)

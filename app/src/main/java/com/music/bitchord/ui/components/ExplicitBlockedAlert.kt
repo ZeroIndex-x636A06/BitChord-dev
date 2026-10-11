@@ -1,6 +1,7 @@
 package com.music.bitchord.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -45,11 +46,27 @@ private const val ENTER_MS = 220
 private const val EXIT_MS = 160
 
 /** What the listener chose when an explicit song was blocked. */
-enum class ExplicitBlockedChoice { ALLOW_SONG, TURN_OFF_BLOCKING, CANCEL }
+enum class ExplicitBlockedChoice { PLAY_CLEAN, ALLOW_SONG, TURN_OFF_BLOCKING, CANCEL }
+
+/** Where the prompt's "Play clean version" stands. */
+enum class CleanVersionOffer {
+    /** Not offered: the lookup isn't being made for this prompt. */
+    HIDDEN,
+
+    /** Being looked for; the action shows, disabled, until it's known. */
+    SEARCHING,
+
+    /** Found; the action plays it. */
+    AVAILABLE,
+
+    /** Looked for and there isn't one — said so, since that's why it's asking. */
+    NONE,
+}
 
 /**
- * Asks what to do about a song the explicit filter is blocking: allow this song
- * from now on, turn blocking off, or leave it.
+ * Asks what to do about a song the explicit filter is blocking: play its clean
+ * version (when [cleanVersion] offers one), allow this song from now on, turn
+ * blocking off, or leave it.
  *
  * The same frosted card as the app's other alerts, but animated in and out —
  * the scrim fades and the card settles from slightly larger, the way a system
@@ -63,6 +80,7 @@ fun ExplicitBlockedAlert(
     song: Song,
     hazeState: HazeState,
     onChoice: (ExplicitBlockedChoice) -> Unit,
+    cleanVersion: CleanVersionOffer = CleanVersionOffer.HIDDEN,
 ) {
     val visible = remember { MutableTransitionState(false).apply { targetState = true } }
     var pending by remember { mutableStateOf<ExplicitBlockedChoice?>(null) }
@@ -125,6 +143,7 @@ fun ExplicitBlockedAlert(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .animateContentSize(tween(ENTER_MS))
                         .padding(horizontal = 16.dp, vertical = 19.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -150,11 +169,40 @@ fun ExplicitBlockedAlert(
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                     )
+                    if (cleanVersion == CleanVersionOffer.NONE) {
+                        Text(
+                            text = stringResource(R.string.no_clean_version_found),
+                            modifier = Modifier.padding(top = 4.dp),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+                // First, and the emphasised one when it's there: hearing the
+                // song without the words is the answer most likely wanted by
+                // someone who switched blocking on.
+                val offeringClean = cleanVersion == CleanVersionOffer.SEARCHING ||
+                    cleanVersion == CleanVersionOffer.AVAILABLE
+                if (offeringClean) {
+                    AlertRule()
+                    AlertAction(
+                        label = stringResource(
+                            if (cleanVersion == CleanVersionOffer.AVAILABLE) {
+                                R.string.play_clean_version
+                            } else {
+                                R.string.looking_for_clean_version
+                            },
+                        ),
+                        emphasised = true,
+                        enabled = cleanVersion == CleanVersionOffer.AVAILABLE,
+                        onClick = { choose(ExplicitBlockedChoice.PLAY_CLEAN) },
+                    )
                 }
                 AlertRule()
                 AlertAction(
                     label = stringResource(R.string.allow_this_song),
-                    emphasised = true,
+                    emphasised = !offeringClean,
                     onClick = { choose(ExplicitBlockedChoice.ALLOW_SONG) },
                 )
                 AlertRule()

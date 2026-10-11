@@ -2,7 +2,10 @@ package com.music.bitchord.desktop
 
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.bitchord.ui.components.LocalShelfRowChrome
-import com.music.bitchord.ui.components.ExplicitBadge
+import com.music.bitchord.ui.components.ExplicitMark
+import com.music.bitchord.ui.components.LocalExplicitSwapped
+import com.music.bitchord.playback.CleanVersions
+import com.music.bitchord.playback.cleanStandIn
 import com.music.bitchord.ui.components.LocalExplicitBlocked
 import com.music.bitchord.ui.components.LocalExplicitByLyrics
 import com.music.bitchord.ui.components.showsExplicit
@@ -644,7 +647,7 @@ fun BitChordDesktopApp() {
     // sheet rather than a navigation destination.
     var autoplay by remember { mutableStateOf(persistence.boolean("autoplay", true)) }
     // An explicit song the filter stopped, and what to do once it's allowed (issue #720).
-    var explicitPrompt by remember { mutableStateOf<Pair<Song, () -> Unit>?>(null) }
+    var explicitPrompt by remember { mutableStateOf<DesktopExplicitPrompt?>(null) }
     var dontRepeatSuggestions by remember {
         mutableStateOf(persistence.boolean(KEY_DONT_REPEAT_SUGGESTIONS, false))
     }
@@ -934,27 +937,53 @@ fun BitChordDesktopApp() {
      * and a yes allows that song from then on. Every "play this" and "queue this" passes through
      * here; what AutoPlay and radio pick is filtered in [DesktopAutoplay.tracksFor] instead.
      */
-    fun gateExplicit(song: Song?, sourceId: String?, lyricsRead: Boolean = false, proceed: () -> Unit) {
+    fun gateExplicit(
+        song: Song?,
+        sourceId: String?,
+        playClean: ((Song) -> Unit)? = null,
+        lyricsRead: Boolean = false,
+        proceed: () -> Unit,
+    ) {
         // "Check lyrics for explicit content": a song nobody has read yet is read before it plays,
         // then judged with the verdict in (or without one, if the lyrics couldn't be read). What
         // plays after it is read as it comes up.
         if (!lyricsRead && song != null && DesktopExplicit.needsLyricsCheck(song)) {
             scope.launch {
                 DesktopExplicit.lyricsChecker.check(song)
-                gateExplicit(song, sourceId, lyricsRead = true, proceed = proceed)
+                gateExplicit(song, sourceId, playClean, lyricsRead = true, proceed = proceed)
             }
             return
         }
-        if (song != null && song.desktopExplicitBlocked(sourceId = sourceId ?: song.playbackSourceId)) {
-            explicitPrompt = song to proceed
-        } else {
+        val from = sourceId ?: song?.playbackSourceId
+        if (song == null || !song.desktopExplicitBlocked(sourceId = from)) {
             proceed()
+            return
         }
+        // "Play clean versions instead": no question unless there turns out to be no clean
+        // version — then the usual one, saying so.
+        if (playClean != null && song.desktopExplicitSwapsToClean(sourceId = from)) {
+            CleanVersions.cached(song)?.let { clean ->
+                playClean(song.cleanStandIn(clean))
+                return
+            }
+            scope.launch {
+                val clean = CleanVersions.find(song)
+                if (clean != null) {
+                    playClean(song.cleanStandIn(clean))
+                } else {
+                    explicitPrompt = DesktopExplicitPrompt(song, proceed, playClean = null, noCleanVersion = true)
+                }
+            }
+            return
+        }
+        explicitPrompt = DesktopExplicitPrompt(song, proceed, playClean)
     }
 
     /** [playSong] for a tap or click: asks first when the explicit filter blocks the song. */
     fun playSongFromUser(song: Song, source: DesktopQueueSource? = null) =
-        gateExplicit(song, source?.id) { playSong(song, source = source) }
+        gateExplicit(song, source?.id, playClean = { playSong(it, source = source) }) {
+            playSong(song, source = source)
+        }
 
     fun playSongs(
         songs: List<Song>,
@@ -973,14 +1002,23 @@ fun BitChordDesktopApp() {
             return
         }
         if (picked != null && picked.desktopExplicitBlocked(sourceId = source?.id ?: picked.playbackSourceId)) {
-            explicitPrompt = picked to { playSongs(songs, startIndex, source) }
+            gateExplicit(
+                picked,
+                source?.id,
+                playClean = { clean ->
+                    playSongs(songs.mapIndexed { i, song -> if (i == startIndex) clean else song }, startIndex, source)
+                },
+                lyricsRead = true,
+            ) { playSongs(songs, startIndex, source) }
             return
         }
         // A Spotify playlist's rows still being matched to YouTube Music, or with no match, have
         // nothing to play: they stay out of the queue, and the pick moves to the next playable row.
         val resolved = songs.withIndex().filterNot {
             it.value.isUnresolvedSpotify ||
-                (it.index != startIndex && it.value.desktopExplicitBlocked(sourceId = source?.id ?: it.value.playbackSourceId))
+                // Rows that will be swapped for their clean release stay; they're swapped as they
+                // come up — see the queue's explicit-filter effect.
+                (it.index != startIndex && it.value.desktopExplicitSkipped(sourceId = source?.id ?: it.value.playbackSourceId))
         }
         if (resolved.isEmpty()) return
         if (partyTrackChangeBlocked()) return
@@ -1086,10 +1124,12 @@ fun BitChordDesktopApp() {
     }
 
     /** Slots a track in right after the one playing. */
-    fun playNext(song: Song) = gateExplicit(song, null) { enqueue(song, next = true) }
+    fun playNext(song: Song) =
+        gateExplicit(song, null, playClean = { enqueue(it, next = true) }) { enqueue(song, next = true) }
 
     /** Puts a track at the end of what the listener queued — not the end of the queue. */
-    fun addToQueue(song: Song) = gateExplicit(song, null) { enqueue(song, next = false) }
+    fun addToQueue(song: Song) =
+        gateExplicit(song, null, playClean = { enqueue(it, next = false) }) { enqueue(song, next = false) }
 
     /** [startRadio] once the explicit filter has had its say. */
     fun startRadioUnchecked(song: Song) {
@@ -1123,7 +1163,7 @@ fun BitChordDesktopApp() {
     /** Starts the station YouTube Music builds around one track, held to the explicit filter. */
     fun startRadio(song: Song) {
         if (DesktopExplicit.needsLyricsCheck(song) || song.desktopExplicitBlocked()) {
-            gateExplicit(song, null, proceed = { startRadioUnchecked(song) })
+            gateExplicit(song, null, playClean = { startRadioUnchecked(it) }, proceed = { startRadioUnchecked(song) })
             return
         }
         startRadioUnchecked(song)
@@ -1726,9 +1766,22 @@ fun BitChordDesktopApp() {
     // go, and a playing one that has just become blocked — taken off the allowed list, or blocking
     // switched on mid-song — is skipped, or paused when nothing allowed follows it. AutoPlay's
     // tail is judged as a suggestion. Not in a party, whose queue is everyone's.
+    //
+    // With "Play clean versions instead", a blocked track is swapped for its clean release instead
+    // — the next few ahead of time, the playing one at once (held paused while it's found) — and
+    // only dropped or skipped when there turns out to be none.
     val explicitPolicy = rememberDesktopExplicitPolicy()
+    val cleanMissing by CleanVersions.missing.collectAsState()
+    // Whether each track held paused for its clean swap was playing before — kept outside the
+    // effect, which can restart mid-lookup and would otherwise see its own pause.
+    val resumeAfterCleanSwap = remember { mutableMapOf<String, Boolean>() }
+    fun skipBlockedCurrent() {
+        val current = liveQueue.current ?: return
+        DesktopTrackLog.log("explicit: '${current.title}' is now blocked; ${if (liveQueue.hasNext) "skipping" else "pausing"}")
+        if (liveQueue.hasNext) playNext() else pauseFromUser()
+    }
     val explicitLyricsCheck by DesktopExplicit.lyricsCheck.collectAsState()
-    LaunchedEffect(explicitPolicy, explicitLyricsCheck, liveQueue.current?.videoId) {
+    LaunchedEffect(explicitPolicy, explicitLyricsCheck, cleanMissing, liveQueue.current?.videoId) {
         if (explicitPolicy.mode == ExplicitFilterMode.OFF) return@LaunchedEffect
         if (DesktopListenTogether.state.value.inParty) return@LaunchedEffect
         // "Check lyrics for explicit content": the playing track and the next two are read ahead,
@@ -1738,21 +1791,65 @@ fun BitChordDesktopApp() {
                 .filter(DesktopExplicit.lyricsChecker::needsCheck)
                 .forEach { song -> scope.launch { DesktopExplicit.lyricsChecker.check(song) } }
         }
+        fun Song.suggested() = queueTier == QueueTier.AUTOPLAY
+        fun Song.swaps() = ExplicitFilter.swapsToClean(this, explicitPolicy, suggested(), missing = cleanMissing)
         val queue = liveQueue
         val kept = queue.songs.filterIndexed { at, song ->
             at <= queue.index ||
-                ExplicitFilter.permits(song, explicitPolicy, suggestion = song.queueTier == QueueTier.AUTOPLAY)
+                ExplicitFilter.permits(song, explicitPolicy, suggestion = song.suggested()) ||
+                song.swaps()
         }
         if (kept.size != queue.songs.size) {
             liveQueue = queue.copy(songs = kept)
             saveQueue()
         }
+        // The next few blocked ones, swapped before they come up. Found again by id when the
+        // answer arrives, since the queue may have moved meanwhile.
+        liveQueue.songs.withIndex()
+            .filter { (at, song) ->
+                at in liveQueue.index + 1..liveQueue.index + CLEAN_SWAP_LOOKAHEAD &&
+                    !ExplicitFilter.permits(song, explicitPolicy, suggestion = song.suggested())
+            }
+            .forEach { (_, song) ->
+                scope.launch {
+                    val clean = CleanVersions.find(song)
+                    val now = liveQueue
+                    val at = now.songs.withIndex()
+                        .firstOrNull { (i, queued) -> i > now.index && queued.videoId == song.videoId }
+                        ?.index ?: return@launch
+                    liveQueue = now.copy(
+                        songs = if (clean != null) {
+                            now.songs.mapIndexed { i, queued -> if (i == at) queued.cleanStandIn(clean) else queued }
+                        } else {
+                            now.songs.filterIndexed { i, _ -> i != at }
+                        },
+                    )
+                    saveQueue()
+                }
+            }
         val current = liveQueue.current ?: return@LaunchedEffect
-        if (ExplicitFilter.permits(current, explicitPolicy, suggestion = current.queueTier == QueueTier.AUTOPLAY)) {
+        if (ExplicitFilter.permits(current, explicitPolicy, suggestion = current.suggested())) {
             return@LaunchedEffect
         }
-        DesktopTrackLog.log("explicit: '${current.title}' is now blocked; ${if (liveQueue.hasNext) "skipping" else "pausing"}")
-        if (liveQueue.hasNext) playNext() else pauseFromUser()
+        if (!current.swaps()) {
+            skipBlockedCurrent()
+            return@LaunchedEffect
+        }
+        val wasPlaying = resumeAfterCleanSwap.getOrPut(current.videoId) { playbackEngine.state.value.isPlaying }
+        if (CleanVersions.cached(current) == null) playbackEngine.pause()
+        val clean = CleanVersions.find(current)
+        if (liveQueue.current?.videoId != current.videoId) return@LaunchedEffect
+        resumeAfterCleanSwap.remove(current.videoId)
+        if (clean == null) {
+            skipBlockedCurrent()
+            return@LaunchedEffect
+        }
+        DesktopTrackLog.log("explicit: playing the clean version of '${current.title}'")
+        val now = liveQueue
+        liveQueue = now.copy(
+            songs = now.songs.mapIndexed { i, queued -> if (i == now.index) queued.cleanStandIn(clean) else queued },
+        )
+        playCurrent(startPlaying = wasPlaying)
     }
     // Recent searches recorded before they kept a track's explicit badge are looked up once the
     // filter is on, so they grey out like everything else.
@@ -3121,6 +3218,7 @@ fun BitChordDesktopApp() {
             // Greys out songs the explicit filter blocks, in every shared row and card.
             LocalExplicitBlocked provides rememberDesktopRowBlocked(explicitPolicy),
             LocalExplicitByLyrics provides rememberDesktopExplicitByLyrics(explicitPolicy),
+            LocalExplicitSwapped provides rememberDesktopRowSwapped(explicitPolicy),
         ) {
             DesktopFrame(
                 // The phone's page is black, not the near-black of its cards.
@@ -3602,13 +3700,39 @@ fun BitChordDesktopApp() {
                             onDismiss = ::closePlaylistDialogs,
                         )
                     }
-                    explicitPrompt?.let { (song, proceed) ->
+                    explicitPrompt?.let { prompt ->
+                        val (song, proceed) = prompt
                         // Keyed on the song so a second blocked click starts a fresh card rather
                         // than reusing one that is animating out.
                         key(song.videoId) {
-                            DesktopExplicitBlockedDialog(song) { choice ->
+                            // Looked for while the card is up, so the answer is usually in before
+                            // a choice is made.
+                            val cleanOffer by produceState(
+                                initialValue = when {
+                                    prompt.noCleanVersion -> DesktopCleanOffer.NONE
+                                    prompt.playClean == null -> DesktopCleanOffer.HIDDEN
+                                    CleanVersions.cached(song) != null -> DesktopCleanOffer.AVAILABLE
+                                    CleanVersions.isMissing(song) -> DesktopCleanOffer.NONE
+                                    else -> DesktopCleanOffer.SEARCHING
+                                },
+                                key1 = prompt,
+                            ) {
+                                if (value == DesktopCleanOffer.SEARCHING) {
+                                    value = when {
+                                        CleanVersions.find(song) != null -> DesktopCleanOffer.AVAILABLE
+                                        CleanVersions.isMissing(song) -> DesktopCleanOffer.NONE
+                                        // The search failed rather than came back empty.
+                                        else -> DesktopCleanOffer.HIDDEN
+                                    }
+                                }
+                            }
+                            DesktopExplicitBlockedDialog(song, cleanOffer) { choice ->
                                 explicitPrompt = null
                                 when (choice) {
+                                    DesktopExplicitChoice.PLAY_CLEAN -> {
+                                        val clean = CleanVersions.cached(song)
+                                        if (clean != null) prompt.playClean?.invoke(song.cleanStandIn(clean))
+                                    }
                                     DesktopExplicitChoice.ALLOW_SONG -> {
                                         DesktopExplicit.setAllowed(song, true)
                                         proceed()
@@ -4001,6 +4125,7 @@ fun BitChordDesktopApp() {
                         openedCollection != null -> CompositionLocalProvider(
                             // Rows here play from this page, so the own-playlist exception is judged against it.
                             LocalExplicitBlocked provides rememberDesktopRowBlocked(explicitPolicy, openedCollection?.browseId),
+                            LocalExplicitSwapped provides rememberDesktopRowSwapped(explicitPolicy, openedCollection?.browseId),
                         ) {
                             DesktopCollectionPage(
                                 collection = openedCollection!!,
@@ -7009,7 +7134,7 @@ private fun DesktopCollectionSongRow(
         Row(Modifier.weight(0.42f), verticalAlignment = Alignment.CenterVertically) {
             val titleColor = if (nowPlaying) Color.White else Color.White.copy(alpha = 0.75f)
             if (song.showsExplicit()) {
-                ExplicitBadge(titleColor)
+                ExplicitMark(LocalExplicitSwapped.current(song), titleColor)
                 Spacer(Modifier.width(6.dp))
             }
             Text(
@@ -7448,7 +7573,7 @@ private fun DesktopSongRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val titleColor = if (song.isNowPlaying()) Color.White else Color.White.copy(alpha = 0.75f)
                 if (song.showsExplicit()) {
-                    ExplicitBadge(titleColor)
+                    ExplicitMark(LocalExplicitSwapped.current(song), titleColor)
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
@@ -7718,6 +7843,7 @@ private fun DesktopExplicitSettings(onOpenAllowedExplicit: () -> Unit) {
     val mode by DesktopExplicit.mode.collectAsState()
     val allowOwn by DesktopExplicit.allowOwnPlaylists.collectAsState()
     val lyricsCheck by DesktopExplicit.lyricsCheck.collectAsState()
+    val swapClean by DesktopExplicit.swapClean.collectAsState()
     val allowed by DesktopExplicit.allowList.songs.collectAsState()
     SettingsToggle(
         DesktopStrings["d_filter_explicit_content", "Filter explicit content"],
@@ -7752,6 +7878,19 @@ private fun DesktopExplicitSettings(onOpenAllowedExplicit: () -> Unit) {
             ],
             lyricsCheck,
             DesktopExplicit::setLyricsCheck,
+        )
+    }
+    // Either mode: under "suggestions only" it swaps what AutoPlay and radio pick, under the full
+    // block everything blocked.
+    if (mode != ExplicitFilterMode.OFF) {
+        SettingsToggle(
+            DesktopStrings["d_play_clean_versions", "Play clean versions instead"],
+            DesktopStrings[
+                "d_play_clean_versions_subtitle",
+                "When a blocked song has a clean version, play that instead",
+            ],
+            swapClean,
+            DesktopExplicit::setSwapClean,
         )
     }
     // While the filter is on, so the list can be found before anything is on it; and afterwards
@@ -7887,3 +8026,17 @@ private fun formatSleepTimer(ms: Long): String = formatTime(ms)
 
 /** How many tracks after the playing one have their lyrics read ahead of time. */
 private const val LYRICS_CHECK_LOOKAHEAD = 2
+/** How many tracks ahead a blocked one is swapped for its clean release. */
+private const val CLEAN_SWAP_LOOKAHEAD = 3
+
+/**
+ * A song the explicit filter stopped, waiting on the listener: [proceed] plays it as asked once
+ * allowed; [playClean] plays a clean release in its place (null where there's nothing to offer);
+ * [noCleanVersion] says "Play clean versions instead" looked and found none.
+ */
+private data class DesktopExplicitPrompt(
+    val song: Song,
+    val proceed: () -> Unit,
+    val playClean: ((Song) -> Unit)? = null,
+    val noCleanVersion: Boolean = false,
+)

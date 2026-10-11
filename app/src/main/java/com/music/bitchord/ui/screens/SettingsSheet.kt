@@ -55,6 +55,7 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Explicit
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Translate
@@ -241,6 +242,7 @@ fun SettingsScreen(
     val allowedExplicitSongs by ExplicitAllowList.songs.collectAsStateWithLifecycle()
     val explicitAllowOwnPlaylists by AppSettings.explicitAllowOwnPlaylists.collectAsStateWithLifecycle()
     val explicitLyricsCheck by AppSettings.explicitLyricsCheck.collectAsStateWithLifecycle()
+    val explicitSwapClean by AppSettings.explicitSwapClean.collectAsStateWithLifecycle()
     val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
     val smartVersionAlignment by AppSettings.smartVersionAlignment.collectAsStateWithLifecycle()
     val filterNonMusicAudio by AppSettings.filterNonMusicAudio.collectAsStateWithLifecycle()
@@ -1387,6 +1389,34 @@ fun SettingsScreen(
                     },
                     onClick = if (available) {
                         { AppSettings.setExplicitLyricsCheck(!explicitLyricsCheck) }
+                    } else {
+                        null
+                    },
+                )
+            }
+            // Either mode: under "suggestions only" it swaps what AutoPlay and
+            // radio pick, under the full block everything blocked.
+            val swapCleanTitle = stringResource(R.string.play_clean_versions)
+            row(swapCleanTitle, "explicit", "clean", "clean version", "swap", "edited") {
+                val available = explicitFilter != ExplicitFilterMode.OFF
+                SettingsRow(
+                    icon = Icons.Rounded.SwapHoriz,
+                    title = swapCleanTitle,
+                    subtitle = stringResource(R.string.play_clean_versions_subtitle),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = explicitSwapClean,
+                            onCheckedChange = AppSettings::setExplicitSwapClean,
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) {
+                        { AppSettings.setExplicitSwapClean(!explicitSwapClean) }
                     } else {
                         null
                     },

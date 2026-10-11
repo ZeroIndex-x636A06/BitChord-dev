@@ -420,6 +420,12 @@ object AppSettings {
      */
     val explicitLyricsCheck = MutableStateFlow(false)
 
+    /**
+     * Play a blocked explicit track's clean release in its place instead of
+     * skipping it or asking — see [com.music.bitchord.playback.CleanVersions].
+     */
+    val explicitSwapClean = MutableStateFlow(false)
+
     /** The explicit filter's settings, read together. */
     fun explicitPolicy(): ExplicitPolicy = ExplicitPolicy(
         mode = explicitFilter.value,
@@ -427,6 +433,7 @@ object AppSettings {
         allowOwnPlaylists = explicitAllowOwnPlaylists.value,
         ownPlaylistIds = explicitOwnPlaylistIds.value,
         lyricsFlagged = if (explicitLyricsCheck.value) ExplicitLyricsCheck.store.flagged.value else emptySet(),
+        swapToClean = explicitSwapClean.value,
     )
 
     /** Whether [song]'s lyrics still have to be read before the filter can judge it. */
@@ -898,6 +905,7 @@ object AppSettings {
         explicitAllowOwnPlaylists.value = prefs.getBoolean(KEY_EXPLICIT_ALLOW_OWN_PLAYLISTS, false)
         explicitOwnPlaylistIds.value = prefs.getStringSet(KEY_EXPLICIT_OWN_PLAYLISTS, null)?.toSet().orEmpty()
         explicitLyricsCheck.value = prefs.getBoolean(KEY_EXPLICIT_LYRICS_CHECK, false)
+        explicitSwapClean.value = prefs.getBoolean(KEY_EXPLICIT_SWAP_CLEAN, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
@@ -1309,6 +1317,11 @@ object AppSettings {
     fun setExplicitLyricsCheck(value: Boolean) {
         explicitLyricsCheck.value = value
         prefs.edit().putBoolean(KEY_EXPLICIT_LYRICS_CHECK, value).apply()
+    }
+
+    fun setExplicitSwapClean(value: Boolean) {
+        explicitSwapClean.value = value
+        prefs.edit().putBoolean(KEY_EXPLICIT_SWAP_CLEAN, value).apply()
     }
 
     /** Folds what the account now says about playlist ownership into [explicitOwnPlaylistIds]. */
@@ -2078,6 +2091,7 @@ object AppSettings {
     private const val KEY_EXPLICIT_ALLOW_OWN_PLAYLISTS = "explicit_allow_own_playlists"
     private const val KEY_EXPLICIT_OWN_PLAYLISTS = "explicit_own_playlists"
     private const val KEY_EXPLICIT_LYRICS_CHECK = "explicit_lyrics_check"
+    private const val KEY_EXPLICIT_SWAP_CLEAN = "explicit_swap_clean"
     private const val KEY_PREFER_MUSIC_ONLY = "prefer_music_only"
     private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"
     private const val KEY_REDUCE_BLUR = "reduce_dynamic_blur"

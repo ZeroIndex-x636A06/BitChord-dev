@@ -13,14 +13,36 @@ fun Song.explicitBlocked(
 ): Boolean = !ExplicitFilter.permits(this, AppSettings.explicitPolicy(), suggestion, sourceId)
 
 /**
+ * [ExplicitFilter.swapsToClean] against the listener's current settings: the
+ * track is blocked, but will play as its clean release rather than be skipped.
+ */
+fun Song.explicitSwapsToClean(
+    suggestion: Boolean = false,
+    sourceId: String? = playbackSourceId,
+): Boolean = ExplicitFilter.swapsToClean(
+    this,
+    AppSettings.explicitPolicy(),
+    suggestion,
+    sourceId,
+    CleanVersions.missing.value,
+)
+
+/** Blocked with nothing to swap to: the tracks a queue leaves out. */
+fun Song.explicitSkipped(
+    suggestion: Boolean = false,
+    sourceId: String? = playbackSourceId,
+): Boolean = explicitBlocked(suggestion, sourceId) && !explicitSwapsToClean(suggestion, sourceId)
+
+/**
  * Where a "Play" button over a whole list should start: the first track the
- * filter lets through. Falls back to 0 when none is, so the tap still answers
- * — with the prompt — instead of doing nothing.
+ * filter lets through (or will swap for its clean release). Falls back to 0
+ * when none is, so the tap still answers — with the prompt — instead of doing
+ * nothing.
  */
 fun List<Song>.firstPlayableIndex(sourceId: String? = null): Int =
-    indexOfFirst { !it.explicitBlocked(sourceId = sourceId ?: it.playbackSourceId) }.coerceAtLeast(0)
+    indexOfFirst { !it.explicitSkipped(sourceId = sourceId ?: it.playbackSourceId) }.coerceAtLeast(0)
 
 /** [firstPlayableIndex] for Shuffle: a random track the filter lets through. */
 fun List<Song>.randomPlayableIndex(sourceId: String? = null): Int =
-    indices.filter { !this[it].explicitBlocked(sourceId = sourceId ?: this[it].playbackSourceId) }
+    indices.filter { !this[it].explicitSkipped(sourceId = sourceId ?: this[it].playbackSourceId) }
         .randomOrNull() ?: indices.random()

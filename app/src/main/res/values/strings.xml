@@ -382,6 +382,11 @@
     <string name="check_lyrics_explicit">Check lyrics for explicit content</string>
     <string name="check_lyrics_explicit_subtitle">Also block songs whose lyrics have several swear words, even if YouTube Music doesn’t mark them explicit</string>
     <string name="explicit_lyrics_blocked_message">“%1$s” has explicit lyrics and your filter is blocking it.</string>
+    <string name="play_clean_versions">Play clean versions instead</string>
+    <string name="play_clean_versions_subtitle">When a blocked song has a clean version, play that instead</string>
+    <string name="play_clean_version">Play clean version</string>
+    <string name="looking_for_clean_version">Looking for a clean version…</string>
+    <string name="no_clean_version_found">No clean version was found.</string>
     <string name="download_quality_subtitle">%1$s per track, whatever the connection</string>
     <string name="filter_non_music_audio">Filter non-music audio</string>
     <string name="filter_non_music_audio_subtitle">Hides clips under 30 seconds, WAV files, voice notes, recordings and system sounds</string>

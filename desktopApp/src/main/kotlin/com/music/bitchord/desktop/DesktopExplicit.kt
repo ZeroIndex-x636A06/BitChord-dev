@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.ExplicitAllowListStore
+import com.music.bitchord.playback.CleanVersions
 import com.music.bitchord.playback.ExplicitFilter
 import com.music.bitchord.playback.ExplicitLyrics
 import com.music.bitchord.playback.ExplicitLyricsChecker
@@ -74,6 +75,10 @@ internal object DesktopExplicit {
         persistence.saveBoolean(KEY_LYRICS_CHECK, value)
     }
 
+    /** Play a blocked track's clean release instead — see [CleanVersions]. */
+    private val _swapClean = MutableStateFlow(persistence.boolean(KEY_SWAP_CLEAN, false))
+    val swapClean: StateFlow<Boolean> = _swapClean.asStateFlow()
+
     /** Songs let past the filter one at a time. Chunked storage: the list only grows. */
     val allowList = ExplicitAllowListStore { json -> persistence.saveString(KEY_ALLOWED, json.orEmpty()) }
         .also { it.load(persistence.string(KEY_ALLOWED).ifBlank { null }) }
@@ -84,7 +89,13 @@ internal object DesktopExplicit {
         allowOwnPlaylists = _allowOwnPlaylists.value,
         ownPlaylistIds = _ownPlaylistIds.value,
         lyricsFlagged = if (_lyricsCheck.value) lyricsStore.flagged.value else emptySet(),
+        swapToClean = _swapClean.value,
     )
+
+    fun setSwapClean(value: Boolean) {
+        _swapClean.value = value
+        persistence.saveBoolean(KEY_SWAP_CLEAN, value)
+    }
 
     fun setMode(value: ExplicitFilterMode) {
         _mode.value = value
@@ -117,6 +128,7 @@ internal object DesktopExplicit {
     private const val KEY_LYRICS_CHECK = "explicit_lyrics_check"
     private const val KEY_LYRICS_VERDICTS = "explicit_lyrics_verdicts"
     private const val LYRICS_LOOKUP_MS = 6_000L
+    private const val KEY_SWAP_CLEAN = "explicit_swap_clean"
 }
 
 /** [ExplicitFilter.permits] against the desktop app's current settings. */
@@ -125,9 +137,27 @@ internal fun Song.desktopExplicitBlocked(
     sourceId: String? = playbackSourceId,
 ): Boolean = !ExplicitFilter.permits(this, DesktopExplicit.policy(), suggestion, sourceId)
 
-/** Where Play over a whole list starts: the first track the filter lets through, else 0. */
+/** Blocked, but will play as its clean release — see [ExplicitFilter.swapsToClean]. */
+internal fun Song.desktopExplicitSwapsToClean(
+    suggestion: Boolean = false,
+    sourceId: String? = playbackSourceId,
+): Boolean = ExplicitFilter.swapsToClean(
+    this,
+    DesktopExplicit.policy(),
+    suggestion,
+    sourceId,
+    CleanVersions.missing.value,
+)
+
+/** Blocked with nothing to swap to: what a queue leaves out. */
+internal fun Song.desktopExplicitSkipped(
+    suggestion: Boolean = false,
+    sourceId: String? = playbackSourceId,
+): Boolean = desktopExplicitBlocked(suggestion, sourceId) && !desktopExplicitSwapsToClean(suggestion, sourceId)
+
+/** Where Play over a whole list starts: the first track the filter lets through (or swaps), else 0. */
 internal fun List<Song>.desktopFirstPlayable(sourceId: String? = null): Int =
-    indexOfFirst { !it.desktopExplicitBlocked(sourceId = sourceId ?: it.playbackSourceId) }.coerceAtLeast(0)
+    indexOfFirst { !it.desktopExplicitSkipped(sourceId = sourceId ?: it.playbackSourceId) }.coerceAtLeast(0)
 
 /** The desktop filter's settings as Compose state, so rows re-dim the moment they change. */
 @Composable
@@ -138,8 +168,9 @@ internal fun rememberDesktopExplicitPolicy(): ExplicitPolicy {
     val ownIds by DesktopExplicit.ownPlaylistIds.collectAsState()
     val lyricsCheck by DesktopExplicit.lyricsCheck.collectAsState()
     val lyricsFlagged by DesktopExplicit.lyricsStore.flagged.collectAsState()
-    return remember(mode, allowed, allowOwn, ownIds, lyricsCheck, lyricsFlagged) {
-        ExplicitPolicy(mode, allowed, allowOwn, ownIds, if (lyricsCheck) lyricsFlagged else emptySet())
+    val swapClean by DesktopExplicit.swapClean.collectAsState()
+    return remember(mode, allowed, allowOwn, ownIds, lyricsCheck, lyricsFlagged, swapClean) {
+        ExplicitPolicy(mode, allowed, allowOwn, ownIds, if (lyricsCheck) lyricsFlagged else emptySet(), swapClean)
     }
 }
 
@@ -148,9 +179,36 @@ internal fun rememberDesktopExplicitPolicy(): ExplicitPolicy {
 internal fun rememberDesktopExplicitByLyrics(policy: ExplicitPolicy): (Song) -> Boolean =
     remember(policy.lyricsFlagged) { { song -> song.videoId in policy.lyricsFlagged } }
 
-/** The shared rows' greying predicate for rows played from [sourceId], or from where each row says. */
+/**
+ * The shared rows' greying predicate for rows played from [sourceId], or from
+ * where each row says. A row that will be swapped for its clean release isn't
+ * greyed — see [rememberDesktopRowSwapped].
+ */
 @Composable
-internal fun rememberDesktopRowBlocked(policy: ExplicitPolicy, sourceId: String? = null): (Song) -> Boolean =
-    remember(policy, sourceId) {
-        { song -> !ExplicitFilter.permits(song, policy, suggestion = false, sourceId = sourceId ?: song.playbackSourceId) }
+internal fun rememberDesktopRowBlocked(policy: ExplicitPolicy, sourceId: String? = null): (Song) -> Boolean {
+    val missing by CleanVersions.missing.collectAsState()
+    return remember(policy, sourceId, missing) {
+        { song ->
+            val from = sourceId ?: song.playbackSourceId
+            !ExplicitFilter.permits(song, policy, suggestion = false, sourceId = from) &&
+                !ExplicitFilter.swapsToClean(song, policy, suggestion = false, sourceId = from, missing = missing)
+        }
     }
+}
+
+/** The shared rows' "plays as its clean version" predicate, for the faded "C". */
+@Composable
+internal fun rememberDesktopRowSwapped(policy: ExplicitPolicy, sourceId: String? = null): (Song) -> Boolean {
+    val missing by CleanVersions.missing.collectAsState()
+    return remember(policy, sourceId, missing) {
+        { song ->
+            ExplicitFilter.swapsToClean(
+                song,
+                policy,
+                suggestion = false,
+                sourceId = sourceId ?: song.playbackSourceId,
+                missing = missing,
+            )
+        }
+    }
+}

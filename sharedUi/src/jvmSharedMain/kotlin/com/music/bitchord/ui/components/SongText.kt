@@ -41,6 +41,31 @@ fun ExplicitBadge(color: Color, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * The outlined "C" for an explicit track that will play as its clean release —
+ * see [LocalExplicitSwapped]. Fainter than the "E": it's a note, not a warning.
+ */
+@Composable
+fun CleanSwapBadge(color: Color, modifier: Modifier = Modifier) {
+    val faded = color.copy(alpha = color.alpha * CLEAN_BADGE_ALPHA)
+    Text(
+        text = "C",
+        style = MaterialTheme.typography.labelSmall,
+        color = faded,
+        modifier = modifier
+            .border(1.dp, faded.copy(alpha = faded.alpha * 0.72f), RoundedCornerShape(2.dp))
+            .padding(horizontal = 3.dp),
+    )
+}
+
+/** The "E", or the "C" when the track is going to be swapped for its clean release. */
+@Composable
+fun ExplicitMark(swapped: Boolean, color: Color, modifier: Modifier = Modifier) {
+    if (swapped) CleanSwapBadge(color, modifier) else ExplicitBadge(color, modifier)
+}
+
+private const val CLEAN_BADGE_ALPHA = 0.6f
+
 /** A song title with the catalogue-standard outlined E for explicit audio. */
 @Composable
 fun ExplicitSongTitle(
@@ -51,7 +76,7 @@ fun ExplicitSongTitle(
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         if (song.showsExplicit()) {
-            ExplicitBadge(color)
+            ExplicitMark(LocalExplicitSwapped.current(song), color)
             Spacer(Modifier.width(6.dp))
         }
         Text(
