@@ -1,0 +1,65 @@
+C|Up on the Housetop|Gene Autry
+C|Here Comes Santa Claus|Gene Autry
+C|Santa Claus Is Comin' to Town|The Jackson 5
+C|Jingle Bell Rock|Bobby Helms
+C|Rockin' Around the Christmas Tree|Brenda Lee
+C|A Holly Jolly Christmas|Burl Ives
+C|Rudolph the Red-Nosed Reindeer|Gene Autry
+C|Ho Hey|The Lumineers
+C|Heigh-Ho|The Dwarfs
+C|Yo Ho (A Pirate's Life for Me)|Disney
+C|Highway to Hell|AC/DC
+C|Hells Bells|AC/DC
+C|Shake It Off|Taylor Swift
+C|Old Town Road|Lil Nas X
+C|Uptown Funk|Mark Ronson
+C|Hit the Road Jack|Ray Charles
+C|Bohemian Rhapsody|Queen
+C|Happy|Pharrell Williams
+C|Hey Jude|The Beatles
+C|Cotton Eye Joe|Rednex
+C|Mr. Brightside|The Killers
+C|Thriller|Michael Jackson
+C|Rolling in the Deep|Adele
+C|Take Me Home, Country Roads|John Denver
+C|U Can't Touch This|MC Hammer
+C|Ice Ice Baby|Vanilla Ice
+C|Rapper's Delight|The Sugarhill Gang
+C|Walk This Way|Run-DMC
+C|Bad to the Bone|George Thorogood
+C|Smells Like Teen Spirit|Nirvana
+C|Sweet Home Alabama|Lynyrd Skynyrd
+C|Hey Ya!|OutKast
+C|Baby Got Back|Sir Mix-a-Lot
+C|Gangsta's Paradise|Coolio
+C|Brass Monkey|Beastie Boys
+C|Cecilia|Simon & Garfunkel
+C|Rooster|Alice in Chains
+C|What's New Pussycat?|Tom Jones
+C|Money for Nothing|Dire Straits
+C|Kryptonite|3 Doors Down
+E|Jump Around|House of Pain
+E|Lose Yourself|Eminem
+E|Without Me|Eminem
+E|Rap God|Eminem
+E|HUMBLE.|Kendrick Lamar
+E|Mo Money Mo Problems|The Notorious B.I.G.
+E|Gin and Juice|Snoop Dogg
+E|Killing in the Name|Rage Against the Machine
+E|Fuck You|CeeLo Green
+E|Gold Digger|Kanye West
+E|Still D.R.E.|Dr. Dre
+E|In da Club|50 Cent
+E|Hypnotize|The Notorious B.I.G.
+E|Shoot to Thrill|AC/DC
+E|Pumped Up Kicks|Foster the People
+E|Smack That|Akon
+E|Low|Flo Rida
+E|Ms. Jackson|OutKast
+E|The Real Slim Shady|Eminem
+E|Fight for Your Right|Beastie Boys
+E|Sabotage|Beastie Boys
+E|Party Up (Up in Here)|DMX
+E|Get Low|Lil Jon & The East Side Boyz
+E|Ignition (Remix)|R. Kelly
+E|Hot in Herre|Nelly
