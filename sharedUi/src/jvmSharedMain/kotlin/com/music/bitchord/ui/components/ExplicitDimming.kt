@@ -1,6 +1,7 @@
 package com.music.bitchord.ui.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -51,6 +52,21 @@ private fun ShelfItem.asCardSong(id: String) =
  */
 val LocalExplicitSwapped = compositionLocalOf<(Song) -> Boolean> { { false } }
 
+/**
+ * Asks for an explicit row's clean release to be looked up, so its "C" can
+ * appear once it's known. Provided by the app while "Play clean versions
+ * instead" is on; the default asks nothing.
+ */
+val LocalCleanVersionLookup = compositionLocalOf<(Song) -> Unit> { {} }
+
+/** Looks [song]'s clean release up once, while its row is on screen — see [LocalCleanVersionLookup]. */
+@Composable
+fun RequestCleanVersion(song: Song) {
+    if (song.isExplicit != true) return
+    val lookup = LocalCleanVersionLookup.current
+    LaunchedEffect(song.videoId, lookup) { lookup(song) }
+}
+
 /** How far a blocked row is dimmed — the same as a Spotify track with no match. */
 const val BLOCKED_ROW_ALPHA = 0.45f
 
@@ -67,8 +83,9 @@ fun ShelfItem.isExplicitBlocked(): Boolean {
 fun ShelfItem.isCleanSwapped(): Boolean {
     val id = videoId ?: return false
     if (isExplicit != true) return false
-    val swapped = LocalExplicitSwapped.current
-    return swapped(Song(videoId = id, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl, isExplicit = true))
+    val song = Song(videoId = id, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl, isExplicit = true)
+    RequestCleanVersion(song)
+    return LocalExplicitSwapped.current(song)
 }
 
 /** Dims to [BLOCKED_ROW_ALPHA] when [blocked]. */

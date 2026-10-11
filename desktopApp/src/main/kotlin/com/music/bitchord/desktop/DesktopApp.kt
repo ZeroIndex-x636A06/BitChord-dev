@@ -4,6 +4,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import com.music.bitchord.ui.components.LocalShelfRowChrome
 import com.music.bitchord.ui.components.ExplicitMark
 import com.music.bitchord.ui.components.LocalExplicitSwapped
+import com.music.bitchord.ui.components.LocalCleanVersionLookup
+import com.music.bitchord.ui.components.RequestCleanVersion
 import com.music.bitchord.playback.CleanVersions
 import com.music.bitchord.playback.cleanStandIn
 import com.music.bitchord.ui.components.LocalExplicitBlocked
@@ -3219,6 +3221,7 @@ fun BitChordDesktopApp() {
             LocalExplicitBlocked provides rememberDesktopRowBlocked(explicitPolicy),
             LocalExplicitByLyrics provides rememberDesktopExplicitByLyrics(explicitPolicy),
             LocalExplicitSwapped provides rememberDesktopRowSwapped(explicitPolicy),
+            LocalCleanVersionLookup provides rememberDesktopCleanVersionLookup(explicitPolicy),
         ) {
             DesktopFrame(
                 // The phone's page is black, not the near-black of its cards.
@@ -7134,6 +7137,7 @@ private fun DesktopCollectionSongRow(
         Row(Modifier.weight(0.42f), verticalAlignment = Alignment.CenterVertically) {
             val titleColor = if (nowPlaying) Color.White else Color.White.copy(alpha = 0.75f)
             if (song.showsExplicit()) {
+                RequestCleanVersion(song)
                 ExplicitMark(LocalExplicitSwapped.current(song), titleColor)
                 Spacer(Modifier.width(6.dp))
             }
@@ -7573,6 +7577,7 @@ private fun DesktopSongRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val titleColor = if (song.isNowPlaying()) Color.White else Color.White.copy(alpha = 0.75f)
                 if (song.showsExplicit()) {
+                    RequestCleanVersion(song)
                     ExplicitMark(LocalExplicitSwapped.current(song), titleColor)
                     Spacer(Modifier.width(6.dp))
                 }

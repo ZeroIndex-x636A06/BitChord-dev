@@ -76,6 +76,7 @@ fun ExplicitSongTitle(
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         if (song.showsExplicit()) {
+            RequestCleanVersion(song)
             ExplicitMark(LocalExplicitSwapped.current(song), color)
             Spacer(Modifier.width(6.dp))
         }

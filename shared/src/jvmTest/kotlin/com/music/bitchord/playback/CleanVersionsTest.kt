@@ -66,6 +66,58 @@ class CleanVersionsTest {
     }
 
     @Test
+    fun `a soundtrack tag doesn't make it a different song`() {
+        // Lose Yourself's clean release is listed under its soundtrack's name.
+        val explicit = song("e", title = "Lose Yourself", length = "5:21", explicit = true)
+        val soundtrack = song("st", title = "Lose Yourself (From \"8 Mile\" Soundtrack)", length = "5:22")
+        assertEquals("st", CleanVersionMatcher.pick(explicit, listOf(soundtrack))?.videoId)
+    }
+
+    // ---- Uploaded clean edits ------------------------------------------------
+
+    private fun video(id: String, title: String, channel: String, length: String?) =
+        song(id, title = title, artist = channel, length = length, video = true)
+
+    @Test
+    fun `an upload that says it's the clean edit is picked`() {
+        val explicit = song("e", title = "Lose Yourself", length = "5:21", explicit = true)
+        // Real titles from YouTube's results for "Lose Yourself Eminem clean".
+        val uploads = listOf(
+            video("lyrics", "Eminem - Lose Yourself (Clean) | Lyrics", "Throwback Hits", "5:21"),
+            video("short", "Lose yourself clean", "Lucien Whittenberger", "5:04"),
+            video("other", "The Way I Am (Clean Version)", "Eminem", "5:03"),
+        )
+        assertEquals("lyrics", CleanVersionMatcher.pickVideo(explicit, uploads)?.videoId)
+    }
+
+    @Test
+    fun `the song's name can sit anywhere in an upload's title`() {
+        val explicit = song("e", title = "Gold Digger (feat. Jamie Foxx)", artist = "Kanye West", length = "3:28", explicit = true)
+        val shapes = listOf(
+            "Kanye West feat Jamie Foxx - Gold Digger (Clean Version)",
+            "Gold Digger (Clean) - Kanye West",
+            "Kanye West | Gold Digger | [BEST CLEAN VERSION]",
+        )
+        shapes.forEach { title ->
+            assertEquals("v", CleanVersionMatcher.pickVideo(explicit, listOf(video("v", title, "Some Channel", "3:29")))?.videoId, title)
+        }
+    }
+
+    @Test
+    fun `uploads that aren't the clean edit are never picked`() {
+        val explicit = song("e", title = "Gold Digger", artist = "Kanye West", length = "3:28", explicit = true)
+        val uploads = listOf(
+            video("not-clean", "Kanye West - Gold Digger", "Kanye West", "3:28"),
+            video("cover", "HALEY CAN RAP??? GOLD DIGGER COVER (CLEAN)", "Haley Leathers", "3:30"),
+            video("lipsync", "Year 12 camp lip sync Kanye West - Gold Digger (Clean Version)", "Vanessa B", "3:28"),
+            video("no-artist", "Gold Digger (Clean)", "Random Channel", "3:28"),
+            video("no-length", "Kanye West - Gold Digger (Clean)", "Only Clean Edits", null),
+            video("slowed", "Kanye West - Gold Digger (Clean) slowed", "Edits", "3:28"),
+        )
+        assertNull(CleanVersionMatcher.pickVideo(explicit, uploads))
+    }
+
+    @Test
     fun `a different length is a different cut`() {
         assertNull(CleanVersionMatcher.pick(explicit, listOf(song("short", length = "3:30"))))
         // Unknown length on either side doesn't rule it out.
@@ -93,7 +145,7 @@ class CleanVersionsTest {
 
     @Test
     fun `a found clean release is remembered`() = runBlocking {
-        CleanVersions.search = { q -> queries += q; listOf(song("clean")) }
+        CleanVersions.search = { q, _ -> queries += q; listOf(song("clean")) }
         assertEquals("clean", CleanVersions.find(explicit)?.videoId)
         assertEquals("clean", CleanVersions.find(explicit)?.videoId)
         assertEquals(1, queries.size)
@@ -102,7 +154,7 @@ class CleanVersionsTest {
 
     @Test
     fun `no clean release is remembered as missing`() = runBlocking {
-        CleanVersions.search = { q -> queries += q; listOf(song("cover", artist = "Someone Else")) }
+        CleanVersions.search = { q, _ -> queries += q; listOf(song("cover", artist = "Someone Else")) }
         assertNull(CleanVersions.find(explicit))
         assertTrue(CleanVersions.isMissing(explicit))
         val asked = queries.size
@@ -111,15 +163,53 @@ class CleanVersionsTest {
     }
 
     @Test
+    fun `songs come before uploads, and the upload plays under the song's name`() = runBlocking {
+        CleanVersions.search = { q, filter ->
+            queries += "$filter:$q"
+            if (filter == com.music.bitchord.data.model.SearchFilter.VIDEOS) {
+                listOf(video("upload", "Eminem - Rap God (Clean)", "Edits", "6:05"))
+            } else {
+                emptyList()
+            }
+        }
+        val clean = CleanVersions.find(explicit)!!
+        assertEquals(3, queries.size)
+        assertTrue(queries.last().startsWith("VIDEOS:"))
+        assertEquals("upload", clean.videoId)
+        assertEquals("Rap God", clean.title)
+        assertEquals("Eminem", clean.artist)
+        assertFalse(clean.isVideo)
+        assertEquals(false, clean.isExplicit)
+        assertTrue(CleanVersions.isCleanRelease(clean))
+    }
+
+    @Test
+    fun `what was found survives a restart, and lists learn which songs swap`() = runBlocking {
+        var saved = ""
+        CleanVersions.attachStorage(null) { saved = it }
+        CleanVersions.search = { _, _ -> listOf(song("clean")) }
+        CleanVersions.find(explicit)
+        assertEquals(setOf("explicit"), CleanVersions.known.value)
+        CleanVersions.search = { _, _ -> emptyList() }
+        CleanVersions.find(song("other", title = "Other", explicit = true))
+        CleanVersions.reset()
+        CleanVersions.attachStorage(saved) { }
+        assertEquals("clean", CleanVersions.cached(explicit)?.videoId)
+        assertEquals(setOf("explicit"), CleanVersions.known.value)
+        assertTrue(CleanVersions.isMissing(song("other", explicit = true)))
+        assertTrue(CleanVersions.isCleanRelease(song("clean")))
+    }
+
+    @Test
     fun `a failed search is not remembered as missing`() = runBlocking {
-        CleanVersions.search = { null }
+        CleanVersions.search = { _, _ -> null }
         assertNull(CleanVersions.find(explicit))
         assertFalse(CleanVersions.isMissing(explicit))
     }
 
     @Test
     fun `clean tracks are never looked up`() = runBlocking {
-        CleanVersions.search = { q -> queries += q; emptyList() }
+        CleanVersions.search = { q, _ -> queries += q; emptyList() }
         assertNull(CleanVersions.find(song("clean")))
         assertTrue(queries.isEmpty())
     }
@@ -136,7 +226,7 @@ class CleanVersionsTest {
 
     @Test
     fun `suggestions swap what has a clean release and drop what doesn't`() = runBlocking {
-        CleanVersions.search = { q ->
+        CleanVersions.search = { q, _ ->
             if (q.startsWith("rap god", ignoreCase = true)) listOf(song("rap-god-clean")) else emptyList()
         }
         val policy = ExplicitPolicy(ExplicitFilterMode.SUGGESTIONS, swapToClean = true)
@@ -155,7 +245,7 @@ class CleanVersionsTest {
 
     @Test
     fun `a found clean release is never put through the lyric check`() = runBlocking {
-        CleanVersions.search = { listOf(song("clean")) }
+        CleanVersions.search = { _, _ -> listOf(song("clean")) }
         val clean = CleanVersions.find(explicit)!!
         var read = 0
         val checker = ExplicitLyricsChecker(ExplicitLyricsStore { }) { read++; listOf("fuck", "shit") }

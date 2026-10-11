@@ -79,6 +79,13 @@ internal object DesktopExplicit {
     private val _swapClean = MutableStateFlow(persistence.boolean(KEY_SWAP_CLEAN, false))
     val swapClean: StateFlow<Boolean> = _swapClean.asStateFlow()
 
+    init {
+        // What clean-version lookups found, kept so each song is looked up once.
+        CleanVersions.attachStorage(persistence.string(KEY_CLEAN_VERSIONS).ifBlank { null }) { encoded ->
+            persistence.saveString(KEY_CLEAN_VERSIONS, encoded)
+        }
+    }
+
     /** Songs let past the filter one at a time. Chunked storage: the list only grows. */
     val allowList = ExplicitAllowListStore { json -> persistence.saveString(KEY_ALLOWED, json.orEmpty()) }
         .also { it.load(persistence.string(KEY_ALLOWED).ifBlank { null }) }
@@ -129,6 +136,7 @@ internal object DesktopExplicit {
     private const val KEY_LYRICS_VERDICTS = "explicit_lyrics_verdicts"
     private const val LYRICS_LOOKUP_MS = 6_000L
     private const val KEY_SWAP_CLEAN = "explicit_swap_clean"
+    private const val KEY_CLEAN_VERSIONS = "explicit_clean_versions"
 }
 
 /** [ExplicitFilter.permits] against the desktop app's current settings. */
@@ -186,29 +194,37 @@ internal fun rememberDesktopExplicitByLyrics(policy: ExplicitPolicy): (Song) -> 
  */
 @Composable
 internal fun rememberDesktopRowBlocked(policy: ExplicitPolicy, sourceId: String? = null): (Song) -> Boolean {
-    val missing by CleanVersions.missing.collectAsState()
-    return remember(policy, sourceId, missing) {
+    val swapped = rememberDesktopRowSwapped(policy, sourceId)
+    return remember(policy, sourceId, swapped) {
         { song ->
-            val from = sourceId ?: song.playbackSourceId
-            !ExplicitFilter.permits(song, policy, suggestion = false, sourceId = from) &&
-                !ExplicitFilter.swapsToClean(song, policy, suggestion = false, sourceId = from, missing = missing)
+            !ExplicitFilter.permits(song, policy, suggestion = false, sourceId = sourceId ?: song.playbackSourceId) &&
+                !swapped(song)
         }
     }
 }
 
-/** The shared rows' "plays as its clean version" predicate, for the faded "C". */
+/**
+ * The shared rows' "plays as its clean version" predicate, for the faded "C": only once the clean
+ * release has actually been found.
+ */
 @Composable
 internal fun rememberDesktopRowSwapped(policy: ExplicitPolicy, sourceId: String? = null): (Song) -> Boolean {
-    val missing by CleanVersions.missing.collectAsState()
-    return remember(policy, sourceId, missing) {
+    val known by CleanVersions.known.collectAsState()
+    return remember(policy, sourceId, known) {
         { song ->
-            ExplicitFilter.swapsToClean(
-                song,
-                policy,
-                suggestion = false,
-                sourceId = sourceId ?: song.playbackSourceId,
-                missing = missing,
-            )
+            song.videoId in known &&
+                ExplicitFilter.swapsToClean(song, policy, suggestion = false, sourceId = sourceId ?: song.playbackSourceId)
         }
     }
 }
+
+/** The shared rows' background lookup of clean releases for explicit rows on screen. */
+@Composable
+internal fun rememberDesktopCleanVersionLookup(policy: ExplicitPolicy): (Song) -> Unit =
+    remember(policy) {
+        { song ->
+            if (ExplicitFilter.swapsToClean(song, policy, suggestion = false, sourceId = song.playbackSourceId)) {
+                CleanVersions.request(song)
+            }
+        }
+    }

@@ -209,6 +209,8 @@ import com.music.bitchord.data.settings.ExplicitLyricsCheck
 import com.music.bitchord.data.settings.SearchHistory
 import com.music.bitchord.ui.components.rememberExplicitRowSwapped
 import com.music.bitchord.ui.components.LocalExplicitSwapped
+import com.music.bitchord.ui.components.LocalCleanVersionLookup
+import com.music.bitchord.ui.components.rememberCleanVersionLookup
 import com.music.bitchord.ui.components.CleanVersionOffer
 import com.music.bitchord.playback.CleanVersions
 import com.music.bitchord.playback.cleanStandIn
@@ -416,6 +418,7 @@ class MainActivity : AppCompatActivity() {
                     LocalExplicitBlocked provides explicitRowBlocked,
                     LocalExplicitByLyrics provides explicitByLyrics,
                     LocalExplicitSwapped provides explicitRowSwapped,
+                    LocalCleanVersionLookup provides rememberCleanVersionLookup(rootExplicitPolicy),
                 ) {
                 // The window's width, measured rather than asked for.
                 //

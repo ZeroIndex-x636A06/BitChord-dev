@@ -818,6 +818,13 @@ object AppSettings {
         com.music.bitchord.data.spotify.LocalPlaylistStore.init(context)
         ExplicitAllowList.init(context)
         ExplicitLyricsCheck.init(context)
+        // What clean-version lookups found, kept apart like the other lists
+        // that only grow — see [ExplicitAllowList].
+        context.getSharedPreferences("clean_versions", Context.MODE_PRIVATE).let { cache ->
+            com.music.bitchord.playback.CleanVersions.attachStorage(cache.getString("found", null)) { encoded ->
+                cache.edit().putString("found", encoded).apply()
+            }
+        }
         readAll()
         watchConnection(context)
     }

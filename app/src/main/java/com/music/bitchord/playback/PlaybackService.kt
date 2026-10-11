@@ -2769,6 +2769,9 @@ class PlaybackService : MediaLibraryService() {
             if (active.currentMediaItemIndex != index || item.mediaId != song.videoId) return@launch
             if (clean == null) {
                 skipBlockedCurrent()
+                // It was held paused for the lookup; whatever plays next
+                // shouldn't inherit that.
+                if (wasPlaying && active.currentMediaItemIndex != index) active.play()
                 return@launch
             }
             TrackLog.d("BitChord", "explicit filter: playing the clean version of '${song.title}'", clean.videoId)
