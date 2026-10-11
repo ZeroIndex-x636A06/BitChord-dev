@@ -1,0 +1,28 @@
+name: clean version probe
+on:
+  push:
+    branches: [probe/clean-versions]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { java-version: '21', distribution: 'temurin' }
+      - name: Tools
+        run: |
+          curl -sSL -o kc.zip https://github.com/JetBrains/kotlin/releases/download/v2.0.21/kotlin-compiler-2.0.21.zip && unzip -q kc.zip
+          M=https://repo1.maven.org/maven2/org/jetbrains/kotlinx
+          curl -sSLO $M/kotlinx-serialization-core-jvm/1.6.3/kotlinx-serialization-core-jvm-1.6.3.jar
+          curl -sSLO $M/kotlinx-serialization-json-jvm/1.6.3/kotlinx-serialization-json-jvm-1.6.3.jar
+          curl -sSLO $M/kotlinx-coroutines-core-jvm/1.8.1/kotlinx-coroutines-core-jvm-1.8.1.jar
+      - name: Run
+        run: |
+          CP=kotlinx-serialization-core-jvm-1.6.3.jar:kotlinx-serialization-json-jvm-1.6.3.jar:kotlinx-coroutines-core-jvm-1.8.1.jar
+          ./kotlinc/bin/kotlinc -cp $CP src -include-runtime -d probe.jar 2>&1 | grep -E "error" | head -20 || true
+          java -cp probe.jar:$CP probe.ProbeKt songs.txt > out.txt 2>&1 || true
+          split -l 40 out.txt part_
+          for f in part_*; do
+            msg=$(sed 's/%/%25/g' "$f" | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::notice title=cv $f::${msg}"
+          done
