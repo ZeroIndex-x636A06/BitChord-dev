@@ -653,6 +653,19 @@ object Innertube {
             put("query", query)
         }
 
+    /**
+     * A search as someone with no account sees it: no cookie and no visitor
+     * id. Signed in, YouTube Music leaves the clean twin of an explicit song
+     * out of the results (Rap God's clean release is absent signed in and the
+     * second Songs row signed out), which is exactly what the explicit
+     * filter's clean-version lookup is looking for.
+     */
+    suspend fun searchSignedOut(query: String, params: String? = null): JsonObject =
+        postMusicAnonymous("search", shareVisitor = false) {
+            put("query", query)
+            params?.let { put("params", it) }
+        }
+
     /** The stats endpoints a player response nominates for one playback. */
     data class PlaybackTracking(
         val playbackUrl: String,
@@ -1167,8 +1180,11 @@ object Innertube {
      */
     private suspend fun postMusicAnonymous(
         endpoint: String,
+        /** Whether to send this install's visitor id, which can carry the account's preferences. */
+        shareVisitor: Boolean = true,
         bodyExtras: JsonObjectBuilder.() -> Unit,
     ): JsonObject {
+        val sentVisitor = visitorData.takeIf { shareVisitor }
         val clientVersion = webRemixVersion
         return withRetry {
             client.post("$MUSIC_BASE/$endpoint") {
@@ -1181,7 +1197,7 @@ object Innertube {
                 header("X-YouTube-Client-Version", clientVersion)
                 header("Accept-Language", acceptLanguageHeader)
                 parameter("hl", currentLanguage)
-                visitorData?.let { header("X-Goog-Visitor-Id", it) }
+                sentVisitor?.let { header("X-Goog-Visitor-Id", it) }
                 // No Cookie / Authorization headers — anonymous request.
                 setBody(
                     buildJsonObject {
@@ -1191,7 +1207,7 @@ object Innertube {
                                 put("clientVersion", clientVersion)
                                 put("hl", currentLanguage)
                                 put("gl", currentRegion)
-                                visitorData?.let { put("visitorData", it) }
+                                sentVisitor?.let { put("visitorData", it) }
                             }
                             putJsonObject("user") {
                                 put("lockedSafetyMode", false)

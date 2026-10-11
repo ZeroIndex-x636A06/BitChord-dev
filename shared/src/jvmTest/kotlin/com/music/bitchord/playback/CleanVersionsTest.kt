@@ -201,6 +201,15 @@ class CleanVersionsTest {
     }
 
     @Test
+    fun `none from an older lookup is asked again, what it found is kept`() {
+        val older = """{"found":[{"for":"explicit","id":"clean","title":"Rap God","artist":"Eminem"}],""" +
+            """"missing":[{"for":"other","at":${System.currentTimeMillis()}}]}"""
+        CleanVersions.attachStorage(older) { }
+        assertEquals("clean", CleanVersions.cached(explicit)?.videoId)
+        assertFalse(CleanVersions.isMissing(song("other", explicit = true)))
+    }
+
+    @Test
     fun `a failed search is not remembered as missing`() = runBlocking {
         CleanVersions.search = { _, _ -> null }
         assertNull(CleanVersions.find(explicit))

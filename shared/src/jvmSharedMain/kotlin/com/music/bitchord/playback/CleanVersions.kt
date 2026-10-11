@@ -1,5 +1,6 @@
 package com.music.bitchord.playback
 
+import com.music.bitchord.data.TrackLog
 import com.music.bitchord.data.YtMusicRepository
 import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.SearchResult
@@ -202,10 +203,12 @@ object CleanVersions {
 
     /**
      * How a lookup searches: the results for a query under a filter, or null
-     * when the search itself failed. Swapped out by tests.
+     * when the search itself failed. Signed out, because signed in YouTube
+     * Music leaves out the very clean twins this is looking for. Swapped out
+     * by tests.
      */
     internal var search: suspend (String, SearchFilter) -> List<Song>? = { query, filter ->
-        YtMusicRepository.search(query, filter).getOrNull()
+        YtMusicRepository.searchSignedOut(query, filter).getOrNull()
             ?.mapNotNull { (it as? SearchResult.Track)?.song ?: (it as? SearchResult.TopTrack)?.song }
     }
 
@@ -297,7 +300,11 @@ object CleanVersions {
             Triple("$name clean", SearchFilter.VIDEOS, true),
         )
         for ((query, filter, videos) in steps) {
-            val candidates = search(query, filter) ?: continue
+            val candidates = search(query, filter)
+            if (candidates == null) {
+                TrackLog.d(TAG, "clean version: \"$query\" (${filter.name}) failed", song.videoId)
+                continue
+            }
             answered = true
             val clean = if (videos) {
                 CleanVersionMatcher.pickVideo(song, candidates)?.let { song.asCleanUpload(it) }
@@ -305,9 +312,11 @@ object CleanVersions {
                 CleanVersionMatcher.pick(song, candidates)
             }
             if (clean != null) {
+                TrackLog.d(TAG, "clean version of '${song.title}': ${clean.videoId} via \"$query\" (${filter.name})", song.videoId)
                 remember(song.videoId, clean)
                 return clean
             }
+            TrackLog.d(TAG, "clean version: \"$query\" (${filter.name}) — ${candidates.size} rows, no match", song.videoId)
         }
         // Only a search that came back and simply had no clean release counts
         // as "none" — a failed one says nothing about the catalogue.
@@ -387,6 +396,7 @@ object CleanVersions {
     private fun encode(): String {
         val newestMissing = missingSince.entries.sortedByDescending { it.value }.take(MAX_REMEMBERED)
         return buildJsonObject {
+            put("v", LOOKUP_VERSION)
             put("found", buildJsonArray {
                 found.entries.take(MAX_REMEMBERED).forEach { (id, clean) ->
                     add(buildJsonObject {
@@ -428,7 +438,10 @@ object CleanVersions {
             )
             releases += id
         }
-        (root["missing"] as? JsonArray)?.forEach { element ->
+        // "None" from an older lookup isn't believed: it may have been asked in
+        // a way that couldn't see the clean release (signed in, before 2).
+        val sameLookup = (root["v"] as? JsonPrimitive)?.longOrNull == LOOKUP_VERSION.toLong()
+        if (sameLookup) (root["missing"] as? JsonArray)?.forEach { element ->
             val o = element as? JsonObject ?: return@forEach
             val forId = o.text("for") ?: return@forEach
             val at = (o["at"] as? JsonPrimitive)?.longOrNull ?: return@forEach
@@ -451,6 +464,11 @@ object CleanVersions {
         _missing.value = emptySet()
         _known.value = emptySet()
     }
+
+    private const val TAG = "BitChord"
+
+    /** Bumped when the lookup changes in a way that could now find what it missed. */
+    private const val LOOKUP_VERSION = 2
 
     /** Searches a batch of suggestions may have running together. */
     private const val LOOKUPS_AT_ONCE = 4

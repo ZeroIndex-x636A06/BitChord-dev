@@ -306,6 +306,19 @@ object YtMusicRepository {
             }
         }
 
+    /**
+     * The first page of a search as a signed-out listener gets it — see
+     * [Innertube.searchSignedOut]. For the clean-version lookup only; it
+     * doesn't touch the account's search history either.
+     */
+    suspend fun searchSignedOut(query: String, filter: SearchFilter): Result<List<SearchResult>> =
+        call("search-signed-out:${filter.name}") {
+            InnertubeParser.parseSearchPage(
+                Innertube.searchSignedOut(query, filter.params),
+                includeVideos = filter == SearchFilter.VIDEOS,
+            ).rows
+        }
+
     /** Fetches the next page of a search only when the result list needs it. */
     suspend fun searchContinuation(token: String, filter: SearchFilter): Result<SearchPage> = call("search:continuation") {
         InnertubeParser.parseSearchPage(
