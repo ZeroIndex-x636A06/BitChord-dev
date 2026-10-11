@@ -153,6 +153,17 @@ class CleanVersionsTest {
         assertEquals(listOf("clean-one"), plain.map { it.videoId })
     }
 
+    @Test
+    fun `a found clean release is never put through the lyric check`() = runBlocking {
+        CleanVersions.search = { listOf(song("clean")) }
+        val clean = CleanVersions.find(explicit)!!
+        var read = 0
+        val checker = ExplicitLyricsChecker(ExplicitLyricsStore { }) { read++; listOf("fuck", "shit") }
+        assertFalse(checker.needsCheck(clean))
+        assertEquals(false, checker.check(clean))
+        assertEquals(0, read)
+    }
+
     // ---- Policy -------------------------------------------------------------
 
     @Test
@@ -171,5 +182,8 @@ class CleanVersionsTest {
         val suggestions = swapping.copy(mode = ExplicitFilterMode.SUGGESTIONS)
         assertTrue(ExplicitFilter.swapsToClean(explicit, suggestions, suggestion = true))
         assertFalse(ExplicitFilter.swapsToClean(explicit, suggestions, suggestion = false))
+        // A song blocked only by its lyrics has no edited release to find.
+        val byLyrics = swapping.copy(lyricsFlagged = setOf("jump"))
+        assertFalse(ExplicitFilter.swapsToClean(song("jump", title = "Jump Around", artist = "House of Pain"), byLyrics, suggestion = false))
     }
 }
