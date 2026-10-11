@@ -34,6 +34,7 @@ fun search(query: String, params: String?): List<Song> {
 fun Song.line() = "$title — $artist — ${if (isExplicit == true) "E" else "-"}${if (isVideo) "V" else "-"} ${durationText ?: "?"} [$videoId]"
 
 fun main(args: Array<String>) {
+    if (args.size > 1) { dumpMain(java.io.File(args[1]).readLines().filter { it.isNotBlank() }); return }
     var hits = 0; var total = 0
     for (line in File(args[0]).readLines().filter { it.isNotBlank() }) {
         val (title, artist) = line.split("|")

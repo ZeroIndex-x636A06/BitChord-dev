@@ -20,7 +20,7 @@ jobs:
         run: |
           CP=kotlinx-serialization-core-jvm-1.6.3.jar:kotlinx-serialization-json-jvm-1.6.3.jar:kotlinx-coroutines-core-jvm-1.8.1.jar
           ./kotlinc/bin/kotlinc -cp $CP src -include-runtime -d probe.jar 2>&1 | grep -E "error" | head -20 || true
-          java -cp probe.jar:$CP probe.ProbeKt songs.txt > out.txt 2>&1 || true
+          java -cp probe.jar:$CP probe.ProbeKt songs.txt dump.txt > out.txt 2>&1 || true
           split -l 45 out.txt part_
           for f in part_*; do
             msg=$(sed 's/%/%25/g' "$f" | awk 'BEGIN{ORS="%0A"} {print}')
