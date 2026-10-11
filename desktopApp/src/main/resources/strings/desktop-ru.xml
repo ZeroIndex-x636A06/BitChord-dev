@@ -89,4 +89,23 @@
     <string name="d_translation_unavailable">Перевод недоступен</string>
     <string name="d_what_the_translate_button_translates_into">На какой язык кнопка перевода переводит текст песни</string>
     <string name="d_off">Выключено</string>
+    <string name="d_explicit_song">Откровенная песня</string>
+    <string name="d_explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
+    <string name="d_turn_off_blocking">Отключить блокировку</string>
+    <string name="d_allow_this_song">Разрешить эту песню</string>
+    <string name="d_allowed_explicit_songs">Разрешённые откровенные песни</string>
+    <string name="d_allowed_explicit_songs_empty">Пока нет разрешённых песен. Нажмите на затемнённую песню и выберите «Разрешить» или используйте «Разрешить эту откровенную песню» в её меню.</string>
+    <string name="d_allowed_explicit_songs_description">Эти песни играют, даже когда фильтр блокирует откровенный контент. Удалите песню, чтобы снова её заблокировать.</string>
+    <string name="d_block_this_explicit_song_again">Снова блокировать эту откровенную песню</string>
+    <string name="d_allow_this_explicit_song">Разрешить эту откровенную песню</string>
+    <string name="d_click_again_to_remove_all">Нажмите ещё раз для подтверждения</string>
+    <string name="d_clear_all">Очистить всё</string>
+    <string name="d_filter_explicit_content">Фильтровать откровенный контент</string>
+    <string name="d_filter_explicit_content_subtitle">Автовоспроизведение и радио не будут добавлять песни с пометкой E</string>
+    <string name="d_block_explicit_everywhere">Блокировать откровенные песни везде</string>
+    <string name="d_block_explicit_everywhere_subtitle">Откровенные песни не будут воспроизводиться, если вы не разрешите их по одной</string>
+    <string name="d_allow_explicit_in_my_playlists">Разрешить откровенные песни в моих плейлистах</string>
+    <string name="d_allow_explicit_in_my_playlists_subtitle">Песни из созданных вами плейлистов играют как обычно, даже если заблокированы в других местах</string>
+    <string name="d_one_song_allowed">1 песня разрешена в обход фильтра</string>
+    <string name="d_songs_allowed">%1$d песен разрешено в обход фильтра</string>
 </resources>

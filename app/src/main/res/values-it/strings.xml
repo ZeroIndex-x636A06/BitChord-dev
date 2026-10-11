@@ -1228,4 +1228,31 @@
     <string name="spotify_sign_in">Accedi con Spotify</string>
     <string name="spotify_use_spdc_token">Usa token sp_dc</string>
     <string name="spotify_track_unavailable">Impossibile trovare quel brano su YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Filtra i contenuti espliciti</string>
+    <string name="filter_explicit_content_subtitle">La riproduzione automatica e la radio non aggiungeranno brani contrassegnati come espliciti</string>
+    <string name="block_explicit_everywhere">Blocca i brani espliciti ovunque</string>
+    <string name="block_explicit_everywhere_subtitle">I brani espliciti non verranno riprodotti a meno che non li consenti uno alla volta</string>
+    <string name="allow_explicit_in_my_playlists">Consenti i brani espliciti nelle mie playlist</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">I brani aggiunti alle playlist che hai creato vengono riprodotti normalmente, anche se bloccati altrove</string>
+    <string name="allowed_explicit_songs">Brani espliciti consentiti</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d brano consentito nonostante il filtro</item>
+        <item quantity="other">%1$d brani consentiti nonostante il filtro</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Questi brani vengono riprodotti anche quando il filtro blocca i brani espliciti. Rimuovine uno per bloccarlo di nuovo.</string>
+    <string name="allowed_explicit_songs_empty">Nessun brano consentito. Tocca un brano in grigio e scegli Consenti, oppure usa «Consenti questo brano esplicito» nel suo menu.</string>
+    <string name="clear_all">Cancella tutto</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">Rimuovi %1$d brano</item>
+        <item quantity="other">Rimuovi tutti i %1$d brani</item>
+    </plurals>
+    <string name="explicit_song_blocked">Brano esplicito</string>
+    <string name="explicit_song_blocked_message">«%1$s» è contrassegnato come esplicito e il tuo filtro lo blocca.</string>
+    <string name="allow_this_song">Consenti questo brano</string>
+    <string name="turn_off_blocking">Disattiva il blocco</string>
+    <string name="tap_again_to_confirm">Tocca di nuovo per confermare</string>
+    <string name="allow_explicit_song">Consenti questo brano esplicito</string>
+    <string name="block_explicit_song">Blocca di nuovo questo brano esplicito</string>
+    <string name="explicit_songs_skipped">Brani espliciti saltati dal tuo filtro</string>
 </resources>

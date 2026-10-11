@@ -1321,4 +1321,35 @@
     <string name="spotify_sign_in">Войти через Spotify</string>
     <string name="spotify_use_spdc_token">Использовать токен sp_dc</string>
     <string name="spotify_track_unavailable">Не удалось найти этот трек на YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Фильтровать откровенный контент</string>
+    <string name="filter_explicit_content_subtitle">Автовоспроизведение и радио не будут добавлять песни с пометкой E</string>
+    <string name="block_explicit_everywhere">Блокировать откровенные песни везде</string>
+    <string name="block_explicit_everywhere_subtitle">Откровенные песни не будут воспроизводиться, если вы не разрешите их по одной</string>
+    <string name="allow_explicit_in_my_playlists">Разрешить откровенные песни в моих плейлистах</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Песни из созданных вами плейлистов играют как обычно, даже если заблокированы в других местах</string>
+    <string name="allowed_explicit_songs">Разрешённые откровенные песни</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d песня разрешена в обход фильтра</item>
+        <item quantity="few">%1$d песни разрешены в обход фильтра</item>
+        <item quantity="many">%1$d песен разрешено в обход фильтра</item>
+        <item quantity="other">%1$d песни разрешено в обход фильтра</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Эти песни играют, даже когда фильтр блокирует откровенный контент. Удалите песню, чтобы снова её заблокировать.</string>
+    <string name="allowed_explicit_songs_empty">Пока нет разрешённых песен. Нажмите на затемнённую песню и выберите «Разрешить» или используйте «Разрешить эту откровенную песню» в её меню.</string>
+    <string name="clear_all">Очистить всё</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">Удалить %1$d песню</item>
+        <item quantity="few">Удалить все %1$d песни</item>
+        <item quantity="many">Удалить все %1$d песен</item>
+        <item quantity="other">Удалить все %1$d песни</item>
+    </plurals>
+    <string name="explicit_song_blocked">Откровенная песня</string>
+    <string name="explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
+    <string name="allow_this_song">Разрешить эту песню</string>
+    <string name="turn_off_blocking">Отключить блокировку</string>
+    <string name="tap_again_to_confirm">Нажмите ещё раз для подтверждения</string>
+    <string name="allow_explicit_song">Разрешить эту откровенную песню</string>
+    <string name="block_explicit_song">Снова блокировать эту откровенную песню</string>
+    <string name="explicit_songs_skipped">Фильтр пропустил откровенные песни</string>
 </resources>

@@ -1261,4 +1261,31 @@
     <string name="spotify_sign_in">Iniciar sesión con Spotify</string>
     <string name="spotify_use_spdc_token">Usar token sp_dc</string>
     <string name="spotify_track_unavailable">No se encontró esa canción en YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Filtrar contenido explícito</string>
+    <string name="filter_explicit_content_subtitle">La reproducción automática y la radio no añadirán canciones marcadas como explícitas</string>
+    <string name="block_explicit_everywhere">Bloquear canciones explícitas en todas partes</string>
+    <string name="block_explicit_everywhere_subtitle">Las canciones explícitas no se reproducirán salvo que las permitas una a una</string>
+    <string name="allow_explicit_in_my_playlists">Permitir canciones explícitas en mis listas</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Las canciones que añadiste a tus propias listas se reproducen con normalidad, aunque estén bloqueadas en otros sitios</string>
+    <string name="allowed_explicit_songs">Canciones explícitas permitidas</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d canción permitida por el filtro</item>
+        <item quantity="other">%1$d canciones permitidas por el filtro</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Estas se reproducen aunque el filtro bloquee las canciones explícitas. Quita una para volver a bloquearla.</string>
+    <string name="allowed_explicit_songs_empty">Aún no hay canciones permitidas. Toca una canción atenuada y elige Permitir, o usa «Permitir esta canción explícita» en su menú.</string>
+    <string name="clear_all">Borrar todo</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">Quitar %1$d canción</item>
+        <item quantity="other">Quitar las %1$d canciones</item>
+    </plurals>
+    <string name="explicit_song_blocked">Canción explícita</string>
+    <string name="explicit_song_blocked_message">«%1$s» está marcada como explícita y tu filtro la bloquea.</string>
+    <string name="allow_this_song">Permitir esta canción</string>
+    <string name="turn_off_blocking">Desactivar el bloqueo</string>
+    <string name="tap_again_to_confirm">Toca de nuevo para confirmar</string>
+    <string name="allow_explicit_song">Permitir esta canción explícita</string>
+    <string name="block_explicit_song">Volver a bloquear esta canción explícita</string>
+    <string name="explicit_songs_skipped">Tu filtro omitió las canciones explícitas</string>
 </resources>
