@@ -1293,6 +1293,9 @@ object AppSettings {
         prefs.edit().putString(KEY_EXPLICIT_FILTER, value.name).apply()
     }
 
+    /** Every song on the explicit allow list, with the keys it's matched by. */
+    fun explicitAllowedSongs(): List<AllowedExplicitSong> = ExplicitAllowList.songs.value
+
     /** Lets [song] through the explicit filter from now on, or stops letting it through. */
     fun setExplicitAllowed(song: Song, allowed: Boolean) {
         if (allowed) ExplicitAllowList.allow(song) else ExplicitAllowList.remove(song)

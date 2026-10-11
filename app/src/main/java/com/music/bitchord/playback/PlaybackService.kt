@@ -2630,12 +2630,19 @@ class PlaybackService : MediaLibraryService() {
         val exoPlayer = player ?: return
         for (index in exoPlayer.mediaItemCount - 1 downTo exoPlayer.currentMediaItemIndex + 1) {
             val item = exoPlayer.getMediaItemAt(index)
-            if (item.toSong().explicitBlocked(suggestion = item.fromAutoplay)) {
+            if (item.queuedSong().explicitBlocked(suggestion = item.fromAutoplay)) {
                 exoPlayer.removeMediaItem(index)
             }
         }
         val current = exoPlayer.currentMediaItem ?: return
-        if (!current.toSong().explicitBlocked(suggestion = current.fromAutoplay)) return
+        val playing = current.queuedSong()
+        val blocked = playing.explicitBlocked(suggestion = current.fromAutoplay)
+        TrackLog.d(
+            "BitChord",
+            "explicit filter: checked the playing track — explicit=${playing.isExplicit} blocked=$blocked",
+            current.mediaId,
+        )
+        if (!blocked) return
         if (exoPlayer.hasNextMediaItem()) {
             TrackLog.d("BitChord", "playing track is now blocked by the explicit filter — skipping", current.mediaId)
             // Everything after it was just filtered, so the next item is one
@@ -2646,6 +2653,23 @@ class PlaybackService : MediaLibraryService() {
             exoPlayer.pause()
             exoPlayer.seekTo(0)
         }
+    }
+
+    /**
+     * Video ids of every song seen on the allow list. Only explicit songs get
+     * allowed, so a queued track with one of these ids is explicit even if its
+     * own copy of the badge went missing on the way into the player — which is
+     * what would let a song keep playing after being taken off the list. By
+     * id, not title: a clean release shares its explicit twin's title.
+     */
+    private val knownExplicitIds = HashSet<String>()
+
+    /** The queued track as the filter should judge it — see [knownExplicitIds]. */
+    private fun MediaItem.queuedSong(): Song {
+        val song = toSong()
+        if (song.isExplicit == true) return song
+        AppSettings.explicitAllowedSongs().mapTo(knownExplicitIds) { it.videoId }
+        return if (song.videoId in knownExplicitIds) song.copy(isExplicit = true) else song
     }
 
     /**
@@ -6039,7 +6063,10 @@ class PlaybackService : MediaLibraryService() {
                 AppSettings.explicitOwnPlaylistIds,
             ) { _, _, _, _ -> }
                 .drop(1)
-                .collect { dropBlockedExplicitFromQueue() }
+                .collect {
+                    TrackLog.d("BitChord", "explicit filter: settings changed; re-checking the queue")
+                    dropBlockedExplicitFromQueue()
+                }
         }
         scope.launch {
             // A lyric verdict coming in, or the lyric check being switched on,
