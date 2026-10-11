@@ -1231,4 +1231,7 @@
     <string name="allow_explicit_song">Cho phép bài hát nhạy cảm này</string>
     <string name="block_explicit_song">Chặn lại bài hát nhạy cảm này</string>
     <string name="explicit_songs_skipped">Bộ lọc đã bỏ qua các bài hát nhạy cảm</string>
+    <string name="check_lyrics_explicit">Kiểm tra lời bài hát nhạy cảm</string>
+    <string name="check_lyrics_explicit_subtitle">Chặn cả bài hát có nhiều từ tục trong lời, kể cả khi YouTube Music không đánh dấu là nhạy cảm</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” có lời nhạy cảm và bộ lọc của bạn đang chặn bài này.</string>
 </resources>

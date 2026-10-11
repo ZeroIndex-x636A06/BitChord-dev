@@ -36,12 +36,15 @@ enum class ExplicitFilterMode {
  *   tracks play when they're played from a playlist the listener made — the
  *   songs they put there themselves.
  * @param ownPlaylistIds browse ids of playlists known to be the listener's.
+ * @param lyricsFlagged video ids whose lyrics made them explicit — see
+ *   [ExplicitLyrics]. Empty unless "Check lyrics for explicit content" is on.
  */
 data class ExplicitPolicy(
     val mode: ExplicitFilterMode,
     val allowed: Set<String> = emptySet(),
     val allowOwnPlaylists: Boolean = false,
     val ownPlaylistIds: Set<String> = emptySet(),
+    val lyricsFlagged: Set<String> = emptySet(),
 ) {
     companion object {
         val OFF = ExplicitPolicy(ExplicitFilterMode.OFF)
@@ -51,11 +54,12 @@ data class ExplicitPolicy(
 /**
  * Decides whether a track may enter the queue under the explicit filter.
  *
- * Detection is the catalogue's own explicit flag — the outlined "E" YouTube
- * Music already badges rows with, parsed into [Song.isExplicit] — rather than
- * a word list, which would misfire on titles and could only see lyrics after
- * fetching them. A track whose source says nothing ([Song.isExplicit] null)
- * is treated as clean; that is the same answer the "E" badge gives.
+ * Detection is first the catalogue's own explicit flag — the outlined "E"
+ * YouTube Music already badges rows with, parsed into [Song.isExplicit]. A
+ * track whose source says nothing ([Song.isExplicit] null) is treated as
+ * clean, unless the listener has opted into reading lyrics too, in which case
+ * one whose lyrics counted as explicit ([ExplicitLyrics]) is treated as if it
+ * carried the badge.
  *
  * Shared by the phone and desktop apps, and pure: each app reads its own
  * settings into an [ExplicitPolicy] and asks here, so the rules can't drift
@@ -77,6 +81,13 @@ object ExplicitFilter {
         titleKey(song)?.let(::add)
     }
 
+    /**
+     * Whether the filter treats [song] as explicit: the catalogue's badge, or
+     * its lyrics when those are being checked ([ExplicitPolicy.lyricsFlagged]).
+     */
+    fun isExplicit(song: Song, policy: ExplicitPolicy): Boolean =
+        song.isExplicit == true || song.videoId in policy.lyricsFlagged
+
     fun isAllowedBySong(song: Song, allowed: Set<String>): Boolean =
         allowKeys(song).any { it in allowed }
 
@@ -97,7 +108,7 @@ object ExplicitFilter {
         suggestion: Boolean,
         sourceId: String? = song.playbackSourceId,
     ): Boolean {
-        if (song.isExplicit != true) return true
+        if (!isExplicit(song, policy)) return true
         if (isAllowedBySong(song, policy.allowed)) return true
         return when (policy.mode) {
             ExplicitFilterMode.OFF -> true

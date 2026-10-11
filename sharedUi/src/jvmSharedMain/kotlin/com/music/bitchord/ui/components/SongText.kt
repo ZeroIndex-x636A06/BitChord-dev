@@ -50,7 +50,7 @@ fun ExplicitSongTitle(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        if (song.isExplicit == true) {
+        if (song.showsExplicit()) {
             ExplicitBadge(color)
             Spacer(Modifier.width(6.dp))
         }

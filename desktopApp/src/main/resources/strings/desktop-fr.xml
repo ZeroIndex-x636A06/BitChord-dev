@@ -108,4 +108,7 @@
     <string name="d_allow_explicit_in_my_playlists_subtitle">Les titres ajoutés à vos propres playlists sont lus normalement, même s\'ils sont bloqués ailleurs</string>
     <string name="d_one_song_allowed">1 titre autorisé malgré le filtre</string>
     <string name="d_songs_allowed">%1$d titres autorisés malgré le filtre</string>
+    <string name="d_check_lyrics_explicit">Vérifier les paroles explicites</string>
+    <string name="d_check_lyrics_explicit_subtitle">Bloque aussi les titres dont les paroles contiennent plusieurs grossièretés, même si YouTube Music ne les marque pas comme explicites</string>
+    <string name="d_explicit_lyrics_blocked_message">« %1$s » a des paroles explicites et votre filtre le bloque.</string>
 </resources>

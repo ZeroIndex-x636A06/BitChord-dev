@@ -7,6 +7,10 @@ import androidx.compose.runtime.remember
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.settings.ExplicitAllowListStore
 import com.music.bitchord.playback.ExplicitFilter
+import com.music.bitchord.playback.ExplicitLyrics
+import com.music.bitchord.playback.ExplicitLyricsChecker
+import com.music.bitchord.playback.ExplicitLyricsStore
+import kotlinx.coroutines.withTimeoutOrNull
 import com.music.bitchord.playback.ExplicitFilterMode
 import com.music.bitchord.playback.ExplicitPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +44,36 @@ internal object DesktopExplicit {
     )
     val ownPlaylistIds: StateFlow<Set<String>> = _ownPlaylistIds.asStateFlow()
 
+    /** Also treat songs as explicit when their lyrics are — see [ExplicitLyrics]. Off by default. */
+    private val _lyricsCheck = MutableStateFlow(persistence.boolean(KEY_LYRICS_CHECK, false))
+    val lyricsCheck: StateFlow<Boolean> = _lyricsCheck.asStateFlow()
+
+    /** What lyric checks found, kept so a song is read once. */
+    val lyricsStore = ExplicitLyricsStore { encoded -> persistence.saveString(KEY_LYRICS_VERDICTS, encoded) }
+        .also { it.load(persistence.string(KEY_LYRICS_VERDICTS).ifBlank { null }) }
+
+    /**
+     * Reads lyrics the way the lyrics panel does: the sources ticked in Settings, in their order.
+     * "Lyrics unavailable" is an answer (no words to count); any other failure is no verdict.
+     */
+    val lyricsChecker = ExplicitLyricsChecker(lyricsStore) { song ->
+        val found = withTimeoutOrNull(LYRICS_LOOKUP_MS) { DesktopLyricsClient.lookup(song) }
+            ?: error("lyrics lookup timed out")
+        found.fold(
+            onSuccess = { lyrics -> lyrics.lines.map { it.text } },
+            onFailure = { if (it.message == "Lyrics unavailable") emptyList() else throw it },
+        )
+    }
+
+    /** Whether [song]'s lyrics still have to be read before the filter can judge it. */
+    fun needsLyricsCheck(song: Song): Boolean =
+        _mode.value != ExplicitFilterMode.OFF && _lyricsCheck.value && lyricsChecker.needsCheck(song)
+
+    fun setLyricsCheck(value: Boolean) {
+        _lyricsCheck.value = value
+        persistence.saveBoolean(KEY_LYRICS_CHECK, value)
+    }
+
     /** Songs let past the filter one at a time. Chunked storage: the list only grows. */
     val allowList = ExplicitAllowListStore { json -> persistence.saveString(KEY_ALLOWED, json.orEmpty()) }
         .also { it.load(persistence.string(KEY_ALLOWED).ifBlank { null }) }
@@ -49,6 +83,7 @@ internal object DesktopExplicit {
         allowed = allowList.keys.value,
         allowOwnPlaylists = _allowOwnPlaylists.value,
         ownPlaylistIds = _ownPlaylistIds.value,
+        lyricsFlagged = if (_lyricsCheck.value) lyricsStore.flagged.value else emptySet(),
     )
 
     fun setMode(value: ExplicitFilterMode) {
@@ -79,6 +114,9 @@ internal object DesktopExplicit {
     private const val KEY_ALLOW_OWN_PLAYLISTS = "explicit_allow_own_playlists"
     private const val KEY_OWN_PLAYLISTS = "explicit_own_playlists"
     private const val KEY_ALLOWED = "explicit_allowed_songs"
+    private const val KEY_LYRICS_CHECK = "explicit_lyrics_check"
+    private const val KEY_LYRICS_VERDICTS = "explicit_lyrics_verdicts"
+    private const val LYRICS_LOOKUP_MS = 6_000L
 }
 
 /** [ExplicitFilter.permits] against the desktop app's current settings. */
@@ -98,8 +136,17 @@ internal fun rememberDesktopExplicitPolicy(): ExplicitPolicy {
     val allowed by DesktopExplicit.allowList.keys.collectAsState()
     val allowOwn by DesktopExplicit.allowOwnPlaylists.collectAsState()
     val ownIds by DesktopExplicit.ownPlaylistIds.collectAsState()
-    return remember(mode, allowed, allowOwn, ownIds) { ExplicitPolicy(mode, allowed, allowOwn, ownIds) }
+    val lyricsCheck by DesktopExplicit.lyricsCheck.collectAsState()
+    val lyricsFlagged by DesktopExplicit.lyricsStore.flagged.collectAsState()
+    return remember(mode, allowed, allowOwn, ownIds, lyricsCheck, lyricsFlagged) {
+        ExplicitPolicy(mode, allowed, allowOwn, ownIds, if (lyricsCheck) lyricsFlagged else emptySet())
+    }
 }
+
+/** The shared rows' "E from its lyrics" predicate. */
+@Composable
+internal fun rememberDesktopExplicitByLyrics(policy: ExplicitPolicy): (Song) -> Boolean =
+    remember(policy.lyricsFlagged) { { song -> song.videoId in policy.lyricsFlagged } }
 
 /** The shared rows' greying predicate for rows played from [sourceId], or from where each row says. */
 @Composable

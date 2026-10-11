@@ -108,4 +108,7 @@
     <string name="d_allow_explicit_in_my_playlists_subtitle">Песни из созданных вами плейлистов играют как обычно, даже если заблокированы в других местах</string>
     <string name="d_one_song_allowed">1 песня разрешена в обход фильтра</string>
     <string name="d_songs_allowed">%1$d песен разрешено в обход фильтра</string>
+    <string name="d_check_lyrics_explicit">Проверять тексты на откровенный контент</string>
+    <string name="d_check_lyrics_explicit_subtitle">Блокировать и песни с несколькими ругательствами в тексте, даже если YouTube Music не отмечает их как откровенные</string>
+    <string name="d_explicit_lyrics_blocked_message">В тексте «%1$s» есть откровенный контент, и фильтр его блокирует.</string>
 </resources>

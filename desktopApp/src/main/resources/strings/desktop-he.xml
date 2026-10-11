@@ -108,4 +108,7 @@
     <string name="d_allow_explicit_in_my_playlists_subtitle">שירים שהוספתם לפלייליסטים שיצרתם מתנגנים כרגיל, גם אם הם חסומים במקומות אחרים</string>
     <string name="d_one_song_allowed">שיר 1 אושר לעקוף את הסינון</string>
     <string name="d_songs_allowed">%1$d שירים אושרו לעקוף את הסינון</string>
+    <string name="d_check_lyrics_explicit">בדוק מילים לתוכן בוטה</string>
+    <string name="d_check_lyrics_explicit_subtitle">חסום גם שירים שהמילים שלהם כוללות כמה קללות, גם אם YouTube Music לא סימן אותם כבוטים</string>
+    <string name="d_explicit_lyrics_blocked_message">למילים של ”%1$s“ יש תוכן בוטה והמסנן שלך חוסם אותו.</string>
 </resources>

@@ -4,6 +4,7 @@ import com.music.bitchord.ui.components.contextClick
 import com.music.bitchord.ui.components.ExplicitBadge
 import com.music.bitchord.ui.components.explicitDimmed
 import com.music.bitchord.ui.components.isExplicitBlocked
+import com.music.bitchord.ui.components.showsExplicit
 import com.music.bitchord.ui.AppUi
 import com.music.bitchord.sharedui.resources.*
 import org.jetbrains.compose.resources.painterResource
@@ -426,7 +427,7 @@ private fun RecentTrackRow(
             onLongPress = onLongPress,
             isCurrent = isCurrent,
             isPlaying = isPlaying,
-            explicit = item.isExplicit == true,
+            explicit = item.showsExplicit(),
         )
     }
 }
@@ -829,7 +830,7 @@ private fun HeroCard(
         ) {
             val heroTitleColor = if (isCurrent) PlayingAccent else Color.White
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.videoId != null && item.isExplicit == true) {
+                if (item.showsExplicit()) {
                     ExplicitBadge(heroTitleColor)
                     Spacer(Modifier.width(6.dp))
                 }
@@ -1080,7 +1081,7 @@ internal fun ShelfCard(
                 Spacer(Modifier.width(4.dp))
             }
             val cardTitleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
-            if (item.videoId != null && item.isExplicit == true) {
+            if (item.showsExplicit()) {
                 ExplicitBadge(cardTitleColor)
                 Spacer(Modifier.width(6.dp))
             }

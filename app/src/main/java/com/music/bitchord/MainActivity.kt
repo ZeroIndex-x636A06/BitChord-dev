@@ -202,6 +202,10 @@ import com.music.bitchord.ui.components.ExplicitBlockedChoice
 import com.music.bitchord.ui.components.LocalExplicitBlocked
 import com.music.bitchord.ui.components.rememberExplicitPolicy
 import com.music.bitchord.ui.components.rememberExplicitRowBlocked
+import com.music.bitchord.ui.components.rememberExplicitByLyrics
+import com.music.bitchord.ui.components.LocalExplicitByLyrics
+import com.music.bitchord.data.settings.ExplicitLyricsCheck
+import com.music.bitchord.data.settings.SearchHistory
 import com.music.bitchord.playback.explicitBlocked
 import com.music.bitchord.playback.firstPlayableIndex
 import com.music.bitchord.playback.randomPlayableIndex
@@ -393,12 +397,15 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 val appBackdrop = rememberLayerBackdrop(onDraw = paintBackdrop)
-                val explicitRowBlocked = rememberExplicitRowBlocked(rememberExplicitPolicy())
+                val rootExplicitPolicy = rememberExplicitPolicy()
+                val explicitRowBlocked = rememberExplicitRowBlocked(rootExplicitPolicy)
+                val explicitByLyrics = rememberExplicitByLyrics(rootExplicitPolicy)
                 CompositionLocalProvider(
                     LocalOverscrollFactory provides iosOverscrollFactory,
                     LocalLiquidGlassEnabled provides liquidGlassEnabled,
                     LocalAppBackdrop provides appBackdrop,
                     LocalExplicitBlocked provides explicitRowBlocked,
+                    LocalExplicitByLyrics provides explicitByLyrics,
                 ) {
                 // The window's width, measured rather than asked for.
                 //
@@ -795,6 +802,19 @@ private fun BitChordApp(
     val lyricsChecked by viewModel.lyricsChecked.collectAsStateWithLifecycle()
     val lyricsProviderStates by viewModel.lyricsProviderStates.collectAsStateWithLifecycle()
     val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
+    // Recent searches recorded before they kept a track's explicit badge are
+    // looked up once the filter is on, so they grey out like everything else.
+    val explicitFilterOn = explicitPolicy.mode != ExplicitFilterMode.OFF
+    LaunchedEffect(explicitFilterOn, searchHistory.count { it.isExplicit == null }) {
+        if (!explicitFilterOn) return@LaunchedEffect
+        searchHistory
+            .filter { it.entityType == EntityType.TRACK && it.isExplicit == null && !it.id.startsWith("q:") }
+            .forEach { entity ->
+                YtMusicRepository.trackLinks(entity.id).getOrNull()?.let {
+                    SearchHistory.noteExplicit(entity.id, it.isExplicit == true)
+                }
+            }
+    }
     val searchSuggestions by viewModel.suggestions.collectAsStateWithLifecycle()
     val searchLoadingMore by viewModel.searchLoadingMore.collectAsStateWithLifecycle()
     val searchScrollReset by viewModel.searchScrollReset.collectAsStateWithLifecycle()
@@ -1307,11 +1327,33 @@ private fun BitChordApp(
      * this" action below passes through here; what AutoPlay and radio pick is
      * filtered in [loadAutoplayTracks] instead, where nobody is there to ask.
      */
-    val gateExplicit: (Song?, String?, () -> Unit) -> Unit = { song, sourceId, proceed ->
+    fun gateExplicitNow(song: Song?, sourceId: String?, proceed: () -> Unit) {
         if (song != null && song.explicitBlocked(sourceId = sourceId ?: song.playbackSourceId)) {
             explicitPrompt = song to proceed
         } else {
             proceed()
+        }
+    }
+    // "Check lyrics for explicit content": a song nobody has read yet is read
+    // before it plays, so the first play of Jump Around is the blocked one.
+    // Only the song asked for — what plays after it is read by the player as
+    // it comes up. A second tap while the first is still being read is
+    // dropped rather than queued behind it.
+    var lyricsCheckPending by remember { mutableStateOf<String?>(null) }
+    val gateExplicit: (Song?, String?, () -> Unit) -> Unit = gate@{ song, sourceId, proceed ->
+        if (song == null || !AppSettings.explicitNeedsLyricsCheck(song)) {
+            gateExplicitNow(song, sourceId, proceed)
+            return@gate
+        }
+        if (lyricsCheckPending == song.videoId) return@gate
+        lyricsCheckPending = song.videoId
+        scope.launch {
+            try {
+                ExplicitLyricsCheck.checker.check(song)
+            } finally {
+                lyricsCheckPending = null
+            }
+            gateExplicitNow(song, sourceId, proceed)
         }
     }
 
@@ -3188,6 +3230,7 @@ private fun BitChordApp(
                                         subtitle = song.artist.ifEmpty { "" },
                                         artworkUrl = song.thumbnailUrl,
                                         entityType = EntityType.TRACK,
+                                        isExplicit = song.isExplicit,
                                     ))
                                     playRadio(song, QueueSource(searchLabel, PlaybackSourceType.SEARCH))
                                 }
@@ -3201,6 +3244,7 @@ private fun BitChordApp(
                                     subtitle = song.artist.ifEmpty { "" },
                                     artworkUrl = song.thumbnailUrl,
                                     entityType = EntityType.TRACK,
+                                    isExplicit = song.isExplicit,
                                 ))
                                 playRadio(song, QueueSource(searchLabel, PlaybackSourceType.SEARCH))
                             },
@@ -3211,6 +3255,7 @@ private fun BitChordApp(
                                     subtitle = song.artist.ifEmpty { "" },
                                     artworkUrl = song.thumbnailUrl,
                                     entityType = EntityType.TRACK,
+                                    isExplicit = song.isExplicit,
                                 ))
                                 viewModel.loadPlaylists()
                                 playlistTarget = song
@@ -3265,16 +3310,23 @@ private fun BitChordApp(
                                 // must not update its timestamp and push it to the top.
                                 when (entity.entityType) {
                                     EntityType.TRACK -> {
-                                        // Play the track by its video id
-                                        playRadio(
-                                            com.music.bitchord.data.model.Song(
-                                                videoId = entity.id,
-                                                title = entity.title,
-                                                artist = entity.subtitle,
-                                                thumbnailUrl = entity.artworkUrl,
-                                            ),
-                                            QueueSource(entity.title, PlaybackSourceType.SEARCH),
-                                        )
+                                        // Play the track by its video id, held to the explicit
+                                        // filter like a result row. Entries recorded before the
+                                        // badge was kept don't know it, so it's looked up first.
+                                        val source = QueueSource(entity.title, PlaybackSourceType.SEARCH)
+                                        val song = entity.asSong()
+                                        if (song.isExplicit == null &&
+                                            AppSettings.explicitFilter.value != ExplicitFilterMode.OFF
+                                        ) {
+                                            scope.launch {
+                                                val explicit = YtMusicRepository.trackLinks(entity.id).getOrNull()
+                                                    ?.let { it.isExplicit == true }
+                                                explicit?.let { SearchHistory.noteExplicit(entity.id, it) }
+                                                playRadio(song.copy(isExplicit = explicit), source)
+                                            }
+                                        } else {
+                                            playRadio(song, source)
+                                        }
                                     }
                                     EntityType.ALBUM, EntityType.ARTIST, EntityType.PLAYLIST -> {
                                         viewModel.openDetail(

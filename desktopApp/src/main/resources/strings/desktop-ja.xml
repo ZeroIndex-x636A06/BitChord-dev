@@ -108,4 +108,7 @@
     <string name="d_allow_explicit_in_my_playlists_subtitle">自分で作成したプレイリストに追加した曲は、他の場所でブロックされていても通常どおり再生されます</string>
     <string name="d_one_song_allowed">1曲をフィルターの対象外にしています</string>
     <string name="d_songs_allowed">%1$d曲をフィルターの対象外にしています</string>
+    <string name="d_check_lyrics_explicit">歌詞の露骨な表現をチェック</string>
+    <string name="d_check_lyrics_explicit_subtitle">YouTube Music で露骨と表示されていなくても、歌詞に汚い言葉が複数ある曲もブロックします</string>
+    <string name="d_explicit_lyrics_blocked_message">「%1$s」の歌詞には露骨な表現が含まれるため、フィルターでブロックされています。</string>
 </resources>

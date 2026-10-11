@@ -240,6 +240,7 @@ fun SettingsScreen(
     val explicitFilter by AppSettings.explicitFilter.collectAsStateWithLifecycle()
     val allowedExplicitSongs by ExplicitAllowList.songs.collectAsStateWithLifecycle()
     val explicitAllowOwnPlaylists by AppSettings.explicitAllowOwnPlaylists.collectAsStateWithLifecycle()
+    val explicitLyricsCheck by AppSettings.explicitLyricsCheck.collectAsStateWithLifecycle()
     val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
     val smartVersionAlignment by AppSettings.smartVersionAlignment.collectAsStateWithLifecycle()
     val filterNonMusicAudio by AppSettings.filterNonMusicAudio.collectAsStateWithLifecycle()
@@ -1358,6 +1359,34 @@ fun SettingsScreen(
                     },
                     onClick = if (available) {
                         { AppSettings.setExplicitAllowOwnPlaylists(!explicitAllowOwnPlaylists) }
+                    } else {
+                        null
+                    },
+                )
+            }
+            // Off by default: it reads lyrics for songs before they play. Applies
+            // to whichever of the two modes is on.
+            val lyricsCheckTitle = stringResource(R.string.check_lyrics_explicit)
+            row(lyricsCheckTitle, "explicit", "lyrics", "swear", "profanity", "curse") {
+                val available = explicitFilter != ExplicitFilterMode.OFF
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Rounded.Notes,
+                    title = lyricsCheckTitle,
+                    subtitle = stringResource(R.string.check_lyrics_explicit_subtitle),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = explicitLyricsCheck,
+                            onCheckedChange = AppSettings::setExplicitLyricsCheck,
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) {
+                        { AppSettings.setExplicitLyricsCheck(!explicitLyricsCheck) }
                     } else {
                         null
                     },

@@ -1321,4 +1321,7 @@
     <string name="allow_explicit_song">לאפשר את השיר הבוטה הזה</string>
     <string name="block_explicit_song">לחסום שוב את השיר הבוטה הזה</string>
     <string name="explicit_songs_skipped">הסינון דילג על שירים בוטים</string>
+    <string name="check_lyrics_explicit">בדוק מילים לתוכן בוטה</string>
+    <string name="check_lyrics_explicit_subtitle">חסום גם שירים שהמילים שלהם כוללות כמה קללות, גם אם YouTube Music לא סימן אותם כבוטים</string>
+    <string name="explicit_lyrics_blocked_message">למילים של ”%1$s“ יש תוכן בוטה והמסנן שלך חוסם אותו.</string>
 </resources>

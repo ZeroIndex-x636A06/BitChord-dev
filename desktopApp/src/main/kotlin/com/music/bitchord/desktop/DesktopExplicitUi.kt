@@ -121,10 +121,19 @@ internal fun DesktopExplicitBlockedDialog(
                     modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 20.dp),
                 )
                 Text(
-                    DesktopStrings[
-                        "d_explicit_song_blocked_message",
-                        "“%1\$s” is marked explicit and your filter is blocking it.",
-                    ].replace("%1\$s", song.title),
+                    // Says which check stopped it: a song with no E in the catalogue was caught by its
+                    // lyrics.
+                    if (song.isExplicit == true) {
+                        DesktopStrings[
+                            "d_explicit_song_blocked_message",
+                            "“%1\$s” is marked explicit and your filter is blocking it.",
+                        ]
+                    } else {
+                        DesktopStrings[
+                            "d_explicit_lyrics_blocked_message",
+                            "“%1\$s” has explicit lyrics and your filter is blocking it.",
+                        ]
+                    }.replace("%1\$s", song.title),
                     style = MaterialTheme.typography.bodySmall,
                     color = DesktopSecondary,
                     modifier = Modifier.padding(start = 22.dp, end = 22.dp, top = 6.dp),

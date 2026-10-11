@@ -127,6 +127,7 @@ import com.music.bitchord.data.scrobbling.LastFM
 import com.music.bitchord.data.scrobbling.ListenBrainzManager
 import com.music.bitchord.data.scrobbling.ScrobbleManager
 import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.data.settings.ExplicitLyricsCheck
 import com.music.bitchord.data.settings.EqualizerMode
 import com.music.bitchord.data.settings.OutputPcmMode
 import com.music.bitchord.data.sources.SourceResolver
@@ -288,6 +289,9 @@ private fun Song.canStartStation(): Boolean =
  * whole life; [CrossfadeController] rides on top of it as volume automation.
  */
 @UnstableApi
+/** How many tracks after the playing one have their lyrics read ahead of time. */
+private const val LYRICS_CHECK_LOOKAHEAD = 2
+
 class PlaybackService : MediaLibraryService() {
 
     private var mediaSession: MediaLibrarySession? = null
@@ -976,6 +980,7 @@ class PlaybackService : MediaLibraryService() {
             // actions — one restored from the last session, a deep link, a
             // car head unit — before the blocked track reaches the front.
             dropBlockedExplicitFromQueue()
+            checkLyricsAhead()
             loadAutoplayForCurrentTrack()
             loadLyricsForCurrentTrack()
             if (exoPlayer.isPlaying) startLyricsTicker()
@@ -2640,6 +2645,29 @@ class PlaybackService : MediaLibraryService() {
             TrackLog.d("BitChord", "playing track is now blocked by the explicit filter — pausing", current.mediaId)
             exoPlayer.pause()
             exoPlayer.seekTo(0)
+        }
+    }
+
+    /**
+     * "Check lyrics for explicit content": reads the lyrics of the playing
+     * track and the next [LYRICS_CHECK_LOOKAHEAD], those nobody has read yet,
+     * so a verdict is usually in before the song starts. Each verdict lands in
+     * [ExplicitLyricsCheck.store], whose change re-runs
+     * [dropBlockedExplicitFromQueue] — which drops a song that turned out
+     * explicit, or skips it if it is already playing.
+     */
+    private fun checkLyricsAhead() {
+        if (AppSettings.explicitFilter.value == ExplicitFilterMode.OFF) return
+        if (!AppSettings.explicitLyricsCheck.value) return
+        if (ListenTogether.state.value.inParty) return
+        val exoPlayer = player ?: return
+        val from = exoPlayer.currentMediaItemIndex
+        if (from < 0) return
+        val until = (from + LYRICS_CHECK_LOOKAHEAD).coerceAtMost(exoPlayer.mediaItemCount - 1)
+        for (index in from..until) {
+            val song = exoPlayer.getMediaItemAt(index).toSong()
+            if (!ExplicitLyricsCheck.checker.needsCheck(song)) continue
+            scope.launch(Dispatchers.IO) { ExplicitLyricsCheck.checker.check(song) }
         }
     }
 
@@ -6012,6 +6040,16 @@ class PlaybackService : MediaLibraryService() {
             ) { _, _, _, _ -> }
                 .drop(1)
                 .collect { dropBlockedExplicitFromQueue() }
+        }
+        scope.launch {
+            // A lyric verdict coming in, or the lyric check being switched on,
+            // applies to what's already lined up — see [checkLyricsAhead].
+            combine(AppSettings.explicitLyricsCheck, ExplicitLyricsCheck.store.flagged) { on, _ -> on }
+                .drop(1)
+                .collect { on ->
+                    if (on) checkLyricsAhead()
+                    dropBlockedExplicitFromQueue()
+                }
         }
         scope.launch {
             // Re-evaluate the already queued next track immediately when this

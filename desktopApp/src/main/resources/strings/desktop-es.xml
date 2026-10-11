@@ -108,4 +108,7 @@
     <string name="d_allow_explicit_in_my_playlists_subtitle">Las canciones que añadiste a tus propias listas se reproducen con normalidad, aunque estén bloqueadas en otros sitios</string>
     <string name="d_one_song_allowed">1 canción permitida por el filtro</string>
     <string name="d_songs_allowed">%1$d canciones permitidas por el filtro</string>
+    <string name="d_check_lyrics_explicit">Revisar letras con contenido explícito</string>
+    <string name="d_check_lyrics_explicit_subtitle">También bloquea canciones cuya letra tiene varias groserías, aunque YouTube Music no las marque como explícitas</string>
+    <string name="d_explicit_lyrics_blocked_message">“%1$s” tiene letra explícita y tu filtro la está bloqueando.</string>
 </resources>

@@ -1321,4 +1321,7 @@
     <string name="allow_explicit_song">Permitir esta música explícita</string>
     <string name="block_explicit_song">Bloquear esta música explícita de novo</string>
     <string name="explicit_songs_skipped">Músicas explícitas ignoradas pelo seu filtro</string>
+    <string name="check_lyrics_explicit">Verificar letras explícitas</string>
+    <string name="check_lyrics_explicit_subtitle">Bloqueia também músicas cuja letra tem vários palavrões, mesmo que o YouTube Music não as marque como explícitas</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” tem letra explícita e seu filtro está bloqueando.</string>
 </resources>

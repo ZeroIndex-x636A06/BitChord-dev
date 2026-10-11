@@ -108,4 +108,7 @@
     <string name="d_allow_explicit_in_my_playlists_subtitle">Utwory dodane do Twoich playlist odtwarzają się normalnie, nawet jeśli gdzie indziej są zablokowane</string>
     <string name="d_one_song_allowed">1 utwór dozwolony mimo filtra</string>
     <string name="d_songs_allowed">%1$d utworów dozwolonych mimo filtra</string>
+    <string name="d_check_lyrics_explicit">Sprawdzaj teksty pod kątem wulgaryzmów</string>
+    <string name="d_check_lyrics_explicit_subtitle">Blokuj też utwory z kilkoma wulgaryzmami w tekście, nawet jeśli YouTube Music nie oznacza ich jako explicit</string>
+    <string name="d_explicit_lyrics_blocked_message">„%1$s” ma wulgarny tekst i jest blokowany przez filtr.</string>
 </resources>

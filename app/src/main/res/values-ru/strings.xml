@@ -1352,4 +1352,7 @@
     <string name="allow_explicit_song">Разрешить эту откровенную песню</string>
     <string name="block_explicit_song">Снова блокировать эту откровенную песню</string>
     <string name="explicit_songs_skipped">Фильтр пропустил откровенные песни</string>
+    <string name="check_lyrics_explicit">Проверять тексты на откровенный контент</string>
+    <string name="check_lyrics_explicit_subtitle">Блокировать и песни с несколькими ругательствами в тексте, даже если YouTube Music не отмечает их как откровенные</string>
+    <string name="explicit_lyrics_blocked_message">В тексте «%1$s» есть откровенный контент, и фильтр его блокирует.</string>
 </resources>

@@ -1297,4 +1297,7 @@
     <string name="allow_explicit_song">อนุญาตเพลงนี้</string>
     <string name="block_explicit_song">บล็อกเพลงนี้อีกครั้ง</string>
     <string name="explicit_songs_skipped">ตัวกรองข้ามเพลงที่ไม่เหมาะสมแล้ว</string>
+    <string name="check_lyrics_explicit">ตรวจเนื้อเพลงที่มีเนื้อหาโจ่งแจ้ง</string>
+    <string name="check_lyrics_explicit_subtitle">บล็อกเพลงที่เนื้อเพลงมีคำหยาบหลายคำด้วย แม้ YouTube Music จะไม่ได้ทำเครื่องหมายว่าโจ่งแจ้ง</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” มีเนื้อเพลงโจ่งแจ้งและถูกตัวกรองของคุณบล็อก</string>
 </resources>

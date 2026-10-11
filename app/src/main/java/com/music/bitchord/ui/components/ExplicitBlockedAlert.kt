@@ -135,7 +135,16 @@ fun ExplicitBlockedAlert(
                         textAlign = TextAlign.Center,
                     )
                     Text(
-                        text = stringResource(R.string.explicit_song_blocked_message, song.title),
+                        text = stringResource(
+                            // Says which check stopped it: a song with no E in the
+                            // catalogue was caught by its lyrics.
+                            if (song.isExplicit == true) {
+                                R.string.explicit_song_blocked_message
+                            } else {
+                                R.string.explicit_lyrics_blocked_message
+                            },
+                            song.title,
+                        ),
                         modifier = Modifier.padding(top = 4.dp),
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
                         color = MaterialTheme.colorScheme.onSurface,

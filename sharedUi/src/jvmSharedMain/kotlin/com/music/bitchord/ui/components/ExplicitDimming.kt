@@ -22,6 +22,27 @@ import com.music.bitchord.data.model.Song
  */
 val LocalExplicitBlocked = compositionLocalOf<(Song) -> Boolean> { { false } }
 
+/**
+ * Whether a song the catalogue didn't badge has been found explicit from its
+ * lyrics ("Check lyrics for explicit content"). Rows show the "E" for these
+ * too, so a greyed row says why. Default: none are.
+ */
+val LocalExplicitByLyrics = compositionLocalOf<(Song) -> Boolean> { { false } }
+
+/** Whether a row should wear the "E": badged by the catalogue, or by its lyrics. */
+@Composable
+fun Song.showsExplicit(): Boolean = isExplicit == true || LocalExplicitByLyrics.current(this)
+
+/** [showsExplicit] for a feed card. */
+@Composable
+fun ShelfItem.showsExplicit(): Boolean {
+    val id = videoId ?: return false
+    return isExplicit == true || LocalExplicitByLyrics.current(asCardSong(id))
+}
+
+private fun ShelfItem.asCardSong(id: String) =
+    Song(videoId = id, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl, isExplicit = isExplicit)
+
 /** How far a blocked row is dimmed — the same as a Spotify track with no match. */
 const val BLOCKED_ROW_ALPHA = 0.45f
 
@@ -29,9 +50,8 @@ const val BLOCKED_ROW_ALPHA = 0.45f
 @Composable
 fun ShelfItem.isExplicitBlocked(): Boolean {
     val id = videoId ?: return false
-    if (isExplicit != true) return false
     val blocked = LocalExplicitBlocked.current
-    return blocked(Song(videoId = id, title = title, artist = subtitle, thumbnailUrl = thumbnailUrl, isExplicit = true))
+    return blocked(asCardSong(id))
 }
 
 /** Dims to [BLOCKED_ROW_ALPHA] when [blocked]. */

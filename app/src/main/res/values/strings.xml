@@ -379,6 +379,9 @@
     <string name="allow_explicit_song">Allow this explicit song</string>
     <string name="block_explicit_song">Block this explicit song again</string>
     <string name="explicit_songs_skipped">Explicit songs skipped by your filter</string>
+    <string name="check_lyrics_explicit">Check lyrics for explicit content</string>
+    <string name="check_lyrics_explicit_subtitle">Also block songs whose lyrics have several swear words, even if YouTube Music doesn’t mark them explicit</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” has explicit lyrics and your filter is blocking it.</string>
     <string name="download_quality_subtitle">%1$s per track, whatever the connection</string>
     <string name="filter_non_music_audio">Filter non-music audio</string>
     <string name="filter_non_music_audio_subtitle">Hides clips under 30 seconds, WAV files, voice notes, recordings and system sounds</string>

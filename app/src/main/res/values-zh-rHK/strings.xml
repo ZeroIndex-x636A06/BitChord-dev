@@ -1294,4 +1294,7 @@
     <string name="allow_explicit_song">允許這首露骨歌曲</string>
     <string name="block_explicit_song">重新封鎖這首露骨歌曲</string>
     <string name="explicit_songs_skipped">過濾器已略過露骨歌曲</string>
+    <string name="check_lyrics_explicit">檢查歌詞中的露骨內容</string>
+    <string name="check_lyrics_explicit_subtitle">即使 YouTube Music 未標記為露骨，歌詞中含多個髒話的歌曲也會被封鎖</string>
+    <string name="explicit_lyrics_blocked_message">「%1$s」的歌詞含露骨內容，已被你的過濾器封鎖。</string>
 </resources>
