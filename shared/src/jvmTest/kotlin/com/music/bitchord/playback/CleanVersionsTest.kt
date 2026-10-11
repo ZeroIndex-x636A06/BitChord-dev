@@ -157,6 +157,7 @@ class CleanVersionsTest {
     @BeforeTest
     fun setUp() {
         CleanVersions.reset()
+        CleanVersions.saveDelayMs = 0
         queries.clear()
     }
 
@@ -234,6 +235,30 @@ class CleanVersionsTest {
         CleanVersions.search = { _, _ -> null }
         assertNull(CleanVersions.find(explicit))
         assertFalse(CleanVersions.isMissing(explicit))
+    }
+
+    @Test
+    fun `a row without a length gets one from the song's own search result`() = runBlocking {
+        // Home cards and recent searches carry no length, and an upload is
+        // never taken without one: the song's own Songs row supplies it.
+        val card = song("explicit", explicit = true, length = null)
+        CleanVersions.search = { _, filter ->
+            if (filter == SearchFilter.VIDEOS) listOf(video("upload", "Eminem - Rap God (Clean)", "Edits", "6:05"))
+            else listOf(song("explicit", explicit = true))
+        }
+        assertEquals("upload", CleanVersions.find(card)?.videoId)
+    }
+
+    @Test
+    fun `the oldest answers are let go first`() = runBlocking {
+        var saved = ""
+        CleanVersions.attachStorage(null) { saved = it }
+        CleanVersions.search = { q, _ -> listOf(song("clean-$q", title = q.replace(Regex(" eminem.*", RegexOption.IGNORE_CASE), ""))) }
+        repeat(2_001) { CleanVersions.find(song("e$it", title = "Song $it", explicit = true)) }
+        assertNull(CleanVersions.cached(song("e0", explicit = true)))
+        assertEquals(2_000, CleanVersions.known.value.size)
+        assertFalse("\"for\":\"e0\"" in saved)
+        assertTrue("\"for\":\"e2000\"" in saved)
     }
 
     @Test

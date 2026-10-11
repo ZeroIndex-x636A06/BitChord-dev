@@ -75,7 +75,9 @@ import com.music.bitchord.data.model.UiState
 import com.music.bitchord.data.model.SearchHistoryEntity
 import com.music.bitchord.ui.components.showsExplicit
 import com.music.bitchord.ui.components.explicitDimmed
-import com.music.bitchord.ui.components.ExplicitBadge
+import com.music.bitchord.ui.components.RequestCleanVersion
+import com.music.bitchord.ui.components.LocalExplicitSwapped
+import com.music.bitchord.ui.components.ExplicitMark
 import com.music.bitchord.ui.components.LocalExplicitBlocked
 import com.music.bitchord.data.model.EntityType
 import com.music.bitchord.ui.components.MessageState
@@ -776,7 +778,8 @@ private fun RecentSearchEntityRow(
     onRemove: () -> Unit,
 ) {
     // A recent track meets the explicit filter like a result row does: greyed
-    // when blocked, with its E. The tap is where the filter asks.
+    // when blocked, with its E — or its C when it will play clean. The tap is
+    // where the filter asks.
     val track = entity.takeIf { it.entityType == EntityType.TRACK && !it.id.startsWith("q:") }?.asSong()
     val explicitBlocked = track != null && LocalExplicitBlocked.current(track)
     val explicit = track?.showsExplicit() == true
@@ -806,8 +809,11 @@ private fun RecentSearchEntityRow(
         Column(Modifier.weight(1f)) {
             val titleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (explicit) {
-                    ExplicitBadge(titleColor)
+                if (explicit && track != null) {
+                    // Looked up like any result row, so a recent search shows
+                    // its "C" without being searched again.
+                    RequestCleanVersion(track)
+                    ExplicitMark(LocalExplicitSwapped.current(track), titleColor)
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(

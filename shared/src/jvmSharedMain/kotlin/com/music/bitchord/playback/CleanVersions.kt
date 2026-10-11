@@ -10,10 +10,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +35,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import java.text.Normalizer
+import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
@@ -246,7 +249,8 @@ object CleanVersions {
             ?.mapNotNull { (it as? SearchResult.Track)?.song ?: (it as? SearchResult.TopTrack)?.song }
     }
 
-    private val found = ConcurrentHashMap<String, Song>()
+    /** Oldest first, so the oldest answers are the ones let go at [MAX_REMEMBERED]. */
+    private val found: MutableMap<String, Song> = Collections.synchronizedMap(LinkedHashMap())
     private val missingSince = ConcurrentHashMap<String, Long>()
     private val releases = ConcurrentHashMap.newKeySet<String>()
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Song?>>()
@@ -333,6 +337,10 @@ object CleanVersions {
             Triple("$name clean", SearchFilter.SONGS, false),
             Triple("$name clean", SearchFilter.VIDEOS, true),
         )
+        // What the matcher compares against. Rows that don't carry a length —
+        // Home's cards, recent searches — get it from the song's own search
+        // result, since an upload is never taken without one.
+        var target = song
         for ((query, filter, videos) in steps) {
             val candidates = search(query, filter)
             if (candidates == null) {
@@ -340,10 +348,11 @@ object CleanVersions {
                 failed = true
                 continue
             }
+            if (!videos) target = withLengthFrom(target, candidates)
             val clean = if (videos) {
-                CleanVersionMatcher.pickVideo(song, candidates)?.let { song.asCleanUpload(it) }
+                CleanVersionMatcher.pickVideo(target, candidates)?.let { song.asCleanUpload(it) }
             } else {
-                CleanVersionMatcher.pick(song, candidates)
+                CleanVersionMatcher.pick(target, candidates)
             }
             if (clean != null) {
                 TrackLog.d(TAG, "clean version of '${song.title}': ${clean.videoId} via \"$query\" (${filter.name})", song.videoId)
@@ -359,6 +368,23 @@ object CleanVersions {
         if (!failed) rememberMissing(song.videoId, System.currentTimeMillis())
         else TrackLog.d(TAG, "clean version: not looked up fully, will ask again", song.videoId)
         return null
+    }
+
+    /**
+     * [song] with the length its search results give it, when it had none: its
+     * own row if the results have it, else the explicit row of the same title
+     * and artist.
+     */
+    private fun withLengthFrom(song: Song, rows: List<Song>): Song {
+        if (song.durationText != null) return song
+        val own = rows.firstOrNull { it.videoId == song.videoId && it.durationText != null }
+        if (own != null) return song.copy(durationText = own.durationText, artist = own.artist, artists = own.artists)
+        val wanted = CleanVersionMatcher.coreTitle(song.title)
+        val twin = rows.firstOrNull {
+            it.isExplicit == true && !it.isVideo && it.durationText != null &&
+                CleanVersionMatcher.coreTitle(it.title) == wanted && TrackMatcher.sharesArtist(song.artist, it.artist)
+        } ?: return song
+        return song.copy(durationText = twin.durationText)
     }
 
     /**
@@ -413,7 +439,14 @@ object CleanVersions {
     // ---- Memory -------------------------------------------------------------
 
     private fun remember(explicitId: String, clean: Song) {
-        found[explicitId] = clean
+        synchronized(found) {
+            found.remove(explicitId)
+            found[explicitId] = clean
+            while (found.size > MAX_REMEMBERED) {
+                val oldest = found.keys.first()
+                found.remove(oldest)?.let { releases -= it.videoId }
+            }
+        }
         releases += clean.videoId
         missingSince.remove(explicitId)
         publish()
@@ -425,17 +458,43 @@ object CleanVersions {
     }
 
     private fun publish() {
-        _known.value = found.keys.toSet()
+        _known.value = synchronized(found) { found.keys.toSet() }
         _missing.update { missingSince.keys.toSet() }
-        save?.invoke(encode())
+        scheduleSave()
     }
+
+    /**
+     * Writes the state out once lookups go quiet for [saveDelayMs], rather than
+     * after every one: scrolling a long playlist answers dozens in a row, and
+     * each save rewrites the whole list. Losing the last couple of seconds to a
+     * crash only costs those songs a second lookup.
+     */
+    private fun scheduleSave() {
+        val save = save ?: return
+        if (saveDelayMs <= 0) {
+            save(encode())
+            return
+        }
+        synchronized(this) {
+            pendingSave?.cancel()
+            pendingSave = background.launch {
+                delay(saveDelayMs)
+                save(encode())
+            }
+        }
+    }
+
+    private var pendingSave: Job? = null
+
+    /** How long [scheduleSave] waits; 0 saves at once, which tests use. */
+    internal var saveDelayMs = SAVE_DELAY_MS
 
     private fun encode(): String {
         val newestMissing = missingSince.entries.sortedByDescending { it.value }.take(MAX_REMEMBERED)
         return buildJsonObject {
             put("v", LOOKUP_VERSION)
             put("found", buildJsonArray {
-                found.entries.take(MAX_REMEMBERED).forEach { (id, clean) ->
+                synchronized(found) { found.entries.toList() }.takeLast(MAX_REMEMBERED).forEach { (id, clean) ->
                     add(buildJsonObject {
                         put("for", id)
                         put("id", clean.videoId)
@@ -486,7 +545,7 @@ object CleanVersions {
             // Catalogues gain clean releases; "none" is asked again after a while.
             if (now - at < MISSING_FOR_MS) missingSince[forId] = at
         }
-        _known.value = found.keys.toSet()
+        _known.value = synchronized(found) { found.keys.toSet() }
         _missing.value = missingSince.keys.toSet()
     }
 
@@ -494,6 +553,8 @@ object CleanVersions {
 
     /** Forgets everything; for tests. */
     internal fun reset() {
+        pendingSave?.cancel()
+        pendingSave = null
         found.clear()
         missingSince.clear()
         releases.clear()
@@ -514,8 +575,14 @@ object CleanVersions {
     /** Lookups for what lists are showing, run together in the background. */
     private const val BACKGROUND_LOOKUPS = 2
 
-    /** Most answers of each kind kept across launches. */
+    /**
+     * Most answers of each kind kept, the oldest let go first. A found entry is
+     * a couple of hundred bytes, so the whole store tops out around half a
+     * megabyte.
+     */
     private const val MAX_REMEMBERED = 2_000
+
+    private const val SAVE_DELAY_MS = 2_000L
 
     /** How long "no clean release" is believed before asking again: 30 days. */
     private const val MISSING_FOR_MS = 30L * 24 * 60 * 60 * 1000
