@@ -111,4 +111,9 @@
     <string name="d_check_lyrics_explicit">歌詞の露骨な表現をチェック</string>
     <string name="d_check_lyrics_explicit_subtitle">YouTube Music で露骨と表示されていなくても、歌詞に汚い言葉が複数ある曲もブロックします</string>
     <string name="d_explicit_lyrics_blocked_message">「%1$s」の歌詞には露骨な表現が含まれるため、フィルターでブロックされています。</string>
+    <string name="d_play_clean_versions">代わりにクリーン版を再生</string>
+    <string name="d_play_clean_versions_subtitle">ブロックされた曲にクリーン版がある場合は、そちらを再生します</string>
+    <string name="d_play_clean_version">クリーン版を再生</string>
+    <string name="d_looking_for_clean_version">クリーン版を検索中…</string>
+    <string name="d_no_clean_version_found">クリーン版が見つかりませんでした。</string>
 </resources>

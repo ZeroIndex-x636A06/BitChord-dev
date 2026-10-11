@@ -111,4 +111,9 @@
     <string name="d_check_lyrics_explicit">检查歌词中的露骨内容</string>
     <string name="d_check_lyrics_explicit_subtitle">即使 YouTube Music 未标记为露骨，歌词中含多个脏话的歌曲也会被屏蔽</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s”的歌词含露骨内容，已被你的过滤器屏蔽。</string>
+    <string name="d_play_clean_versions">改为播放净化版</string>
+    <string name="d_play_clean_versions_subtitle">被屏蔽的歌曲若有净化版，则改为播放净化版</string>
+    <string name="d_play_clean_version">播放净化版</string>
+    <string name="d_looking_for_clean_version">正在查找净化版…</string>
+    <string name="d_no_clean_version_found">未找到净化版。</string>
 </resources>

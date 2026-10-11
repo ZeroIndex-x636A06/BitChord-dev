@@ -1324,4 +1324,9 @@
     <string name="check_lyrics_explicit">Verificar letras explícitas</string>
     <string name="check_lyrics_explicit_subtitle">Bloqueia também músicas cuja letra tem vários palavrões, mesmo que o YouTube Music não as marque como explícitas</string>
     <string name="explicit_lyrics_blocked_message">“%1$s” tem letra explícita e seu filtro está bloqueando.</string>
+    <string name="play_clean_versions">Tocar versões limpas no lugar</string>
+    <string name="play_clean_versions_subtitle">Se uma música bloqueada tiver versão limpa, ela toca no lugar</string>
+    <string name="play_clean_version">Tocar versão limpa</string>
+    <string name="looking_for_clean_version">Procurando uma versão limpa…</string>
+    <string name="no_clean_version_found">Nenhuma versão limpa encontrada.</string>
 </resources>

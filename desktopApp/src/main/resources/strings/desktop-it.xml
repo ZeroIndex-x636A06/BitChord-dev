@@ -111,4 +111,9 @@
     <string name="d_check_lyrics_explicit">Controlla i testi espliciti</string>
     <string name="d_check_lyrics_explicit_subtitle">Blocca anche i brani con diverse parolacce nel testo, anche se YouTube Music non li segna come espliciti</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s” ha un testo esplicito ed è bloccato dal tuo filtro.</string>
+    <string name="d_play_clean_versions">Riproduci invece le versioni clean</string>
+    <string name="d_play_clean_versions_subtitle">Se un brano bloccato ha una versione clean, viene riprodotta quella</string>
+    <string name="d_play_clean_version">Riproduci versione clean</string>
+    <string name="d_looking_for_clean_version">Ricerca di una versione clean…</string>
+    <string name="d_no_clean_version_found">Nessuna versione clean trovata.</string>
 </resources>

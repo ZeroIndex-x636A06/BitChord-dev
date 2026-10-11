@@ -1319,4 +1319,9 @@
     <string name="check_lyrics_explicit">Songtexte auf explizite Inhalte prüfen</string>
     <string name="check_lyrics_explicit_subtitle">Sperrt auch Songs, deren Texte mehrere Schimpfwörter enthalten, selbst wenn YouTube Music sie nicht als explizit markiert</string>
     <string name="explicit_lyrics_blocked_message">„%1$s“ hat einen expliziten Text und wird von deinem Filter gesperrt.</string>
+    <string name="play_clean_versions">Stattdessen Clean-Versionen abspielen</string>
+    <string name="play_clean_versions_subtitle">Hat ein gesperrter Song eine Clean-Version, wird stattdessen diese abgespielt</string>
+    <string name="play_clean_version">Clean-Version abspielen</string>
+    <string name="looking_for_clean_version">Suche nach einer Clean-Version …</string>
+    <string name="no_clean_version_found">Keine Clean-Version gefunden.</string>
 </resources>

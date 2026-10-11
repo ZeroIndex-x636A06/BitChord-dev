@@ -111,4 +111,9 @@
     <string name="d_check_lyrics_explicit">Проверять тексты на откровенный контент</string>
     <string name="d_check_lyrics_explicit_subtitle">Блокировать и песни с несколькими ругательствами в тексте, даже если YouTube Music не отмечает их как откровенные</string>
     <string name="d_explicit_lyrics_blocked_message">В тексте «%1$s» есть откровенный контент, и фильтр его блокирует.</string>
+    <string name="d_play_clean_versions">Включать чистые версии вместо них</string>
+    <string name="d_play_clean_versions_subtitle">Если у заблокированной песни есть чистая версия, будет играть она</string>
+    <string name="d_play_clean_version">Включить чистую версию</string>
+    <string name="d_looking_for_clean_version">Поиск чистой версии…</string>
+    <string name="d_no_clean_version_found">Чистая версия не найдена.</string>
 </resources>

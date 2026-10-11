@@ -1319,4 +1319,9 @@
     <string name="check_lyrics_explicit">बोलों में अश्लील सामग्री जाँचें</string>
     <string name="check_lyrics_explicit_subtitle">उन गानों को भी ब्लॉक करें जिनके बोलों में कई अपशब्द हों, भले ही YouTube Music उन्हें अश्लील न बताए</string>
     <string name="explicit_lyrics_blocked_message">“%1$s” के बोल अश्लील हैं और आपका फ़िल्टर इसे ब्लॉक कर रहा है।</string>
+    <string name="play_clean_versions">इसके बजाय क्लीन वर्शन चलाएँ</string>
+    <string name="play_clean_versions_subtitle">अगर ब्लॉक किए गए गाने का क्लीन वर्शन है, तो वही चलेगा</string>
+    <string name="play_clean_version">क्लीन वर्शन चलाएँ</string>
+    <string name="looking_for_clean_version">क्लीन वर्शन ढूँढा जा रहा है…</string>
+    <string name="no_clean_version_found">कोई क्लीन वर्शन नहीं मिला।</string>
 </resources>
