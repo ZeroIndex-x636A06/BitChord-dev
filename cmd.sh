@@ -1,2 +1,2 @@
-click 1195 230 2
-shot filter-on
+click 1195 304 2
+shot block-on
