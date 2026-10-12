@@ -187,7 +187,7 @@ class CleanVersionsTest {
     }
 
     @Test
-    fun `songs come before uploads, and an upload is a video version of its own`() = runBlocking {
+    fun `songs come before uploads, and an upload becomes a clean audio version`() = runBlocking {
         CleanVersions.search = { q, filter ->
             queries += "$filter:$q"
             if (filter == com.music.bitchord.data.model.SearchFilter.VIDEOS) {
@@ -199,35 +199,24 @@ class CleanVersionsTest {
         val clean = CleanVersions.find(explicit)!!
         assertEquals(3, queries.size)
         assertTrue(queries.last().startsWith("VIDEOS:"))
-        // Played as what it is: the upload, under its own title.
+        // The clean audio version: the song's name and artist, the upload's audio.
         assertEquals("upload", clean.videoId)
-        assertEquals("Eminem - Rap God (Clean)", clean.title)
-        assertTrue(clean.isVideo)
+        assertEquals("Rap God", clean.title)
+        assertEquals("Eminem", clean.artist)
+        assertFalse(clean.isVideo)
         assertEquals(false, clean.isExplicit)
         assertTrue(CleanVersions.isCleanRelease(clean))
         assertTrue(CleanVersions.isCleanUpload(clean))
-        // "Convert to audio": the song's name and artist, still the upload.
-        val audio = CleanVersions.asAudio(clean)!!
-        assertEquals("upload", audio.videoId)
-        assertEquals("Rap God", audio.title)
-        assertEquals("Eminem", audio.artist)
-        assertFalse(audio.isVideo)
-        assertEquals(false, audio.isExplicit)
-        // And back.
-        assertEquals("Eminem - Rap God (Clean)", CleanVersions.asVideo(audio)!!.title)
+        // "Convert to video": the upload as itself, and back.
+        val upload = CleanVersions.asVideo(clean)!!
+        assertEquals("Eminem - Rap God (Clean)", upload.title)
+        assertTrue(upload.isVideo)
+        assertEquals("Rap God", CleanVersions.asAudio(upload)!!.title)
         assertNull(CleanVersions.asAudio(explicit))
-    }
-
-    @Test
-    fun `the desktop gets an upload as the song from the start`() = runBlocking {
-        CleanVersions.uploadsAsAudio = true
-        CleanVersions.search = { _, filter ->
-            if (filter == SearchFilter.VIDEOS) listOf(video("upload", "Eminem - Rap God (Clean)", "Edits", "6:05")) else emptyList()
-        }
-        val clean = CleanVersions.find(explicit)!!
-        assertEquals("Rap God", clean.title)
-        assertFalse(clean.isVideo)
-        assertEquals("Rap God", CleanVersions.cached(explicit)!!.title)
+        // Off a playlist it was added to, the bare upload is the clean song again.
+        val fromPlaylist = video("upload", "Eminem - Rap God (Clean)", "Edits", "6:05")
+        assertEquals("Rap God", CleanVersions.asCreated(fromPlaylist).title)
+        assertEquals("Other", CleanVersions.asCreated(video("x", "Other", "Someone", "3:00")).title)
     }
 
     @Test
@@ -241,8 +230,9 @@ class CleanVersionsTest {
         CleanVersions.reset()
         CleanVersions.attachStorage(saved) { }
         val clean = CleanVersions.cached(explicit)!!
-        assertTrue(clean.isVideo)
-        assertEquals("Rap God", CleanVersions.asAudio(clean)!!.title)
+        assertEquals("Rap God", clean.title)
+        assertFalse(clean.isVideo)
+        assertEquals("Eminem - Rap God (Clean)", CleanVersions.asVideo(clean)!!.title)
     }
 
     @Test

@@ -27,6 +27,14 @@ fun Song.explicitSwapsToClean(
     CleanVersions.missing.value,
 )
 
+/**
+ * The version of this track that should be kept — downloaded, put on a
+ * playlist: its clean release when the filter would play that instead and it
+ * has been found, otherwise the track itself.
+ */
+fun Song.versionToKeep(): Song =
+    if (isExplicit == true && explicitSwapsToClean()) CleanVersions.cached(this)?.let(::cleanStandIn) ?: this else this
+
 /** Blocked with nothing to swap to: the tracks a queue leaves out. */
 fun Song.explicitSkipped(
     suggestion: Boolean = false,

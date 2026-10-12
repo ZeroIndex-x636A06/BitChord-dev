@@ -278,29 +278,34 @@ object CleanVersions {
     /** Video ids of explicit tracks whose clean release has been found. Rows mark these with a "C". */
     val known: StateFlow<Set<String>> = _known.asStateFlow()
 
-    /**
-     * How an uploaded clean edit is handed out. The phone plays it as what it
-     * is — a video, under its own title — and "Convert to audio" or "Prefer
-     * music-only version" turns it into the song ([asAudio]). The desktop app
-     * has no video versions, so it wants the song from the start.
-     */
-    @Volatile
-    var uploadsAsAudio: Boolean = false
-
     /** The clean release already found for [song], if one has been. */
     fun cached(song: Song): Song? = found[song.videoId]?.let(::present)
 
-    private fun present(clean: Song): Song =
-        if (uploadsAsAudio) uploadSongs[clean.videoId] ?: clean else clean
+    /**
+     * An uploaded clean edit is handed out as the clean audio version of the
+     * song it edits ([asAudio]) — a song in its own right, which downloads,
+     * goes on playlists and plays like any other. "Convert to video" shows the
+     * upload as itself ([asVideo]).
+     */
+    private fun present(clean: Song): Song = uploadSongs[clean.videoId] ?: clean
+
+    /**
+     * [song] as the app should show it: an uploaded clean edit that arrives as
+     * the bare upload — off a playlist it was added to, say, since YouTube only
+     * keeps the video — becomes its clean audio version again. Anything else
+     * is returned as it is.
+     */
+    fun asCreated(song: Song): Song = if (song.isVideo) asAudio(song) ?: song else song
 
     /** Whether [song] is a clean edit someone uploaded to YouTube, in either form. */
     fun isCleanUpload(song: Song): Boolean = uploadSongs.containsKey(song.videoId)
 
     /**
-     * [song], an uploaded clean edit, presented as the song it is an edit of:
-     * that song's name, artist, album and art, still playing the upload. Kept
-     * apart from the explicit original — it is never "converted" to that, which
-     * would play the words it was swapped in to avoid. Null for anything else.
+     * [song], an uploaded clean edit, as the clean audio version of the song it
+     * edits: that song's name, artist, album and art, still playing the upload.
+     * Kept apart from the explicit original — it is never "converted" to that,
+     * which would play the words it was swapped in to avoid. Null for anything
+     * else.
      */
     fun asAudio(song: Song): Song? = uploadSongs[song.videoId]?.let { dressed ->
         song.copy(
@@ -313,7 +318,7 @@ object CleanVersions {
             albumName = dressed.albumName,
             isExplicit = false,
             isVideo = false,
-            isVideoOrigin = true,
+            isVideoOrigin = false,
         )
     }
 
@@ -448,9 +453,9 @@ object CleanVersions {
     }
 
     /**
-     * Keeps both forms of an uploaded clean edit of [song] and hands back the
-     * video one: the upload as itself, a clean version of its own rather than
-     * the song in disguise. See [asAudio] for the other.
+     * Keeps both forms of an uploaded clean edit of [song] — the upload as
+     * itself, and its clean audio version ([asAudio]) — and hands back the
+     * former; [present] decides which goes out.
      */
     private fun rememberUpload(song: Song, upload: Song): Song {
         val video = upload.copy(
@@ -672,7 +677,6 @@ object CleanVersions {
         releases.clear()
         uploadVideos.clear()
         uploadSongs.clear()
-        uploadsAsAudio = false
         inFlight.clear()
         save = null
         _missing.value = emptySet()

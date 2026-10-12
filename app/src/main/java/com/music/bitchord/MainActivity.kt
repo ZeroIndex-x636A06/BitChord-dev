@@ -233,6 +233,7 @@ import com.music.bitchord.playback.toggleShuffle
 import com.music.bitchord.playback.upgradeQuality
 import com.music.bitchord.playback.revertToOriginal
 import com.music.bitchord.playback.restyleCurrent
+import com.music.bitchord.playback.versionToKeep
 import com.music.bitchord.playback.swapToVersion
 import com.music.bitchord.playback.smart.VersionAudioAligner
 import com.music.bitchord.download.DownloadSession
@@ -3380,7 +3381,7 @@ private fun BitChordApp(
                                     isExplicit = song.isExplicit,
                                 ))
                                 viewModel.loadPlaylists()
-                                playlistTarget = song
+                                playlistTarget = song.versionToKeep()
                             },
                             onBrowseClick = { item ->
                                 viewModel.recordEntity(SearchHistoryEntity(
@@ -4569,7 +4570,8 @@ private fun BitChordApp(
                 // Stays open: the row it replaces itself with is the
                 // progress, and closing the sheet would hide the only
                 // answer to "did that work?".
-                onDownload = { downloadSong(song) },
+                // "Play clean versions instead": the clean version is the one kept.
+                onDownload = { downloadSong(song.versionToKeep()) },
                 // The other direction: a device file going up to the
                 // server. Closed first, unlike a download — progress and
                 // the summary notice live outside the sheet.
@@ -4603,7 +4605,7 @@ private fun BitChordApp(
                 onAddToPlaylist = {
                     songActions = null
                     viewModel.loadPlaylists()
-                    playlistTarget = song
+                    playlistTarget = song.versionToKeep()
                 },
                 onRemoveFromPlaylist = editable?.let {
                     {
@@ -4936,7 +4938,7 @@ private fun BitChordApp(
                 // record wants.
                 onDownloadAll = act { songs ->
                     startDownload(
-                        songs,
+                        songs.map { it.versionToKeep() },
                         target.browseId
                             ?.takeIf { target.type != BrowseType.ARTIST }
                             ?.let { id ->

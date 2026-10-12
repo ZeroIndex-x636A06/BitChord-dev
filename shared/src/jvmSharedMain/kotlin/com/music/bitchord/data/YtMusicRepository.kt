@@ -749,7 +749,16 @@ object YtMusicRepository {
         InnertubeParser.parsePlaylistOwned(Innertube.browse(browseId))
     }
 
-    private fun pageOf(response: JsonObject): SongPage {
+    /**
+     * [rawPageOf], with any uploaded clean edit on it shown as its clean audio
+     * version — a playlist it was added to holds only the upload. See
+     * [com.music.bitchord.playback.CleanVersions.asCreated].
+     */
+    private fun pageOf(response: JsonObject): SongPage = rawPageOf(response).let { page ->
+        page.copy(songs = page.songs.map(com.music.bitchord.playback.CleanVersions::asCreated))
+    }
+
+    private fun rawPageOf(response: JsonObject): SongPage {
         val library = InnertubeParser.parseLibraryState(response)
         val header = InnertubeParser.parseBrowseHeader(response)
         // A playlist page is scoped to its own shelf so its "Suggested
