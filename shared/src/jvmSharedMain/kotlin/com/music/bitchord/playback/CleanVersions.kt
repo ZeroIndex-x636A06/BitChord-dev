@@ -2,8 +2,10 @@ package com.music.bitchord.playback
 
 import com.music.bitchord.data.TrackLog
 import com.music.bitchord.data.YtMusicRepository
+import com.music.bitchord.data.model.HomeShelf
 import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.SearchResult
+import com.music.bitchord.data.model.ShelfItem
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.sources.TrackMatcher
 import kotlinx.coroutines.CancellationException
@@ -253,6 +255,12 @@ object CleanVersions {
     private val found: MutableMap<String, Song> = Collections.synchronizedMap(LinkedHashMap())
     private val missingSince = ConcurrentHashMap<String, Long>()
     private val releases = ConcurrentHashMap.newKeySet<String>()
+
+    /** Clean edits uploaded to YouTube, by upload id, as themselves — see [asVideo]. */
+    private val uploadVideos = ConcurrentHashMap<String, Song>()
+
+    /** The same uploads presented as the song each one edits — see [asAudio]. */
+    private val uploadSongs = ConcurrentHashMap<String, Song>()
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Song?>>()
     private val _missing = MutableStateFlow<Set<String>>(emptySet())
     private val _known = MutableStateFlow<Set<String>>(emptySet())
@@ -270,8 +278,60 @@ object CleanVersions {
     /** Video ids of explicit tracks whose clean release has been found. Rows mark these with a "C". */
     val known: StateFlow<Set<String>> = _known.asStateFlow()
 
+    /**
+     * How an uploaded clean edit is handed out. The phone plays it as what it
+     * is — a video, under its own title — and "Convert to audio" or "Prefer
+     * music-only version" turns it into the song ([asAudio]). The desktop app
+     * has no video versions, so it wants the song from the start.
+     */
+    @Volatile
+    var uploadsAsAudio: Boolean = false
+
     /** The clean release already found for [song], if one has been. */
-    fun cached(song: Song): Song? = found[song.videoId]
+    fun cached(song: Song): Song? = found[song.videoId]?.let(::present)
+
+    private fun present(clean: Song): Song =
+        if (uploadsAsAudio) uploadSongs[clean.videoId] ?: clean else clean
+
+    /** Whether [song] is a clean edit someone uploaded to YouTube, in either form. */
+    fun isCleanUpload(song: Song): Boolean = uploadSongs.containsKey(song.videoId)
+
+    /**
+     * [song], an uploaded clean edit, presented as the song it is an edit of:
+     * that song's name, artist, album and art, still playing the upload. Kept
+     * apart from the explicit original — it is never "converted" to that, which
+     * would play the words it was swapped in to avoid. Null for anything else.
+     */
+    fun asAudio(song: Song): Song? = uploadSongs[song.videoId]?.let { dressed ->
+        song.copy(
+            title = dressed.title,
+            artist = dressed.artist,
+            artists = dressed.artists,
+            artistId = dressed.artistId,
+            thumbnailUrl = dressed.thumbnailUrl,
+            albumId = dressed.albumId,
+            albumName = dressed.albumName,
+            isExplicit = false,
+            isVideo = false,
+            isVideoOrigin = true,
+        )
+    }
+
+    /** [song], an uploaded clean edit, as itself: the video's own title, channel and thumbnail. */
+    fun asVideo(song: Song): Song? = uploadVideos[song.videoId]?.let { video ->
+        song.copy(
+            title = video.title,
+            artist = video.artist,
+            artists = video.artists,
+            artistId = video.artistId,
+            thumbnailUrl = video.thumbnailUrl,
+            albumId = null,
+            albumName = null,
+            isExplicit = false,
+            isVideo = true,
+            isVideoOrigin = true,
+        )
+    }
 
     fun isMissing(song: Song): Boolean = song.videoId in _missing.value
 
@@ -310,12 +370,12 @@ object CleanVersions {
      */
     suspend fun find(song: Song): Song? {
         if (song.isExplicit != true) return null
-        found[song.videoId]?.let { return it }
+        found[song.videoId]?.let { return present(it) }
         if (isMissing(song)) return null
         val mine = CompletableDeferred<Song?>()
         inFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }
         try {
-            val result = lookUp(song)
+            val result = lookUp(song)?.let(::present)
             mine.complete(result)
             return result
         } catch (e: CancellationException) {
@@ -350,7 +410,7 @@ object CleanVersions {
             }
             if (!videos) target = withLengthFrom(target, candidates)
             val clean = if (videos) {
-                CleanVersionMatcher.pickVideo(target, candidates)?.let { song.asCleanUpload(it) }
+                CleanVersionMatcher.pickVideo(target, candidates)?.let { rememberUpload(song, it) }
             } else {
                 CleanVersionMatcher.pick(target, candidates)
             }
@@ -388,10 +448,28 @@ object CleanVersions {
     }
 
     /**
+     * Keeps both forms of an uploaded clean edit of [song] and hands back the
+     * video one: the upload as itself, a clean version of its own rather than
+     * the song in disguise. See [asAudio] for the other.
+     */
+    private fun rememberUpload(song: Song, upload: Song): Song {
+        val video = upload.copy(
+            isExplicit = false,
+            isVideo = true,
+            isVideoOrigin = true,
+            setVideoId = null,
+            localUri = null,
+            localPath = null,
+            queueEntryId = null,
+        )
+        uploadVideos[upload.videoId] = video
+        uploadSongs[upload.videoId] = song.asCleanUpload(upload)
+        return video
+    }
+
+    /**
      * An uploaded clean edit, presented as the song it is an edit of: the
-     * upload's id and length, the original's name, artist, album and art. Not
-     * a "video" as far as the app is concerned, so "Prefer music-only version"
-     * doesn't go looking for its audio — which would be the explicit original.
+     * upload's id and length, the original's name, artist, album and art.
      */
     private fun Song.asCleanUpload(upload: Song): Song = copy(
         videoId = upload.videoId,
@@ -444,7 +522,11 @@ object CleanVersions {
             found[explicitId] = clean
             while (found.size > MAX_REMEMBERED) {
                 val oldest = found.keys.first()
-                found.remove(oldest)?.let { releases -= it.videoId }
+                found.remove(oldest)?.let {
+                    releases -= it.videoId
+                    uploadVideos.remove(it.videoId)
+                    uploadSongs.remove(it.videoId)
+                }
             }
         }
         releases += clean.videoId
@@ -505,6 +587,17 @@ object CleanVersions {
                         clean.artistId?.let { put("artistId", it) }
                         clean.albumId?.let { put("albumId", it) }
                         clean.albumName?.let { put("album", it) }
+                        // An upload: the song it stands in for, for [asAudio].
+                        uploadSongs[clean.videoId]?.let { song ->
+                            put("upload", buildJsonObject {
+                                put("title", song.title)
+                                put("artist", song.artist)
+                                song.thumbnailUrl?.let { put("art", it) }
+                                song.artistId?.let { put("artistId", it) }
+                                song.albumId?.let { put("albumId", it) }
+                                song.albumName?.let { put("album", it) }
+                            })
+                        }
                     })
                 }
             })
@@ -517,11 +610,18 @@ object CleanVersions {
     private fun decode(encoded: String?) {
         val root = encoded?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() } ?: return
         val now = System.currentTimeMillis()
-        (root["found"] as? JsonArray)?.forEach { element ->
+        // Answers from an older lookup aren't believed: "none" may have been
+        // asked in a way that couldn't see the clean release (signed in, before
+        // 2) or saved after a search that failed partway (before 3), and before
+        // 4 an upload was saved already dressed as the song, so it can't be
+        // offered as the video it is.
+        val sameLookup = (root["v"] as? JsonPrimitive)?.longOrNull == LOOKUP_VERSION.toLong()
+        if (sameLookup) (root["found"] as? JsonArray)?.forEach { element ->
             val o = element as? JsonObject ?: return@forEach
             val forId = o.text("for") ?: return@forEach
             val id = o.text("id") ?: return@forEach
-            found[forId] = Song(
+            val upload = o["upload"] as? JsonObject
+            val clean = Song(
                 videoId = id,
                 title = o.text("title").orEmpty(),
                 artist = o.text("artist").orEmpty(),
@@ -531,13 +631,25 @@ object CleanVersions {
                 albumId = o.text("albumId"),
                 albumName = o.text("album"),
                 isExplicit = false,
+                isVideo = upload != null,
+                isVideoOrigin = upload != null,
             )
+            found[forId] = clean
             releases += id
+            if (upload != null) {
+                uploadVideos[id] = clean
+                uploadSongs[id] = clean.copy(
+                    title = upload.text("title").orEmpty(),
+                    artist = upload.text("artist").orEmpty(),
+                    thumbnailUrl = upload.text("art"),
+                    artistId = upload.text("artistId"),
+                    albumId = upload.text("albumId"),
+                    albumName = upload.text("album"),
+                    isVideo = false,
+                    isVideoOrigin = false,
+                )
+            }
         }
-        // "None" from an older lookup isn't believed: it may have been asked in
-        // a way that couldn't see the clean release (signed in, before 2), or
-        // saved after a search that failed partway (before 3).
-        val sameLookup = (root["v"] as? JsonPrimitive)?.longOrNull == LOOKUP_VERSION.toLong()
         if (sameLookup) (root["missing"] as? JsonArray)?.forEach { element ->
             val o = element as? JsonObject ?: return@forEach
             val forId = o.text("for") ?: return@forEach
@@ -558,6 +670,9 @@ object CleanVersions {
         found.clear()
         missingSince.clear()
         releases.clear()
+        uploadVideos.clear()
+        uploadSongs.clear()
+        uploadsAsAudio = false
         inFlight.clear()
         save = null
         _missing.value = emptySet()
@@ -567,7 +682,7 @@ object CleanVersions {
     private const val TAG = "BitChord"
 
     /** Bumped when the lookup changes in a way that could now find what it missed. */
-    private const val LOOKUP_VERSION = 3
+    private const val LOOKUP_VERSION = 4
 
     /** Searches a batch of suggestions may have running together. */
     private const val LOOKUPS_AT_ONCE = 4
@@ -602,3 +717,48 @@ fun Song.cleanStandIn(clean: Song): Song = clean.copy(
     playbackSourceType = playbackSourceType,
     playbackSourceId = playbackSourceId,
 )
+
+/**
+ * With "Play clean versions instead" on, an album or single listed in both its
+ * editions shows only the clean one: the explicit card is left out wherever a
+ * card of the same release without the badge — same title once edition tags
+ * are set aside, same billing line — is in the same list. One listed alone
+ * stays; its tracks still play clean.
+ */
+object CleanEditions {
+    fun <T> keepClean(
+        items: List<T>,
+        title: (T) -> String,
+        subtitle: (T) -> String,
+        explicit: (T) -> Boolean,
+        collection: (T) -> Boolean = { true },
+    ): List<T> {
+        val clean = items.filter { collection(it) && !explicit(it) }.mapTo(HashSet()) { key(title(it), subtitle(it)) }
+        if (clean.isEmpty()) return items
+        return items.filterNot { collection(it) && explicit(it) && key(title(it), subtitle(it)) in clean }
+    }
+
+    fun shelves(shelves: List<HomeShelf>): List<HomeShelf> = shelves.map { shelf ->
+        val kept = cards(shelf.items)
+        if (kept.size == shelf.items.size) shelf else shelf.copy(items = kept)
+    }
+
+    fun cards(items: List<ShelfItem>): List<ShelfItem> = keepClean(
+        items,
+        title = { it.title },
+        subtitle = { it.subtitle },
+        explicit = { it.isExplicit == true },
+        collection = { it.browseId != null && it.videoId == null },
+    )
+
+    fun searchRows(rows: List<SearchResult>): List<SearchResult> = keepClean(
+        rows,
+        title = { (it as? SearchResult.Browse)?.item?.title.orEmpty() },
+        subtitle = { (it as? SearchResult.Browse)?.item?.subtitle.orEmpty() },
+        explicit = { (it as? SearchResult.Browse)?.item?.isExplicit == true },
+        collection = { it is SearchResult.Browse },
+    )
+
+    private fun key(title: String, subtitle: String): String =
+        CleanVersionMatcher.coreTitle(title) + "|" + subtitle.trim().lowercase(java.util.Locale.ROOT)
+}

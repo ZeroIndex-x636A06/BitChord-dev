@@ -1,5 +1,7 @@
 package com.music.bitchord.desktop
 
+import com.music.bitchord.playback.CleanEditions
+import com.music.bitchord.ui.components.LocalHideExplicitEditions
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.bitchord.ui.components.LocalShelfRowChrome
 import com.music.bitchord.ui.components.ExplicitMark
@@ -3285,6 +3287,7 @@ fun BitChordDesktopApp() {
             LocalExplicitBlocked provides rememberDesktopRowBlocked(explicitPolicy),
             LocalExplicitByLyrics provides rememberDesktopExplicitByLyrics(explicitPolicy),
             LocalExplicitSwapped provides rememberDesktopRowSwapped(explicitPolicy),
+            LocalHideExplicitEditions provides (explicitPolicy.swapToClean && explicitPolicy.mode != ExplicitFilterMode.OFF),
             LocalCleanVersionLookup provides rememberDesktopCleanVersionLookup(explicitPolicy),
             LocalLyricsPrecheck provides DesktopExplicit::precheckLyrics,
         ) {
@@ -5337,6 +5340,7 @@ private fun DesktopArtistPage(
             }
             is UiState.Success -> {
                 val artist = state.data
+                val hideExplicitEditions = LocalHideExplicitEditions.current
                 val name = artist.name?.takeIf(String::isNotBlank) ?: fallbackName
                 val palette = rememberDesktopArtworkPalette(artist.thumbnailUrl)
                 // Android caps the top-songs block and pages it sideways so the release shelves are
@@ -5439,7 +5443,10 @@ private fun DesktopArtistPage(
                                 }
                             }
                         }
-                        artist.sections.forEach { shelf ->
+                        // "Play clean versions instead": a release listed in both editions shows only
+                        // the clean one.
+                        val shelves = if (hideExplicitEditions) CleanEditions.shelves(artist.sections) else artist.sections
+                        shelves.forEach { shelf ->
                             item(key = "artist-shelf-${shelf.title}") {
                                 Box(Modifier.padding(top = 18.dp)) {
                                     DesktopShelf(shelf, onItemClick = onShelfItemClick)

@@ -126,3 +126,10 @@ fun ShelfItem.isCleanSwapped(): Boolean {
 /** Dims to [BLOCKED_ROW_ALPHA] when [blocked]. */
 fun Modifier.explicitDimmed(blocked: Boolean): Modifier =
     if (blocked) alpha(BLOCKED_ROW_ALPHA) else this
+
+/**
+ * Whether an album or single listed in both editions shows only its clean one
+ * — see [com.music.bitchord.playback.CleanEditions]. On while "Play clean
+ * versions instead" is; the default shows both.
+ */
+val LocalHideExplicitEditions = compositionLocalOf { false }

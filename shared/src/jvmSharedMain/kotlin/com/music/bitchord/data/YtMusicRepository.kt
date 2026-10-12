@@ -402,6 +402,9 @@ object YtMusicRepository {
      */
     suspend fun resolveAudio(song: Song): Song {
         if (!song.isVideo) return song
+        // An uploaded clean edit's "audio" is itself, dressed as the song —
+        // never the catalogue's song, which is the explicit original.
+        com.music.bitchord.playback.CleanVersions.asAudio(song)?.let { return it }
         audioVersionCache[song.videoId]?.let { return it }
         val target = TrackMatcher.targetOf(song)
         for (query in TrackMatcher.queries(target)) {
@@ -439,6 +442,8 @@ object YtMusicRepository {
      */
     suspend fun resolveVideo(song: Song): Song? {
         if (song.isVideo) return null
+        // Likewise its video is the upload, not the original's music video.
+        com.music.bitchord.playback.CleanVersions.asVideo(song)?.let { return it }
         videoVersionCache[song.videoId]?.let { return it }
         val target = TrackMatcher.targetOf(song)
         for (query in TrackMatcher.queries(target)) {

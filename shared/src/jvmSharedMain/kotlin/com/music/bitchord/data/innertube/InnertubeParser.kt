@@ -179,6 +179,7 @@ object InnertubeParser {
             browseId = browseId,
             title = title,
             subtitle = subtitle,
+            isExplicit = renderer.hasExplicitBadge(),
             thumbnailUrl = renderer.o("thumbnail").o("musicThumbnailRenderer")
                 .o("thumbnail").a("thumbnails").best(),
             type = when {

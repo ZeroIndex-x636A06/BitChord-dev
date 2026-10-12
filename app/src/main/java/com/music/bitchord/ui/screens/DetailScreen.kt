@@ -1,5 +1,7 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.playback.CleanEditions
+import com.music.bitchord.ui.components.LocalHideExplicitEditions
 import android.os.Build
 import com.music.bitchord.R
 import com.music.bitchord.playback.firstPlayableIndex
@@ -308,6 +310,17 @@ fun DetailScreen(
      */
     songSort: SongSort = SongSort.DEFAULT,
 ) {
+    // "Play clean versions instead": an artist's release listed in both
+    // editions shows only the clean one.
+    val hideExplicitEditions = LocalHideExplicitEditions.current
+    @Suppress("NAME_SHADOWING")
+    val page = remember(page, hideExplicitEditions) {
+        if (hideExplicitEditions && page.sections.isNotEmpty()) {
+            page.copy(sections = CleanEditions.shelves(page.sections))
+        } else {
+            page
+        }
+    }
     val rawSongs = (page.songs as? UiState.Success)?.data.orEmpty()
     val songs = remember(rawSongs, songSort) { rawSongs.sortedForDetail(songSort) }
     // What a numbered row shows regardless of [songSort] — an album's track

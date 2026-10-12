@@ -147,6 +147,17 @@ fun MediaController.revertToOriginal() {
 }
 
 /**
+ * Asks the service to show the playing track as [targetSong] — same id, new
+ * title, art and video flag — without touching playback.
+ */
+fun MediaController.restyleCurrent(targetSong: Song) {
+    sendCustomCommand(
+        SessionCommand(ACTION_RESTYLE_CURRENT, Bundle.EMPTY),
+        bundleOf(EXTRA_SWAP_MEDIA_ITEM to targetSong.toSongBundle()),
+    )
+}
+
+/**
  * Asks the service to smoothly transition the playing track to another version/rendition.
  */
 fun MediaController.swapToVersion(targetSong: Song) {

@@ -1,5 +1,6 @@
 package com.music.bitchord
 
+import com.music.bitchord.ui.components.LocalHideExplicitEditions
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -231,6 +232,7 @@ import com.music.bitchord.playback.toggleAutoplay
 import com.music.bitchord.playback.toggleShuffle
 import com.music.bitchord.playback.upgradeQuality
 import com.music.bitchord.playback.revertToOriginal
+import com.music.bitchord.playback.restyleCurrent
 import com.music.bitchord.playback.swapToVersion
 import com.music.bitchord.playback.smart.VersionAudioAligner
 import com.music.bitchord.download.DownloadSession
@@ -426,6 +428,8 @@ class MainActivity : AppCompatActivity() {
                     LocalExplicitBlocked provides explicitRowBlocked,
                     LocalExplicitByLyrics provides explicitByLyrics,
                     LocalExplicitSwapped provides explicitRowSwapped,
+                    LocalHideExplicitEditions provides
+                        (rootExplicitPolicy.swapToClean && rootExplicitPolicy.mode != ExplicitFilterMode.OFF),
                     LocalCleanVersionLookup provides rememberCleanVersionLookup(rootExplicitPolicy),
                     LocalLyricsPrecheck provides ExplicitLyricsCheck::precheck,
                 ) {
@@ -1232,6 +1236,13 @@ private fun BitChordApp(
             c.currentMediaItem?.mediaId != song.videoId ||
             switchingAudioVersion
         ) return
+        // An uploaded clean edit: its audio version is itself, shown as the
+        // song — the catalogue's song would be the explicit original.
+        CleanVersions.asAudio(song)?.let { audio ->
+            TrackLog.d("Player", "clean upload shown as '${audio.title}'", song.videoId)
+            c.restyleCurrent(audio)
+            return
+        }
 
         val resumeAfterResolution = pauseWhileResolving && c.playWhenReady
         switchingAudioVersion = true
@@ -1565,6 +1576,11 @@ private fun BitChordApp(
         }
         if ((convertedFromVideo != null && convertedAudioId == song.videoId) ||
             (convertedFromAudio != null && convertedVideoId == song.videoId)) {
+            hasAlternateVersion = true
+            return@LaunchedEffect
+        }
+        // An uploaded clean edit always has its other form — see [CleanVersions.asAudio].
+        if (CleanVersions.isCleanUpload(song)) {
             hasAlternateVersion = true
             return@LaunchedEffect
         }
@@ -4446,6 +4462,16 @@ private fun BitChordApp(
                     val originalAudio = convertedFromAudio
                     when {
                         c == null -> Unit
+                        // An uploaded clean edit: between the video as itself and
+                        // the song's name and art, never to another recording.
+                        CleanVersions.isCleanUpload(song) -> {
+                            val target = if (song.isVideo) CleanVersions.asAudio(song) else CleanVersions.asVideo(song)
+                            if (target != null) {
+                                // Chosen on purpose: "Prefer music-only" leaves it be.
+                                keepVideoId = if (target.isVideo) song.videoId else null
+                                c.restyleCurrent(target)
+                            }
+                        }
                         original != null && (
                             convertedAudioId == song.videoId ||
                                 convertedAudioId == versionEffectiveSong.videoId ||

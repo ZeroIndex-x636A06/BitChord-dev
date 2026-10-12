@@ -187,7 +187,7 @@ class CleanVersionsTest {
     }
 
     @Test
-    fun `songs come before uploads, and the upload plays under the song's name`() = runBlocking {
+    fun `songs come before uploads, and an upload is a video version of its own`() = runBlocking {
         CleanVersions.search = { q, filter ->
             queries += "$filter:$q"
             if (filter == com.music.bitchord.data.model.SearchFilter.VIDEOS) {
@@ -199,12 +199,50 @@ class CleanVersionsTest {
         val clean = CleanVersions.find(explicit)!!
         assertEquals(3, queries.size)
         assertTrue(queries.last().startsWith("VIDEOS:"))
+        // Played as what it is: the upload, under its own title.
         assertEquals("upload", clean.videoId)
-        assertEquals("Rap God", clean.title)
-        assertEquals("Eminem", clean.artist)
-        assertFalse(clean.isVideo)
+        assertEquals("Eminem - Rap God (Clean)", clean.title)
+        assertTrue(clean.isVideo)
         assertEquals(false, clean.isExplicit)
         assertTrue(CleanVersions.isCleanRelease(clean))
+        assertTrue(CleanVersions.isCleanUpload(clean))
+        // "Convert to audio": the song's name and artist, still the upload.
+        val audio = CleanVersions.asAudio(clean)!!
+        assertEquals("upload", audio.videoId)
+        assertEquals("Rap God", audio.title)
+        assertEquals("Eminem", audio.artist)
+        assertFalse(audio.isVideo)
+        assertEquals(false, audio.isExplicit)
+        // And back.
+        assertEquals("Eminem - Rap God (Clean)", CleanVersions.asVideo(audio)!!.title)
+        assertNull(CleanVersions.asAudio(explicit))
+    }
+
+    @Test
+    fun `the desktop gets an upload as the song from the start`() = runBlocking {
+        CleanVersions.uploadsAsAudio = true
+        CleanVersions.search = { _, filter ->
+            if (filter == SearchFilter.VIDEOS) listOf(video("upload", "Eminem - Rap God (Clean)", "Edits", "6:05")) else emptyList()
+        }
+        val clean = CleanVersions.find(explicit)!!
+        assertEquals("Rap God", clean.title)
+        assertFalse(clean.isVideo)
+        assertEquals("Rap God", CleanVersions.cached(explicit)!!.title)
+    }
+
+    @Test
+    fun `an upload is still both forms after a restart`() = runBlocking {
+        var saved = ""
+        CleanVersions.attachStorage(null) { saved = it }
+        CleanVersions.search = { _, filter ->
+            if (filter == SearchFilter.VIDEOS) listOf(video("upload", "Eminem - Rap God (Clean)", "Edits", "6:05")) else emptyList()
+        }
+        CleanVersions.find(explicit)
+        CleanVersions.reset()
+        CleanVersions.attachStorage(saved) { }
+        val clean = CleanVersions.cached(explicit)!!
+        assertTrue(clean.isVideo)
+        assertEquals("Rap God", CleanVersions.asAudio(clean)!!.title)
     }
 
     @Test
@@ -225,11 +263,12 @@ class CleanVersionsTest {
     }
 
     @Test
-    fun `none from an older lookup is asked again, what it found is kept`() {
-        val older = """{"found":[{"for":"explicit","id":"clean","title":"Rap God","artist":"Eminem"}],""" +
+    fun `answers from an older lookup are asked again`() {
+        // Before version 4 an upload was saved already dressed as the song.
+        val older = """{"v":3,"found":[{"for":"explicit","id":"clean","title":"Rap God","artist":"Eminem"}],""" +
             """"missing":[{"for":"other","at":${System.currentTimeMillis()}}]}"""
         CleanVersions.attachStorage(older) { }
-        assertEquals("clean", CleanVersions.cached(explicit)?.videoId)
+        assertNull(CleanVersions.cached(explicit))
         assertFalse(CleanVersions.isMissing(song("other", explicit = true)))
     }
 
@@ -347,5 +386,22 @@ class CleanVersionsTest {
         // A song blocked only by its lyrics has no edited release to find.
         val byLyrics = swapping.copy(lyricsFlagged = setOf("jump"))
         assertFalse(ExplicitFilter.swapsToClean(song("jump", title = "Jump Around", artist = "House of Pain"), byLyrics, suggestion = false))
+    }
+
+    // ---- Editions -----------------------------------------------------------
+
+    @Test
+    fun `an album listed in both editions shows only the clean one`() {
+        fun card(id: String, title: String, explicit: Boolean?) =
+            com.music.bitchord.data.model.ShelfItem(title, "Album • Eminem • 2013", null, null, id, isExplicit = explicit)
+        val explicitMmlp2 = card("e", "The Marshall Mathers LP2", true)
+        val cleanMmlp2 = card("c", "The Marshall Mathers LP2", null)
+        val recovery = card("r", "Recovery", true)
+        val kept = CleanEditions.cards(listOf(explicitMmlp2, recovery, cleanMmlp2))
+        // Recovery has no clean card here, so it stays.
+        assertEquals(listOf("r", "c"), kept.map { it.browseId })
+        // Track cards are left alone.
+        val track = com.music.bitchord.data.model.ShelfItem("Rap God", "Eminem", null, "v", null, isExplicit = true)
+        assertEquals(1, CleanEditions.cards(listOf(track, card("c2", "Rap God", null))).count { it.videoId == "v" })
     }
 }

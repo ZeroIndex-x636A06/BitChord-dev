@@ -184,6 +184,14 @@ const val ACTION_TOGGLE_AUTOPLAY = "com.music.bitchord.action.TOGGLE_AUTOPLAY"
 const val ACTION_SWAP_VERSION = "com.music.bitchord.action.SWAP_VERSION"
 const val EXTRA_SWAP_MEDIA_ITEM = "bitchord.swap.media_item"
 
+/**
+ * Session command that re-labels the playing track without changing what
+ * plays: same id, new title, art and video flag. For an uploaded clean edit,
+ * whose "audio version" is itself dressed as the song — see
+ * [com.music.bitchord.playback.CleanVersions.asAudio].
+ */
+const val ACTION_RESTYLE_CURRENT = "com.music.bitchord.action.RESTYLE_CURRENT"
+
 /** Session command used by the media notification's and the 4×1 widget's Favorite button. */
 /** How long the service may stay in the foreground, paused, while the watch plays. */
 private const val WATCH_SESSION_FOREGROUND_MS = 6 * 60 * 60 * 1000L
@@ -753,6 +761,7 @@ class PlaybackService : MediaLibraryService() {
     private val commitRadioQueueCommand = SessionCommand(ACTION_COMMIT_RADIO_QUEUE, Bundle.EMPTY)
     private val upgradeQualityCommand = SessionCommand(ACTION_UPGRADE_QUALITY, Bundle.EMPTY)
     private val swapVersionCommand = SessionCommand(ACTION_SWAP_VERSION, Bundle.EMPTY)
+    private val restyleCurrentCommand = SessionCommand(ACTION_RESTYLE_CURRENT, Bundle.EMPTY)
     private val reorderQueueCommand = SessionCommand(ACTION_REORDER_QUEUE, Bundle.EMPTY)
     private val queueDragCommand = SessionCommand(ACTION_QUEUE_DRAG, Bundle.EMPTY)
 
@@ -2429,6 +2438,39 @@ class PlaybackService : MediaLibraryService() {
         activePlayer.replaceMediaItem(index, targetSong.toMediaItem())
         activePlayer.seekTo(index, position)
         if (wasPlaying) activePlayer.play()
+        refreshCustomLayouts()
+    }
+
+    /**
+     * Gives the playing track [target]'s title, artist, art and video flag,
+     * keeping its place in the queue and where it was played from. Only for
+     * the same id — this changes how the track is shown, never what plays —
+     * so the position carries on where it was.
+     */
+    private fun restyleCurrent(target: Song) {
+        val activePlayer = player ?: return
+        val index = activePlayer.currentMediaItemIndex
+        if (index !in 0 until activePlayer.mediaItemCount) return
+        val current = activePlayer.currentMediaItem?.toSong() ?: return
+        if (current.videoId != target.videoId) return
+        val position = activePlayer.currentPosition
+        val restyled = current.copy(
+            title = target.title,
+            artist = target.artist,
+            artists = target.artists,
+            artistId = target.artistId,
+            thumbnailUrl = target.thumbnailUrl,
+            albumId = target.albumId,
+            albumName = target.albumName,
+            isExplicit = target.isExplicit,
+            isVideo = target.isVideo,
+            isVideoOrigin = target.isVideoOrigin,
+        )
+        TrackLog.d("BitChord", "restyled '${current.title}' as '${restyled.title}' (video=${restyled.isVideo})", current.videoId)
+        activePlayer.replaceMediaItem(index, restyled.toMediaItem())
+        if (activePlayer.currentMediaItemIndex == index && kotlin.math.abs(activePlayer.currentPosition - position) > 1_000) {
+            activePlayer.seekTo(index, position)
+        }
         refreshCustomLayouts()
     }
 
@@ -7546,6 +7588,7 @@ class PlaybackService : MediaLibraryService() {
                 .add(commitRadioQueueCommand)
                 .add(upgradeQualityCommand)
                 .add(swapVersionCommand)
+                .add(restyleCurrentCommand)
                 .add(reorderQueueCommand)
                 .add(queueDragCommand)
                 .build()
@@ -7588,6 +7631,7 @@ class PlaybackService : MediaLibraryService() {
                         smoothSwapCurrentTrackVersion(targetSong.toMediaItem())
                     }
                 }
+                ACTION_RESTYLE_CURRENT -> args.getBundle(EXTRA_SWAP_MEDIA_ITEM)?.let { restyleCurrent(songFromBundle(it)) }
                 ACTION_REORDER_QUEUE -> player?.let { QueueShuffle.reorderFromCommand(it, args) }
                 ACTION_QUEUE_DRAG -> {
                     if (args.getBoolean(EXTRA_QUEUE_DRAG_ACTIVE, false)) {

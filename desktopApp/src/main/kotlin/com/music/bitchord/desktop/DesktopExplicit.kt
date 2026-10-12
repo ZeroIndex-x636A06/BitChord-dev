@@ -114,6 +114,8 @@ internal object DesktopExplicit {
     val swapClean: StateFlow<Boolean> = _swapClean.asStateFlow()
 
     init {
+        // No video versions here: an uploaded clean edit plays as the song.
+        CleanVersions.uploadsAsAudio = true
         // What clean-version lookups found, kept so each song is looked up once.
         CleanVersions.attachStorage(persistence.string(KEY_CLEAN_VERSIONS).ifBlank { null }) { encoded ->
             persistence.saveString(KEY_CLEAN_VERSIONS, encoded)

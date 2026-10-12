@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.music.bitchord.data.model.Song
+import com.music.bitchord.playback.CleanVersions
 
 fun Modifier.thumbnailBorder(shape: Shape): Modifier = composed {
     this.border(
@@ -40,25 +41,23 @@ fun Modifier.thumbnailBorder(shape: Shape): Modifier = composed {
 }
 
 /**
- * The "C" for an explicit track that will play as its clean release — see
- * [LocalExplicitSwapped]. Drawn like [ExplicitBadge] but fainter: it's a note,
- * not a warning.
+ * The "C" Apple Music puts on a clean release, drawn like [ExplicitBadge]: on a
+ * track that is the clean edit of an explicit song.
  */
 @Composable
-fun CleanSwapBadge(color: Color, modifier: Modifier = Modifier) {
+fun CleanBadge(color: Color, modifier: Modifier = Modifier) {
     val measurer = rememberTextMeasurer()
     val style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
     val letter = remember(measurer, style) { measurer.measure("C", style) }
     val size = with(LocalDensity.current) {
         DpSize(letter.size.width.toDp() + 6.dp, letter.size.height.toDp())
     }
-    val faded = color.copy(alpha = color.alpha * CLEAN_BADGE_ALPHA)
     Canvas(
         modifier
             .size(size)
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
     ) {
-        drawRoundRect(color = faded, cornerRadius = CornerRadius(2.dp.toPx()))
+        drawRoundRect(color = color, cornerRadius = CornerRadius(2.dp.toPx()))
         drawText(
             textLayoutResult = letter,
             topLeft = Offset(
@@ -69,6 +68,15 @@ fun CleanSwapBadge(color: Color, modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * The "C" for an explicit track that will play as its clean release — see
+ * [LocalExplicitSwapped]. Fainter than [CleanBadge]: it's a note, not the
+ * track's own mark.
+ */
+@Composable
+fun CleanSwapBadge(color: Color, modifier: Modifier = Modifier) =
+    CleanBadge(color.copy(alpha = color.alpha * CLEAN_BADGE_ALPHA), modifier)
 
 /** The "E", or the "C" when the track is going to be swapped for its clean release. */
 @Composable
@@ -90,6 +98,10 @@ fun ExplicitSongTitle(
         if (song.showsExplicit()) {
             RequestCleanVersion(song)
             ExplicitMark(LocalExplicitSwapped.current(song), color)
+            Spacer(Modifier.width(6.dp))
+        } else if (CleanVersions.isCleanRelease(song)) {
+            // The clean version standing in for an explicit one.
+            CleanBadge(color)
             Spacer(Modifier.width(6.dp))
         }
         Text(

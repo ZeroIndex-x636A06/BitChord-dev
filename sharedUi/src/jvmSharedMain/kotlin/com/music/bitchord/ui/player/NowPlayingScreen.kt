@@ -143,6 +143,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.music.bitchord.playback.CleanVersions
+import com.music.bitchord.ui.components.CleanBadge
 import com.music.bitchord.ui.components.ExplicitBadge
 import com.music.bitchord.ui.theme.StatusBarIcons
 import com.music.bitchord.ui.theme.rememberArtworkTopBandLuminance
@@ -3231,6 +3233,8 @@ fun NowPlayingScreen(
                                             enabled = scrolling,
                                             leading = if (song.isExplicit == true) {
                                                 { ExplicitBadge(color = Color.White) }
+                                            } else if (CleanVersions.isCleanRelease(song)) {
+                                                { CleanBadge(color = Color.White) }
                                             } else {
                                                 null
                                             },

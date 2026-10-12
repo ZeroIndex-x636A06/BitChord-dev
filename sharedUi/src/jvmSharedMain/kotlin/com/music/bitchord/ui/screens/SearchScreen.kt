@@ -1,5 +1,7 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.ui.components.LocalHideExplicitEditions
+import com.music.bitchord.playback.CleanEditions
 import com.music.bitchord.ui.components.contextClick
 import androidx.compose.ui.unit.Dp
 import com.music.bitchord.sharedui.resources.*
@@ -170,6 +172,7 @@ fun SearchScreen(
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    val hideExplicitEditions = LocalHideExplicitEditions.current
     val keyboardController = LocalSoftwareKeyboardController.current
     // Tapping the search tab from the nav bar sets focusRequested;
     // respond by focusing the field and opening the keyboard.
@@ -326,7 +329,8 @@ fun SearchScreen(
                             )
                         }
                     }
-                    searchSections(results.data, filter).forEach { section ->
+                    val rows = if (hideExplicitEditions) CleanEditions.searchRows(results.data) else results.data
+                    searchSections(rows, filter).forEach { section ->
                         section.title?.let { title ->
                             item(key = "search-section:$title") {
                                 Text(

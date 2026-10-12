@@ -1,5 +1,7 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.ui.components.LocalHideExplicitEditions
+import com.music.bitchord.playback.CleanEditions
 import com.music.bitchord.ui.components.contextClick
 import com.music.bitchord.ui.components.ExplicitMark
 import com.music.bitchord.ui.components.isCleanSwapped
@@ -145,6 +147,7 @@ fun HomeScreen(
     isPlaying: Boolean = false,
 ) {
     val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
+    val hideExplicitEditions = LocalHideExplicitEditions.current
 
     PullToRefresh(
         refreshing = refreshing,
@@ -197,7 +200,7 @@ fun HomeScreen(
                     // Recently Played lands, every real shelf must retain its
                     // compact-card layout instead of briefly becoming a hero.
                     itemsIndexedShelves(
-                        shelves = state.data,
+                        shelves = if (hideExplicitEditions) CleanEditions.shelves(state.data) else state.data,
                         onItemClick = onItemClick,
                         onItemLongPress = onItemLongPress,
                         currentSong = currentSong,

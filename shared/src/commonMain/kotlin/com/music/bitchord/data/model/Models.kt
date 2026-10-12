@@ -306,6 +306,8 @@ data class BrowseItem(
     val subtitle: String,
     val thumbnailUrl: String?,
     val type: BrowseType,
+    /** An album or single row's explicit badge; null where the row doesn't carry one. */
+    val isExplicit: Boolean? = null,
 )
 
 /** Search rows are heterogeneous once filters other than "Songs" are used. */
