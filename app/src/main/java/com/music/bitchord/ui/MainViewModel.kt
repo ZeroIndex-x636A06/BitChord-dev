@@ -2414,7 +2414,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         /** Playlist rows looked up for their song at once — see [showSongVersions]. */
-        private const val SONG_VERSION_LOOKUPS = 3
+        private const val SONG_VERSION_LOOKUPS = 6
+
+        /** Video rows a playlist looks up before it opens — see [withSongVersions]. */
+        private const val SONG_VERSION_FIRST = 40
+
+        /** Longest a playlist waits on those before it opens anyway. */
+        private const val SONG_VERSION_WAIT_MS = 4_000L
 
         /** Playlist rows whose songs are published to the page together. */
         private const val SONG_VERSION_BATCH = 6
@@ -2700,10 +2706,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
             }
+            // "Prefer music-only version": a playlist's first rows are shown as
+            // their songs from the start rather than swapping in.
+            val shown = (state as? UiState.Success)?.data
+                ?.let { UiState.Success(withSongVersions(browseId, it)) } ?: state
             // "Check lyrics for explicit content": the first screenful is read
             // before the page shows, so its explicit rows are greyed from the
             // start rather than popping in.
-            (state as? UiState.Success)?.data?.let {
+            (shown as? UiState.Success)?.data?.let {
                 ExplicitLyricsCheck.prepare(it)
                 prepareCleanVersions(it, ExplicitLyricsCheck.PREPARE_BUDGET_MS)
             }
@@ -2715,7 +2725,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     (it.songs is UiState.Loading || (onDevice.isNotEmpty() && state is UiState.Success))
                 ) {
                     it.copy(
-                        songs = state,
+                        songs = shown,
                         sections = sections,
                         thumbnailUrl = artwork ?: it.thumbnailUrl,
                         title = name ?: it.title,
@@ -2987,15 +2997,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val found = coroutineScope {
                     batch.map { row ->
                         async {
-                            songVersionGate.withPermit {
-                                val song = runCatching { YtMusicRepository.resolveAudio(row) }.getOrNull()
-                                    ?.takeIf { !it.isVideo || it.videoId == row.videoId }
-                                    ?.takeIf { it != row }
-                                song?.let {
-                                    row.setVideoId?.let { entry -> videoOnRow[entry] = row.videoId }
-                                    row.rowKey() to it.asRowOf(row)
-                                }
-                            }
+                            songVersionGate.withPermit { songVersionOf(row)?.let { row.rowKey() to it } }
                         }
                     }.mapNotNull { it.await() }.toMap()
                 }
@@ -3010,6 +3012,41 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    /**
+     * [showSongVersions] for the rows a playlist opens on, before it is shown:
+     * the first [SONG_VERSION_FIRST] video rows are looked up — most straight
+     * from what earlier launches found — waiting at most [SONG_VERSION_WAIT_MS],
+     * so the page opens already showing songs. Whatever isn't in by then is
+     * left to [showSongVersions] once the page is up.
+     */
+    private suspend fun withSongVersions(browseId: String, songs: List<Song>): List<Song> {
+        if (!AppSettings.preferMusicOnly.value || !browseId.startsWith("VL")) return songs
+        val rows = songs.filter { it.isVideo && it.localUri == null && it.localPath == null }.take(SONG_VERSION_FIRST)
+        if (rows.isEmpty()) return songs
+        val lookups = rows.map { row ->
+            row to viewModelScope.async(Dispatchers.IO) { songVersionGate.withPermit { songVersionOf(row) } }
+        }
+        withTimeoutOrNull(SONG_VERSION_WAIT_MS) { lookups.forEach { it.second.await() } }
+        val asked = songVersionAsked.getOrPut(browseId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }
+        val found = HashMap<String, Song>()
+        lookups.forEach { (row, lookup) ->
+            if (!lookup.isCompleted) return@forEach
+            asked += row.rowKey()
+            lookup.await()?.let { found[row.rowKey()] = it }
+        }
+        return if (found.isEmpty()) songs else songs.map { found[it.rowKey()] ?: it }
+    }
+
+    /** The song [row], a playlist's video, stands for — or null when it has none. */
+    private suspend fun songVersionOf(row: Song): Song? {
+        val song = runCatching { YtMusicRepository.resolveAudio(row) }.getOrNull()
+            ?.takeIf { !it.isVideo || it.videoId == row.videoId }
+            ?.takeIf { it != row }
+            ?: return null
+        row.setVideoId?.let { entry -> videoOnRow[entry] = row.videoId }
+        return song.asRowOf(row)
     }
 
     /** A playlist row's identity: its entry when it has one (the same video can be on a playlist twice). */

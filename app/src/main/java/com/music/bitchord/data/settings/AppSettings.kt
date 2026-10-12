@@ -838,6 +838,13 @@ object AppSettings {
                 cache.edit().putString("found", encoded).apply()
             }
         }
+        // The songs found for music videos ("Prefer music-only version"), kept
+        // so each video is looked up once rather than once a launch.
+        context.getSharedPreferences("audio_versions", Context.MODE_PRIVATE).let { cache ->
+            com.music.bitchord.data.YtMusicRepository.attachAudioVersions(cache.getString("found", null)) { encoded ->
+                cache.edit().putString("found", encoded).apply()
+            }
+        }
         readAll()
         watchConnection(context)
     }
