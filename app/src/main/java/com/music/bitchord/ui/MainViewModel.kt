@@ -1696,6 +1696,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (songs.isNotEmpty()) viewModelScope.launch { ExplicitLyricsCheck.prepare(songs, budgetMs = 0) }
     }
 
+    /**
+     * "Play clean versions instead": the clean releases of a list's explicit
+     * songs, found before it shows so their "C" doesn't pop in.
+     */
+    private suspend fun prepareCleanVersions(songs: List<Song>, budgetMs: Long) {
+        val policy = AppSettings.explicitPolicy()
+        if (!policy.swapToClean || policy.mode == com.music.bitchord.playback.ExplicitFilterMode.OFF) return
+        com.music.bitchord.playback.CleanVersions.prepare(songs, budgetMs)
+    }
+
     private fun List<SearchResult>.songs(): List<Song> = mapNotNull {
         when (it) {
             is SearchResult.TopTrack -> it.song
@@ -2171,6 +2181,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // waited on.
                 result.getOrNull()?.let { page ->
                     ExplicitLyricsCheck.prepare(page.rows.songs(), SEARCH_PREPARE_MS)
+                    prepareCleanVersions(page.rows.songs(), SEARCH_PREPARE_MS)
                 }
                 // A search that has been superseded shouldn't land on screen,
                 // whether it succeeded or failed.
@@ -2685,7 +2696,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // "Check lyrics for explicit content": the first screenful is read
             // before the page shows, so its explicit rows are greyed from the
             // start rather than popping in.
-            (state as? UiState.Success)?.data?.let { ExplicitLyricsCheck.prepare(it) }
+            (state as? UiState.Success)?.data?.let {
+                ExplicitLyricsCheck.prepare(it)
+                prepareCleanVersions(it, ExplicitLyricsCheck.PREPARE_BUDGET_MS)
+            }
             // Update by id — the user may have pushed another page meanwhile.
             // A page showing its downloaded copy takes only a real listing: a
             // failed or empty fetch leaves the downloaded tracks up.

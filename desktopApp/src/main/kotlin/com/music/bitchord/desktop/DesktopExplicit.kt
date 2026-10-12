@@ -116,6 +116,12 @@ internal object DesktopExplicit {
         if (budgetMs > 0) withTimeoutOrNull(budgetMs) { first.awaitAll() }
     }
 
+    /** "Play clean versions instead": a list's clean releases, found before it shows — see [CleanVersions.prepare]. */
+    suspend fun prepareCleanVersions(songs: List<Song>, budgetMs: Long) {
+        if (!_swapClean.value || _mode.value == ExplicitFilterMode.OFF) return
+        CleanVersions.prepare(songs, budgetMs)
+    }
+
     fun precheckLyrics(song: Song) {
         if (!needsLyricsCheck(song)) return
         lyricsScope.launch { prechecks.withPermit { lyricsChecker.precheck(song) } }
