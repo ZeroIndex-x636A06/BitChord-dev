@@ -1,0 +1,65 @@
+name: desktop drive (temporary)
+on:
+  push:
+    branches: [probe/desktop-drive]
+permissions:
+  contents: write
+jobs:
+  drive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb xdotool imagemagick openbox pulseaudio libasound2-plugins fonts-noto-color-emoji fonts-noto-cjk >/dev/null
+      - name: Build from the test release
+        run: |
+          gh release download test-explicit -R "$REPO" -p bitchord-linux-test.tar.gz
+          tar -xzf bitchord-linux-test.tar.gz -C "$HOME"
+          ls "$HOME/BitChord/bin"
+      - name: Screen, sound and app
+        run: |
+          Xvfb :99 -screen 0 1440x900x24 >/dev/null 2>&1 &
+          sleep 2
+          DISPLAY=:99 openbox >/dev/null 2>&1 &
+          pulseaudio --start --exit-idle-time=-1 || true
+          pactl load-module module-null-sink sink_name=null || true
+          printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > "$HOME/.asoundrc"
+          cd "$HOME"
+          DISPLAY=:99 JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" nohup "$HOME/BitChord/bin/BitChord" > "$HOME/app.log" 2>&1 &
+          sleep 30
+          DISPLAY=:99 xdotool search --name "BitChord" | head -1 | xargs -r -I{} xdotool windowactivate {} windowsize {} 1440 900 windowmove {} 0 0 || true
+      - name: Take commands until done
+        run: |
+          publish() {
+            rm -rf "$HOME/pub" && mkdir -p "$HOME/pub" && cp -r "$1"/. "$HOME/pub/"
+            tail -n 120 "$HOME/app.log" > "$HOME/pub/app-log.txt" 2>/dev/null || true
+            echo "$2" > "$HOME/pub/round.txt"
+            cd "$HOME/pub" && git init -q && git add -A && \
+              git -c user.name=drive -c user.email=drive@localhost commit -qm "round $2" && \
+              git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" HEAD:probe/desktop-shots
+            cd "$GITHUB_WORKSPACE"
+          }
+          mkdir -p "$HOME/out0" && (cd "$HOME/out0" && DISPLAY=:99 import -window root 01-startup.png)
+          publish "$HOME/out0" "startup"
+          last=""
+          end=$((SECONDS + 4200))
+          while [ $SECONDS -lt $end ]; do
+            if git fetch -q origin probe/desktop-cmds 2>/dev/null; then
+              head=$(git rev-parse FETCH_HEAD)
+              if [ "$head" != "$last" ]; then
+                last=$head
+                git show FETCH_HEAD:cmd.sh > "$HOME/cmd.sh"
+                grep -q '^# stop' "$HOME/cmd.sh" && break
+                rm -rf "$HOME/out" && mkdir -p "$HOME/out"
+                (cd "$HOME/out" && bash -c "source '$GITHUB_WORKSPACE/lib.sh'; source '$HOME/cmd.sh'; shot end" > "$HOME/out/cmd-output.txt" 2>&1)
+                publish "$HOME/out" "$head"
+              fi
+            fi
+            sleep 4
+          done
