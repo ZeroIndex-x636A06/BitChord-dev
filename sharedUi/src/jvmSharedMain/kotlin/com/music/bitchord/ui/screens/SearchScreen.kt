@@ -70,7 +70,7 @@ import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.artworkAt
 import com.music.bitchord.data.model.SearchResult
 import com.music.bitchord.data.model.Song
-import com.music.bitchord.data.model.isSameTrackAs
+import com.music.bitchord.data.model.nowPlayingMatcher
 import com.music.bitchord.data.model.UiState
 import com.music.bitchord.data.model.SearchHistoryEntity
 import com.music.bitchord.data.model.EntityType
@@ -309,6 +309,10 @@ fun SearchScreen(
                             is SearchResult.Browse -> null
                             else -> null
                         } }
+                    // Two same-named recordings (Michael Jackson's two "Chicago"s)
+                    // carry no length here, so only the exact playing id lights up
+                    // when the page holds it.
+                    val nowPlaying = tracks.nowPlayingMatcher(currentSong)
                     val topResult = results.data.filterIsInstance<SearchResult.TopTrack>().firstOrNull()
                     if (filter == SearchFilter.ALL && topResult != null) {
                         item(key = "search:top-result:${topResult.song.videoId}") {
@@ -355,8 +359,8 @@ fun SearchScreen(
                                     },
                                     onLongPress = { onSongLongPress(row.song) },
                                     onSwipeToQueue = { onSongSwipe(row.song) },
-                                    isCurrent = row.song.isSameTrackAs(currentSong),
-                                    isPlaying = isPlaying && row.song.isSameTrackAs(currentSong),
+                                    isCurrent = nowPlaying(row.song),
+                                    isPlaying = isPlaying && nowPlaying(row.song),
                                     searchPlayingStyle = true,
                                     activeTint = PlayingAccent,
                                 )
@@ -443,14 +447,15 @@ private fun LazyListScope.librarySearchResults(
             }
         } else {
             val tracks = results.data
+            val nowPlaying = tracks.nowPlayingMatcher(currentSong)
             itemsIndexed(tracks, key = { index, song -> "${if (addons) "addon" else "library"}_${song.videoId}_$index" }) { index, song ->
                 SongRow(
                     song = song,
                     onClick = { onSongClick(tracks, index) },
                     onLongPress = { onSongLongPress(song) },
                     onSwipeToQueue = { onSongSwipe(song) },
-                    isCurrent = song.isSameTrackAs(currentSong),
-                    isPlaying = isPlaying && song.isSameTrackAs(currentSong),
+                    isCurrent = nowPlaying(song),
+                    isPlaying = isPlaying && nowPlaying(song),
                     searchPlayingStyle = true,
                     activeTint = PlayingAccent,
                 )
@@ -651,6 +656,9 @@ private fun LazyListScope.searchTypeaheadDropdown(
     currentSong: Song?,
     isPlaying: Boolean,
 ) {
+    val nowPlaying = typeaheadResults
+        .mapNotNull { (it as? SearchResult.Track)?.song ?: (it as? SearchResult.TopTrack)?.song }
+        .nowPlayingMatcher(currentSong)
     item(key = "typeahead:divider") {
         HorizontalDivider(
             modifier = Modifier.padding(start = PAGE_GUTTER, end = PAGE_GUTTER),
@@ -670,8 +678,8 @@ private fun LazyListScope.searchTypeaheadDropdown(
                 song = result.song,
                 onClick = { onSongClick(result.song) },
                 onLongPress = onSongLongPress?.let { { it(result.song) } },
-                isCurrent = result.song.isSameTrackAs(currentSong),
-                isPlaying = isPlaying && result.song.isSameTrackAs(currentSong),
+                isCurrent = nowPlaying(result.song),
+                isPlaying = isPlaying && nowPlaying(result.song),
             )
             is SearchResult.Browse -> BrowseRow(
                 item = result.item,
@@ -682,8 +690,8 @@ private fun LazyListScope.searchTypeaheadDropdown(
                 song = result.song,
                 onClick = { onSongClick(result.song) },
                 onLongPress = onSongLongPress?.let { { it(result.song) } },
-                isCurrent = result.song.isSameTrackAs(currentSong),
-                isPlaying = isPlaying && result.song.isSameTrackAs(currentSong),
+                isCurrent = nowPlaying(result.song),
+                isPlaying = isPlaying && nowPlaying(result.song),
             )
         }
     }

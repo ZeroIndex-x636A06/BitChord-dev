@@ -60,4 +60,17 @@ class SameTrackTest {
         assertFalse(matcher(other))
         assertFalse(listOf(row).nowPlayingMatcher(null)(row))
     }
+
+    @Test
+    fun `rows with no length to tell them apart light up once`() {
+        // Search lists Michael Jackson's two "Chicago"s without lengths.
+        val first = song("a", "Chicago", "Michael Jackson", null)
+        val second = song("b", "Chicago", "Michael Jackson", null)
+        val exact = listOf(first, second).nowPlayingMatcher(second)
+        assertFalse(exact(first))
+        assertTrue(exact(second))
+        val elsewhere = listOf(first, second).nowPlayingMatcher(song("c", "Chicago", "Michael Jackson", "4:06"))
+        assertTrue(elsewhere(first))
+        assertFalse(elsewhere(second))
+    }
 }

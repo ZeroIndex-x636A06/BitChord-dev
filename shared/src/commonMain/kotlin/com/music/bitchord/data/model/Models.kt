@@ -247,16 +247,17 @@ const val SAME_RECORDING_TOLERANCE_MS = 3_000L
  * id. When it does, that row alone lights up, so two same-named, same-length
  * versions on one release can no longer both claim to be playing. Only when
  * the playing id is not in the list — it came from a download, a local file or
- * another catalogue — does the name-and-credit match take over.
+ * another catalogue — does the name-and-credit match take over, and then for
+ * the first row it finds.
  */
 fun List<Song>.nowPlayingMatcher(current: Song?): (Song) -> Boolean {
     current ?: return { false }
     val id = current.videoId
-    return if (any { it.videoId == id }) {
-        { it.videoId == id }
-    } else {
-        { it.isSameTrackAs(current) }
-    }
+    if (any { it.videoId == id }) return { it.videoId == id }
+    // Not in the list: the closest row by name, credit and length — one of
+    // them, so two rows with no length to tell them apart don't both light up.
+    val match = firstOrNull { it.isSameTrackAs(current) }?.videoId ?: return { false }
+    return { it.videoId == match }
 }
 
 /**
