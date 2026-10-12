@@ -4347,9 +4347,10 @@ private fun BitChordApp(
                 onAddToQueue = { addToQueue(song); songActions = null },
                 onStartRadio = { startRadio(song); songActions = null },
                 // The per-song way past the explicit filter, and back. Stays
-                // open so the row flips in place and says it took.
+                // open so the row flips in place and says it took. For a song
+                // its lyrics made explicit as much as one the catalogue marks.
                 onToggleExplicitAllowed = if (
-                    song.isExplicit == true && explicitPolicy.mode != ExplicitFilterMode.OFF
+                    ExplicitFilter.isExplicit(song, explicitPolicy) && explicitPolicy.mode != ExplicitFilterMode.OFF
                 ) {
                     {
                         AppSettings.setExplicitAllowed(
