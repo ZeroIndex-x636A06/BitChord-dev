@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -94,6 +96,25 @@ internal object DesktopExplicit {
     private val prechecks = Semaphore(PRECHECKS_AT_ONCE)
 
     /** [ExplicitLyricsChecker.precheck] for a song on screen, a couple at a time. */
+    /** Prechecks for a list about to be shown, run together — see [prepareLyrics]. */
+    private val preparing = Semaphore(PREPARES_AT_ONCE)
+
+    /**
+     * Reads the lyrics of the first [PREPARE_ROWS] songs a list is about to
+     * show before it is shown, waiting at most [budgetMs], so their explicit
+     * mark is there from the start; the next [PREPARE_AHEAD] are read behind
+     * it. The phone's `ExplicitLyricsCheck.prepare`.
+     */
+    suspend fun prepareLyrics(songs: List<Song>, budgetMs: Long) {
+        val pending = songs.filter(::needsLyricsCheck).distinctBy { it.videoId }
+        if (pending.isEmpty()) return
+        val first = pending.take(PREPARE_ROWS).map { song ->
+            lyricsScope.async { preparing.withPermit { lyricsChecker.precheck(song) } }
+        }
+        pending.drop(PREPARE_ROWS).take(PREPARE_AHEAD).forEach(::precheckLyrics)
+        if (budgetMs > 0) withTimeoutOrNull(budgetMs) { first.awaitAll() }
+    }
+
     fun precheckLyrics(song: Song) {
         if (!needsLyricsCheck(song)) return
         lyricsScope.launch { prechecks.withPermit { lyricsChecker.precheck(song) } }
@@ -151,6 +172,9 @@ internal object DesktopExplicit {
     private const val KEY_LYRICS_CHECK = "explicit_lyrics_check"
     private const val KEY_LYRICS_VERDICTS = "explicit_lyrics_verdicts"
     private const val PRECHECKS_AT_ONCE = 2
+    private const val PREPARES_AT_ONCE = 6
+    private const val PREPARE_ROWS = 30
+    private const val PREPARE_AHEAD = 60
 }
 
 /** [ExplicitFilter.permits] against the desktop app's current settings. */

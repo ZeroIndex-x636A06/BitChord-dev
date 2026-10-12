@@ -11,6 +11,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -73,7 +75,35 @@ object ExplicitLyricsCheck {
         scope.launch { prechecks.withPermit { checker.precheck(song) } }
     }
 
+    /** Prechecks for a list about to be shown, run together — see [prepare]. */
+    private val preparing = Semaphore(PREPARES_AT_ONCE)
+
+    /**
+     * Reads the lyrics of the songs a list is about to show — the first
+     * [PREPARE_ROWS], the screenful and a bit — before it is shown, waiting
+     * at most [budgetMs], so their "E" (and greying) is there from the start
+     * instead of popping in. The [precheck] each row would make once on
+     * screen, only earlier and more at once. What isn't in by then carries on
+     * after, and the next [PREPARE_AHEAD] rows are read behind it, so those
+     * are usually settled before they are scrolled to.
+     */
+    suspend fun prepare(songs: List<Song>, budgetMs: Long = PREPARE_BUDGET_MS) {
+        val pending = songs.filter { AppSettings.explicitNeedsLyricsCheck(it) }.distinctBy { it.videoId }
+        if (pending.isEmpty()) return
+        val first = pending.take(PREPARE_ROWS).map { song ->
+            scope.async { preparing.withPermit { checker.precheck(song) } }
+        }
+        pending.drop(PREPARE_ROWS).take(PREPARE_AHEAD).forEach(::precheck)
+        if (budgetMs > 0) withTimeoutOrNull(budgetMs) { first.awaitAll() }
+    }
+
     private const val PRECHECKS_AT_ONCE = 2
+    private const val PREPARES_AT_ONCE = 6
+    private const val PREPARE_ROWS = 30
+    private const val PREPARE_AHEAD = 60
+
+    /** Longest a list waits on [prepare] before it shows anyway. */
+    const val PREPARE_BUDGET_MS = 2_500L
 
     private const val FILE = "explicit_lyrics"
     private const val KEY_VERDICTS = "verdicts"
