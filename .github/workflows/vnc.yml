@@ -1,0 +1,63 @@
+name: desktop remote session (temporary)
+on:
+  push:
+    branches: [probe/desktop-vnc]
+permissions:
+  contents: write
+jobs:
+  vnc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb xdotool openbox x11vnc novnc websockify pulseaudio libasound2-plugins fonts-noto-color-emoji fonts-noto-cjk >/dev/null
+          curl -sSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+      - name: App
+        run: |
+          gh release download test-explicit -R "$REPO" -p bitchord-linux-test.tar.gz
+          tar -xzf bitchord-linux-test.tar.gz -C "$HOME"
+          Xvfb :99 -screen 0 1440x900x24 >/dev/null 2>&1 &
+          sleep 2
+          DISPLAY=:99 openbox >/dev/null 2>&1 &
+          pulseaudio --start --exit-idle-time=-1 || true
+          pactl load-module module-null-sink sink_name=null || true
+          printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > "$HOME/.asoundrc"
+          # Started again if it is closed, so the session can't be lost to the close button.
+          cat > "$HOME/keep-app.sh" <<'SH'
+          while true; do
+            cd "$HOME" && DISPLAY=:99 JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" "$HOME/BitChord/bin/BitChord" >> "$HOME/app.log" 2>&1
+            sleep 3
+          done
+          SH
+          nohup bash "$HOME/keep-app.sh" >/dev/null 2>&1 &
+      - name: Remote access
+        run: |
+          PW=$(openssl rand -hex 4)
+          x11vnc -display :99 -forever -shared -localhost -rfbport 5900 -passwd "$PW" -bg -o "$HOME/x11vnc.log" >/dev/null 2>&1
+          websockify --web /usr/share/novnc 6080 localhost:5900 >/dev/null 2>&1 &
+          ./cloudflared tunnel --no-autoupdate --url http://localhost:6080 > "$HOME/tunnel.log" 2>&1 &
+          for i in $(seq 1 60); do
+            URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$HOME/tunnel.log" | head -1)
+            [ -n "$URL" ] && break
+            sleep 2
+          done
+          # Only Claude's key can read this: the repository is public.
+          printf '%s/vnc.html?autoconnect=1&resize=scale&password=%s\n%s\n' "$URL" "$PW" "$PW" > secret.txt
+          openssl rand -hex 32 > key.txt
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in secret.txt -out secret.enc -pass file:key.txt
+          openssl pkeyutl -encrypt -pubin -inkey claude-pub.pem -in key.txt -out key.enc
+          rm -f secret.txt key.txt
+          mkdir -p "$HOME/pub" && cp secret.enc key.enc "$HOME/pub/" && cd "$HOME/pub" && git init -q && git add -A && \
+            git -c user.name=vnc -c user.email=vnc@localhost commit -qm "session" && \
+            git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" HEAD:probe/desktop-vnc-info
+      - name: Keep the session open
+        run: |
+          end=$((SECONDS + 8400))
+          while [ $SECONDS -lt $end ]; do sleep 60; done
