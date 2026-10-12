@@ -1,9 +1,8 @@
-click 110 53
+click 733 493 3
+click 73 867 3
+click 1080 121
 key ctrl+a
-typetext "jump around dillon nathaniel"
-key Return
-pause 1.2
-click 360 188 0.8
-shot pill
-pause 6
-shot after-check
+typetext "explicit"
+pause 2
+shot after-turn-off-lyrics
+click 1195 452 2
