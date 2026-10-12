@@ -29,8 +29,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
@@ -48,6 +50,81 @@ object YtMusicRepository {
     private val videoVersionCache = ConcurrentHashMap<String, Song?>()
 
     fun cachedAudioVersion(videoId: String): Song? = audioVersionCache[videoId]
+
+    /** Where [audioVersionCache] is kept between launches — see [attachAudioVersions]. */
+    private var saveAudioVersions: ((String) -> Unit)? = null
+    private var pendingAudioVersionSave: kotlinx.coroutines.Job? = null
+    private val audioVersionSaver = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Restores the songs found for videos by earlier launches from [encoded],
+     * and from then on hands [save] the list as it grows. A video is then
+     * looked up once, ever, rather than once a launch — what makes a playlist
+     * of music videos open as songs at once the second time.
+     */
+    @Synchronized
+    fun attachAudioVersions(encoded: String?, save: (String) -> Unit) {
+        runCatching { decodeAudioVersions(encoded) }
+        saveAudioVersions = save
+    }
+
+    private fun rememberAudioVersion(videoId: String, song: Song) {
+        audioVersionCache[videoId] = song
+        val save = saveAudioVersions ?: return
+        // Once lookups go quiet: a playlist answers dozens in a row.
+        pendingAudioVersionSave?.cancel()
+        pendingAudioVersionSave = audioVersionSaver.launch {
+            kotlinx.coroutines.delay(2_000)
+            save(encodeAudioVersions())
+        }
+    }
+
+    private fun encodeAudioVersions(): String = kotlinx.serialization.json.buildJsonArray {
+        audioVersionCache.entries.toList().takeLast(MAX_AUDIO_VERSIONS).forEach { (videoId, song) ->
+            add(kotlinx.serialization.json.buildJsonObject {
+                put("for", kotlinx.serialization.json.JsonPrimitive(videoId))
+                put("id", kotlinx.serialization.json.JsonPrimitive(song.videoId))
+                put("title", kotlinx.serialization.json.JsonPrimitive(song.title))
+                put("artist", kotlinx.serialization.json.JsonPrimitive(song.artist))
+                song.thumbnailUrl?.let { put("art", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.durationText?.let { put("length", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.albumId?.let { put("albumId", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.albumName?.let { put("album", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.artistId?.let { put("artistId", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.isExplicit?.let { put("explicit", kotlinx.serialization.json.JsonPrimitive(it)) }
+                if (song.isVideo) put("video", kotlinx.serialization.json.JsonPrimitive(true))
+            })
+        }
+    }.toString()
+
+    private fun decodeAudioVersions(encoded: String?) {
+        encoded ?: return
+        val entries = kotlinx.serialization.json.Json.parseToJsonElement(encoded) as? kotlinx.serialization.json.JsonArray ?: return
+        fun JsonObject.text(key: String) = (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+        entries.forEach { element ->
+            val o = element as? JsonObject ?: return@forEach
+            val forId = o.text("for") ?: return@forEach
+            val id = o.text("id") ?: return@forEach
+            audioVersionCache.putIfAbsent(
+                forId,
+                Song(
+                    videoId = id,
+                    title = o.text("title").orEmpty(),
+                    artist = o.text("artist").orEmpty(),
+                    thumbnailUrl = o.text("art"),
+                    durationText = o.text("length"),
+                    albumId = o.text("albumId"),
+                    albumName = o.text("album"),
+                    artistId = o.text("artistId"),
+                    isExplicit = o.text("explicit")?.toBooleanStrictOrNull(),
+                    isVideo = o.text("video") == "true",
+                ),
+            )
+        }
+    }
+
+    /** Videos whose songs are kept between launches; the oldest are let go past it. */
+    private const val MAX_AUDIO_VERSIONS = 5_000
     fun cachedVideoVersion(videoId: String): Song? = videoVersionCache[videoId]
 
     /**
@@ -388,15 +465,17 @@ object YtMusicRepository {
         if (!song.isVideo) return song
         audioVersionCache[song.videoId]?.let { return it }
         val target = TrackMatcher.targetOf(song)
+        var failed = false
         for (query in TrackMatcher.queries(target)) {
             val candidates = search(query, SearchFilter.SONGS)
+                .onFailure { failed = true }
                 .getOrNull()
                 ?.filterIsInstance<SearchResult.Track>()
                 ?.map { it.song }
                 .orEmpty()
             TrackMatcher.best(candidates, target)?.let { match ->
                 Log.d(TAG, "audio switch: '${song.title}' -> '${match.title}' ($query)")
-                audioVersionCache[song.videoId] = match
+                rememberAudioVersion(song.videoId, match)
                 return match
             }
             // Music-video timing is visual timing, not the audio release's
@@ -404,12 +483,13 @@ object YtMusicRepository {
             // song/artist match even when the video has a long intro or outro.
             TrackMatcher.bestOfficialAudioForVideo(candidates, target)?.let { match ->
                 Log.d(TAG, "audio switch: accepted video/runtime drift '${song.title}' -> '${match.title}' ($query)")
-                audioVersionCache[song.videoId] = match
+                rememberAudioVersion(song.videoId, match)
                 return match
             }
         }
         Log.w(TAG, "audio switch: no official song match for '${song.title}' by '${song.artist}'")
-        audioVersionCache[song.videoId] = song
+        // "None" is only kept when every search came back: offline is not "no song".
+        if (failed) audioVersionCache[song.videoId] = song else rememberAudioVersion(song.videoId, song)
         return song
     }
 
