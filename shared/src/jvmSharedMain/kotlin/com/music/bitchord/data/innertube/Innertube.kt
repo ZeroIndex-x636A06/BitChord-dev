@@ -619,6 +619,20 @@ object Innertube {
         put("isAudioOnly", true)
     }
 
+    /** PROBE ONLY. */
+    suspend fun nextProbe(videoId: String?, playlistId: String?, audioOnly: Boolean, anonymous: Boolean): JsonObject =
+        if (anonymous) postMusicAnonymous("next") {
+            videoId?.let { put("videoId", it) }
+            playlistId?.let { put("playlistId", it) }
+            put("isAudioOnly", audioOnly)
+            put("enablePersistentPlaylistPanel", true)
+        } else postMusic("next") {
+            videoId?.let { put("videoId", it) }
+            playlistId?.let { put("playlistId", it) }
+            put("isAudioOnly", audioOnly)
+            put("enablePersistentPlaylistPanel", true)
+        }
+
     /** Timed caption transcript used as a last-resort lyrics source. */
     suspend fun transcript(videoId: String): JsonObject = postMusic("get_transcript") {
         // get_transcript expects a tiny protobuf: field 1, length, video id.
