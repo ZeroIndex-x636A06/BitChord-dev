@@ -33,7 +33,12 @@ object DesktopSearchClient {
         filter: SearchFilter = SearchFilter.SONGS,
     ): Result<List<SearchResult>> {
         if (query.isBlank()) return Result.failure(IllegalArgumentException("Search query cannot be empty"))
-        return YtMusicRepository.search(query.trim(), filter)
+        return YtMusicRepository.search(query.trim(), filter).onSuccess { rows ->
+            // The lyric check's first verdicts, so explicit rows are marked from the start.
+            val songs = rows.mapNotNull { (it as? SearchResult.Track)?.song ?: (it as? SearchResult.TopTrack)?.song }
+            DesktopExplicit.prepareLyrics(songs, budgetMs = 1_500)
+            DesktopExplicit.prepareCleanVersions(songs, budgetMs = 1_500)
+        }
     }
 
     suspend fun home(): Result<HomeFeed> = YtMusicRepository.home()
@@ -69,6 +74,9 @@ object DesktopSearchClient {
                 continuation = page.continuation,
                 owned = page.owned,
             )
+        }.onSuccess {
+            DesktopExplicit.prepareLyrics(it.songs, budgetMs = 2_500)
+            DesktopExplicit.prepareCleanVersions(it.songs, budgetMs = 2_500)
         }
 
     /** The rows after a collection's first page, and the token after those. */

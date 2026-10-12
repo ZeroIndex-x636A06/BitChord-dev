@@ -26,6 +26,7 @@ import com.music.bitchord.data.lyrics.LyricLine
 import com.music.bitchord.data.lyrics.LyricsRepository
 import com.music.bitchord.data.lyrics.LyricsSource
 import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.data.settings.ExplicitLyricsCheck
 import com.music.bitchord.data.innertube.Innertube
 import com.music.bitchord.data.innertube.PlaybackTracker
 import com.music.bitchord.data.innertube.StreamResolver
@@ -1686,7 +1687,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun isCurrentHomeLoad(identity: String?, generation: Long) =
         identity == listenerKey() && generation == homeLoadGeneration.get()
 
+    /** Track cards on [shelves] as songs, for the lyric check to read ahead — see [ExplicitLyricsCheck.prepare]. */
+    private fun prepareCards(shelves: List<HomeShelf>) {
+        val songs = shelves.flatMap { shelf ->
+            shelf.items.mapNotNull { item ->
+                item.videoId?.let { Song(videoId = it, title = item.title, artist = item.subtitle, thumbnailUrl = item.thumbnailUrl, isExplicit = item.isExplicit) }
+            }
+        }
+        if (songs.isNotEmpty()) viewModelScope.launch { ExplicitLyricsCheck.prepare(songs, budgetMs = 0) }
+    }
+
+    /**
+     * "Play clean versions instead": the clean releases of a list's explicit
+     * songs, found before it shows so their "C" doesn't pop in.
+     */
+    private suspend fun prepareCleanVersions(songs: List<Song>, budgetMs: Long) {
+        val policy = AppSettings.explicitPolicy()
+        if (!policy.swapToClean || policy.mode == com.music.bitchord.playback.ExplicitFilterMode.OFF) return
+        com.music.bitchord.playback.CleanVersions.prepare(songs, budgetMs)
+    }
+
+    private fun List<SearchResult>.songs(): List<Song> = mapNotNull {
+        when (it) {
+            is SearchResult.TopTrack -> it.song
+            is SearchResult.Track -> it.song
+            else -> null
+        }
+    }
+
     private fun publishHomeShelves(shelves: List<HomeShelf>, prepend: Boolean = false) {
+        prepareCards(shelves)
         val existing = (_home.value as? UiState.Success)?.data.orEmpty()
         if (prepend) {
             // YouTube's core home can also contain a stale "Recently played"
@@ -1712,7 +1742,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             homeSeenTitles.clear()
             val shelves = feed.shelves.withoutRepeatsOf(emptyList())
                 .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
-            if (shelves.isNotEmpty()) _home.value = UiState.Success(shelves)
+            if (shelves.isNotEmpty()) {
+                prepareCards(shelves)
+                _home.value = UiState.Success(shelves)
+            }
         }
         recent?.await()?.onSuccess { shelf ->
             if (identity == listenerKey()) shelf?.let { publishHomeShelves(listOf(it), prepend = true) }
@@ -2144,6 +2177,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // the ones it holds without any of them having to be a
                 // separate row to pick between.
                 val result = YtMusicRepository.searchPage(request.query, request.filter, request.anonymous)
+                // The lyric check's verdicts for the first rows, so explicit
+                // results are marked from the start — briefly, a search is
+                // waited on.
+                result.getOrNull()?.let { page ->
+                    ExplicitLyricsCheck.prepare(page.rows.songs(), SEARCH_PREPARE_MS)
+                    prepareCleanVersions(page.rows.songs(), SEARCH_PREPARE_MS)
+                }
                 // A search that has been superseded shouldn't land on screen,
                 // whether it succeeded or failed.
                 if (request.requestId != newestRequestId.get()) return@collectLatest
@@ -2378,6 +2418,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
         /** Playlist rows whose songs are published to the page together. */
         private const val SONG_VERSION_BATCH = 6
+
+        /** How long a search waits on the lyric check's first verdicts — see [ExplicitLyricsCheck.prepare]. */
+        private const val SEARCH_PREPARE_MS = 1_500L
 
         /** Per-addon budget for the Addons search tab; a slow addon is left out, not waited on. */
         private const val ADDON_SEARCH_TIMEOUT_MS = 12_000L
@@ -2656,6 +2699,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         onFailure = { UiState.Error(it.friendly()) },
                     )
                 }
+            }
+            // "Check lyrics for explicit content": the first screenful is read
+            // before the page shows, so its explicit rows are greyed from the
+            // start rather than popping in.
+            (state as? UiState.Success)?.data?.let {
+                ExplicitLyricsCheck.prepare(it)
+                prepareCleanVersions(it, ExplicitLyricsCheck.PREPARE_BUDGET_MS)
             }
             // Update by id — the user may have pushed another page meanwhile.
             // A page showing its downloaded copy takes only a real listing: a

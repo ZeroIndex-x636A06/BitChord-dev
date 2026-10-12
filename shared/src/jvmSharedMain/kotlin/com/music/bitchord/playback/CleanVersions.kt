@@ -8,6 +8,7 @@ import com.music.bitchord.data.model.SearchResult
 import com.music.bitchord.data.model.ShelfItem
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.sources.TrackMatcher
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -369,6 +370,26 @@ object CleanVersions {
     }
 
     /**
+     * Looks up the clean releases of the explicit songs a list is about to
+     * show — the first [PREPARE_ROWS] — before it is shown, waiting at most
+     * [budgetMs], so their "C" is there from the start instead of popping in.
+     * The rest are [request]ed behind it.
+     */
+    suspend fun prepare(songs: List<Song>, budgetMs: Long) {
+        val pending = songs.filter {
+            it.isExplicit == true && !found.containsKey(it.videoId) && !isMissing(it)
+        }.distinctBy { it.videoId }
+        if (pending.isEmpty()) return
+        val first = pending.take(PREPARE_ROWS).map { song ->
+            background.async { preparing.withPermit { find(song) } }
+        }
+        pending.drop(PREPARE_ROWS).forEach(::request)
+        if (budgetMs > 0) withTimeoutOrNull(budgetMs) { first.awaitAll() }
+    }
+
+    private val preparing = Semaphore(PREPARES_AT_ONCE)
+
+    /**
      * The clean release of [song], looked up if it hasn't been yet; null when
      * there is none or the lookup couldn't run. Concurrent callers for the same
      * track share one search.
@@ -690,6 +711,10 @@ object CleanVersions {
 
     /** Searches a batch of suggestions may have running together. */
     private const val LOOKUPS_AT_ONCE = 4
+
+    /** Lookups for a list about to be shown, run together — see [prepare]. */
+    private const val PREPARES_AT_ONCE = 6
+    private const val PREPARE_ROWS = 30
 
     /** Lookups for what lists are showing, run together in the background. */
     private const val BACKGROUND_LOOKUPS = 2

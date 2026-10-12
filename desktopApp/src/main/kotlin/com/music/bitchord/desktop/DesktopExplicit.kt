@@ -18,6 +18,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,6 +97,31 @@ internal object DesktopExplicit {
     private val prechecks = Semaphore(PRECHECKS_AT_ONCE)
 
     /** [ExplicitLyricsChecker.precheck] for a song on screen, a couple at a time. */
+    /** Prechecks for a list about to be shown, run together — see [prepareLyrics]. */
+    private val preparing = Semaphore(PREPARES_AT_ONCE)
+
+    /**
+     * Reads the lyrics of the first [PREPARE_ROWS] songs a list is about to
+     * show before it is shown, waiting at most [budgetMs], so their explicit
+     * mark is there from the start; the next [PREPARE_AHEAD] are read behind
+     * it. The phone's `ExplicitLyricsCheck.prepare`.
+     */
+    suspend fun prepareLyrics(songs: List<Song>, budgetMs: Long) {
+        val pending = songs.filter(::needsLyricsCheck).distinctBy { it.videoId }
+        if (pending.isEmpty()) return
+        val first = pending.take(PREPARE_ROWS).map { song ->
+            lyricsScope.async { preparing.withPermit { lyricsChecker.precheck(song) } }
+        }
+        pending.drop(PREPARE_ROWS).take(PREPARE_AHEAD).forEach(::precheckLyrics)
+        if (budgetMs > 0) withTimeoutOrNull(budgetMs) { first.awaitAll() }
+    }
+
+    /** "Play clean versions instead": a list's clean releases, found before it shows — see [CleanVersions.prepare]. */
+    suspend fun prepareCleanVersions(songs: List<Song>, budgetMs: Long) {
+        if (!_swapClean.value || _mode.value == ExplicitFilterMode.OFF) return
+        CleanVersions.prepare(songs, budgetMs)
+    }
+
     fun precheckLyrics(song: Song) {
         if (!needsLyricsCheck(song)) return
         lyricsScope.launch { prechecks.withPermit { lyricsChecker.precheck(song) } }
@@ -171,6 +198,9 @@ internal object DesktopExplicit {
     private const val KEY_SWAP_CLEAN = "explicit_swap_clean"
     private const val KEY_CLEAN_VERSIONS = "explicit_clean_versions"
     private const val PRECHECKS_AT_ONCE = 2
+    private const val PREPARES_AT_ONCE = 6
+    private const val PREPARE_ROWS = 30
+    private const val PREPARE_AHEAD = 60
 }
 
 /** [ExplicitFilter.permits] against the desktop app's current settings. */
