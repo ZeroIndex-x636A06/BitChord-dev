@@ -130,7 +130,13 @@ class ExplicitLyricsTest {
         val others: List<List<String>> = emptyList(),
         val sameTitle: List<List<String>> = emptyList(),
         val offline: Boolean = false,
+        val cleanEdit: Boolean = false,
     ) : ExplicitLyricsSource {
+        var editAsked = 0
+        override suspend fun isCleanEdit(song: Song): Boolean {
+            editAsked++
+            return cleanEdit
+        }
         var asked = 0
         var namesakesAsked = 0
         override suspend fun exact(song: Song): List<String>? {
@@ -290,6 +296,67 @@ class ExplicitLyricsTest {
         assertFalse(checker.needsCheck(song("e", explicit = true)))
         assertEquals(true, checker.check(song("e", explicit = true)))
         assertEquals(0, words.asked)
+    }
+
+    // ---- Clean edits -------------------------------------------------------
+
+    @Test
+    fun `a clean album's track is clean even when its words are not`() = runBlocking {
+        // Clean Eminem albums: the lyrics are the uncensored original's.
+        val words = Words(exact = swearing, others = listOf(swearing), cleanEdit = true)
+        assertEquals(false, checker(words).check(song("arose")))
+        // Asked only once the words read explicit.
+        val plain = Words(exact = clean, cleanEdit = true)
+        assertEquals(false, checker(plain).check(song("plain")))
+        assertEquals(0, plain.editAsked)
+        // Not a clean edit: the words still decide.
+        assertEquals(true, checker(Words(exact = swearing)).check(song("upload")))
+    }
+
+    @Test
+    fun `a precheck settles a clean album's track as clean`() = runBlocking {
+        val store = ExplicitLyricsStore { }
+        checker(Words(exact = swearing, cleanEdit = true), store).precheck(song("edit"))
+        assertTrue(store.knows("edit"))
+        assertFalse("edit" in store.flagged.value)
+        checker(Words(exact = swearing), store).precheck(song("raw"))
+        assertTrue("raw" in store.flagged.value)
+    }
+
+    private fun track(id: String, title: String, explicit: Boolean? = null, length: String? = "4:35", artist: String = "Eminem") =
+        Song(videoId = id, title = title, artist = artist, thumbnailUrl = null, durationText = length, isExplicit = explicit)
+
+    @Test
+    fun `a clean edit is the unmarked twin of an explicit release`() {
+        val clean = track("c", "Arose")
+        val rows = listOf(track("e", "Arose", explicit = true), track("c", "Arose"))
+        assertTrue(CleanEdit.isCleanEdit(clean, rows))
+        // Masked titles and edition tags still match.
+        val masked = track("m", "Just Don't Give a F**", length = "3:47")
+        val maskedRows = listOf(
+            track("x", "Just Don't Give a Fuck", explicit = true, length = "3:50"),
+            track("m", "Just Don't Give a F**", length = "3:47"),
+        )
+        assertTrue(CleanEdit.isCleanEdit(masked, maskedRows))
+        assertTrue(CleanEdit.sameTitle("Not Afraid (Clean)", "Not Afraid"))
+    }
+
+    @Test
+    fun `no explicit twin, or no clean one, is not a clean edit`() {
+        val song = track("j", "Jump Around", artist = "House of Pain")
+        // Only unmarked versions: nothing explicit to be the edit of.
+        assertFalse(CleanEdit.isCleanEdit(song, listOf(song, track("k", "Jump Around", artist = "House of Pain"))))
+        // Only the explicit release, and this one unlisted: maybe a lost badge.
+        assertFalse(CleanEdit.isCleanEdit(song, listOf(track("e", "Jump Around", explicit = true, artist = "House of Pain"))))
+        // Listed itself with the badge: it is the explicit one.
+        assertFalse(
+            CleanEdit.isCleanEdit(song, listOf(track("j", "Jump Around", explicit = true, artist = "House of Pain"), track("c", "Jump Around", artist = "House of Pain"))),
+        )
+        // Another artist's song, a live take, or a different length isn't a twin.
+        val stan = track("s", "Stan", length = "6:43")
+        assertFalse(CleanEdit.sameSong(stan, track("o", "Stan", artist = "Someone Else", length = "6:43")))
+        assertFalse(CleanEdit.sameSong(stan, track("l", "Stan (Live At Wembley 2014)", length = "6:43")))
+        assertFalse(CleanEdit.sameSong(stan, track("r", "Stan", length = "3:48")))
     }
 
     // ---- The filter --------------------------------------------------------

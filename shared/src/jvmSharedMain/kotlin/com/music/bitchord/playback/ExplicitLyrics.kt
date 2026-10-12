@@ -3,7 +3,10 @@ package com.music.bitchord.playback
 import com.music.bitchord.data.lyrics.LrcLib
 import com.music.bitchord.data.lyrics.LyricsRepository
 import com.music.bitchord.data.lyrics.LyricsSource
+import com.music.bitchord.data.YtMusicRepository
 import com.music.bitchord.data.lyrics.YouTubeMusicLyrics
+import com.music.bitchord.data.model.SearchFilter
+import com.music.bitchord.data.model.SearchResult
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.model.durationMillis
 import kotlinx.coroutines.CancellationException
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 
 /**
  * Judges a song explicit from its words, for tracks YouTube Music never badged.
@@ -197,7 +201,7 @@ class ExplicitLyricsStore(private val save: (String) -> Unit) {
         const val MAX_ENTRIES = 5_000
 
         /** Bumped when the check changes enough that its old verdicts shouldn't stand. */
-        const val VERSION = 3
+        const val VERSION = 4
         private const val HEADER = "v$VERSION"
     }
 }
@@ -225,6 +229,14 @@ interface ExplicitLyricsSource {
 
     /** The words of other recordings with the song's title. */
     suspend fun sameTitle(song: Song): List<List<String>>
+
+    /**
+     * Whether YouTube Music lists [song] as the clean edit of an explicit
+     * release — see [CleanEdit]. Its lyrics are usually the uncensored
+     * original's, so they can't tell a clean album's tracks from the
+     * explicit album's; the catalogue can.
+     */
+    suspend fun isCleanEdit(song: Song): Boolean = false
 }
 
 /**
@@ -259,6 +271,25 @@ class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : Exp
     override suspend fun sameTitle(song: Song): List<List<String>> =
         if (LyricsSource.LRCLIB in sources()) LrcLib.sameTitle(song.title) else emptyList()
 
+    override suspend fun isCleanEdit(song: Song): Boolean {
+        cleanEdits[song.videoId]?.let { return it }
+        val rows = YtMusicRepository.search(CleanEdit.query(song), SearchFilter.SONGS).getOrThrow()
+            .mapNotNull {
+                when (it) {
+                    is SearchResult.TopTrack -> it.song
+                    is SearchResult.Track -> it.song
+                    else -> null
+                }
+            }
+        val answer = CleanEdit.isCleanEdit(song, rows)
+        if (cleanEdits.size >= MAX_CLEAN_EDITS) cleanEdits.clear()
+        cleanEdits[song.videoId] = answer
+        return answer
+    }
+
+    /** What [isCleanEdit] found, so a precheck and then a tap search once between them. */
+    private val cleanEdits = ConcurrentHashMap<String, Boolean>()
+
     private companion object {
         /**
          * How long one source may take. A source that hasn't answered by then
@@ -266,7 +297,86 @@ class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : Exp
          * within two seconds — and a tap is waiting on the verdict.
          */
         const val PER_SOURCE_MS = 3_000L
+
+        const val MAX_CLEAN_EDITS = 2_000
     }
+}
+
+/**
+ * Tells a clean edit from its explicit release by what YouTube Music lists,
+ * not by lyrics — the lyrics sites, and often YouTube Music's own lyrics, print
+ * a clean album's tracks with the original's words, which made every song on a
+ * clean album read as explicit.
+ *
+ * A song not marked explicit is a clean edit when a Songs search for it lists
+ * both an explicit release of the same song (same title once edition tags are
+ * set aside, a shared artist, and the same length give or take
+ * [LENGTH_SLACK_MS]) and an unmarked one. Both, not just the explicit one: a
+ * track whose badge went missing on the way in would otherwise be cleared by
+ * its own explicit release, but a song with no clean edition anywhere never
+ * lists an unmarked twin.
+ */
+object CleanEdit {
+    fun isCleanEdit(song: Song, rows: List<Song>): Boolean {
+        if (song.isExplicit == true) return false
+        // The song itself listed with the badge: it is the explicit release.
+        if (rows.any { it.videoId == song.videoId && it.isExplicit == true }) return false
+        val twins = rows.filter { it.videoId == song.videoId || sameSong(song, it) }
+        return twins.any { it.isExplicit == true } && twins.any { it.isExplicit != true }
+    }
+
+    /** "<title> <artist>", with edition tags and masks left out so the search isn't thrown by them. */
+    fun query(song: Song): String =
+        "${tagless(song.title).replace("*", "")} ${artists(song).firstOrNull().orEmpty()}".trim()
+
+    fun sameSong(a: Song, b: Song): Boolean {
+        if (!sameTitle(a.title, b.title)) return false
+        if (artists(a).intersect(artists(b).toSet()).isEmpty()) return false
+        val la = a.durationMillis()
+        val lb = b.durationMillis()
+        return la <= 0 || lb <= 0 || abs(la - lb) <= LENGTH_SLACK_MS
+    }
+
+    /**
+     * Word for word once edition tags are gone, where a masked word ("F**",
+     * "Sh!t") matches any word with its first letter.
+     */
+    fun sameTitle(a: String, b: String): Boolean {
+        val wa = words(a)
+        val wb = words(b)
+        if (wa.isEmpty() || wa.size != wb.size) return false
+        return wa.zip(wb).all { (x, y) ->
+            x == y || ((masked(x) || masked(y)) && x.first() == y.first())
+        }
+    }
+
+    private fun masked(word: String) = '*' in word || '!' in word
+
+    private fun words(title: String): List<String> =
+        tagless(title).lowercase(Locale.ROOT)
+            .replace("'", "")
+            .replace("’", "")
+            .split(NOT_WORD)
+            .filter { word -> word.any { it.isLetterOrDigit() } || '*' in word }
+
+    /** The title without "(Clean)", "[Explicit]", "(feat. …)", "(Radio Edit)" and the like. */
+    private fun tagless(title: String): String = title.replace(EDITION_TAG, " ").trim()
+
+    private fun artists(song: Song): List<String> =
+        (song.artists.map { it.name } + song.artist.split(ARTIST_SPLIT))
+            .map { it.trim().lowercase(Locale.ROOT) }
+            .filter { it.isNotEmpty() }
+            .distinct()
+
+    private val NOT_WORD = Regex("""[^\p{L}\p{N}*!]+""")
+    private val EDITION_TAG = Regex(
+        """[(\[][^)\]]*\b(?:clean|explicit|edit|edited|radio|album version|remaster|remastered|feat|ft|with)\b[^)\]]*[)\]]""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val ARTIST_SPLIT = Regex("""\s*(?:,|&|/|\bfeat\.?|\bft\.?|\bx\b|\band\b)\s*""", RegexOption.IGNORE_CASE)
+
+    /** How far apart an edit's length may be from the original's. */
+    const val LENGTH_SLACK_MS = 15_000L
 }
 
 /**
@@ -343,7 +453,9 @@ class ExplicitLyricsChecker(
         val started = now()
         val how = StringBuilder()
         try {
-            val explicit = withTimeoutOrNull(BUDGET_MS) { judge(song, how) }
+            val explicit = withTimeoutOrNull(BUDGET_MS) {
+                judge(song, how)?.let { explicit -> explicit && !cleanEdit(song, how) }
+            }
             if (explicit != null) store.record(song.videoId, explicit) else failedAt[song.videoId] = now()
             log(
                 song.videoId,
@@ -373,9 +485,25 @@ class ExplicitLyricsChecker(
     suspend fun precheck(song: Song) {
         if (!needsCheck(song)) return
         val own = runCatching { ownWords(song) }.getOrNull()
-        if (!own.isNullOrEmpty() && !store.knows(song.videoId)) {
-            store.record(song.videoId, ExplicitLyrics.isExplicit(own, countMasked = false))
+        if (own.isNullOrEmpty() || store.knows(song.videoId)) return
+        if (!ExplicitLyrics.isExplicit(own, countMasked = false)) {
+            store.record(song.videoId, false)
+            return
         }
+        // Explicit words: settled only once the catalogue has said whether
+        // this is a clean album's track. If it can't be asked, a tap does it.
+        val edit = runCatching { lyrics.isCleanEdit(song) }.getOrNull() ?: return
+        if (!store.knows(song.videoId)) store.record(song.videoId, !edit)
+    }
+
+    /**
+     * Whether words that read explicit belong to the clean edit of an explicit
+     * release — see [CleanEdit]. Not knowing (offline) leaves the words to decide.
+     */
+    private suspend fun cleanEdit(song: Song, how: StringBuilder): Boolean {
+        val edit = runCatching { lyrics.isCleanEdit(song) }.getOrDefault(false)
+        if (edit) how.append(", but it is the clean edit of an explicit release")
+        return edit
     }
 
     /** [ExplicitLyricsSource.exact], asked once per song however many want it at the same time. */
