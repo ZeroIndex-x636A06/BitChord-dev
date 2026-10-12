@@ -942,6 +942,10 @@ class PlaybackService : MediaLibraryService() {
                 mediaItem.mediaId == swappingMediaId
             ) {
                 swappingMediaId = null
+                // Not a new play — but for the explicit filter it may well be
+                // a new recording: a video swapped for its song, whose lyrics
+                // are not the video's.
+                explicitCheckCurrent()
                 return
             }
 
@@ -979,9 +983,7 @@ class PlaybackService : MediaLibraryService() {
             // Catches queues that never passed through the app's own play
             // actions — one restored from the last session, a deep link, a
             // car head unit — before the blocked track reaches the front.
-            dropBlockedExplicitFromQueue()
-            holdForLyricVerdict()
-            checkLyricsAhead()
+            explicitCheckCurrent()
             loadAutoplayForCurrentTrack()
             loadLyricsForCurrentTrack()
             if (exoPlayer.isPlaying) startLyricsTicker()
@@ -2315,6 +2317,8 @@ class PlaybackService : MediaLibraryService() {
             reason = Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED,
             alreadyAudible = true,
         )
+        // The other version is another recording to the explicit filter.
+        explicitCheckCurrent()
     }
 
     /** Reopens the current song through YouTube and remembers that choice. */
@@ -2681,6 +2685,20 @@ class PlaybackService : MediaLibraryService() {
      * [dropBlockedExplicitFromQueue] — which drops a song that turned out
      * explicit, or skips it if it is already playing.
      */
+    /**
+     * The explicit filter's look at whatever has just become the current
+     * track — an item transition, a blended Automix advance, or a swap to
+     * another version of the song (the video for its audio, say, which is
+     * another recording with other lyrics). Every one of those paths calls
+     * this; before, only the plain item transition did, so a song reached by
+     * a swap or a blend played unjudged until something else noticed it.
+     */
+    private fun explicitCheckCurrent() {
+        dropBlockedExplicitFromQueue()
+        holdForLyricVerdict()
+        checkLyricsAhead()
+    }
+
     private var lyricHoldJob: Job? = null
 
     /**
@@ -2881,6 +2899,9 @@ class PlaybackService : MediaLibraryService() {
         autoplayLoadJob?.cancel()
         autoplayLoadJob = null
         autoplaySeed = null
+        // Same for the explicit filter: a blended advance is still the queue
+        // moving on to a track it has to judge.
+        explicitCheckCurrent()
         loadAutoplayForCurrentTrack()
     }
 
