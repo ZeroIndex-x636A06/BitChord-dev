@@ -197,7 +197,7 @@ class ExplicitLyricsStore(private val save: (String) -> Unit) {
         const val MAX_ENTRIES = 5_000
 
         /** Bumped when the check changes enough that its old verdicts shouldn't stand. */
-        const val VERSION = 2
+        const val VERSION = 3
         private const val HEADER = "v$VERSION"
     }
 }
@@ -242,6 +242,8 @@ class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : Exp
         // Already asked, for this very video, by [exact].
         sources = sources() - LyricsSource.YOUTUBE_MUSIC,
         perSourceMs = PER_SOURCE_MS,
+        // With the rest, not after them: a tap is waiting.
+        geniusLast = false,
     )
 
     override suspend fun sameTitle(song: Song): List<List<String>> =
@@ -297,6 +299,8 @@ class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : Exp
 class ExplicitLyricsChecker(
     private val store: ExplicitLyricsStore,
     private val lyrics: ExplicitLyricsSource,
+    /** Where each verdict and how it was reached is written — the app's track log. */
+    private val log: (videoId: String, message: String) -> Unit = { _, _ -> },
 ) {
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Boolean?>>()
     private val ownInFlight = ConcurrentHashMap<String, CompletableDeferred<List<String>?>>()
@@ -324,9 +328,16 @@ class ExplicitLyricsChecker(
         if (store.knows(song.videoId)) return song.videoId in store.flagged.value
         val mine = CompletableDeferred<Boolean?>()
         inFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }
+        val started = now()
+        val how = StringBuilder()
         try {
-            val explicit = withTimeoutOrNull(BUDGET_MS) { judge(song) }
+            val explicit = withTimeoutOrNull(BUDGET_MS) { judge(song, how) }
             if (explicit != null) store.record(song.videoId, explicit) else failedAt[song.videoId] = now()
+            log(
+                song.videoId,
+                "explicit lyrics: '${song.title}' — ${when (explicit) { true -> "explicit"; false -> "clean"; null -> "unread" }}" +
+                    " ($how; ${now() - started} ms)",
+            )
             mine.complete(explicit)
             return explicit
         } catch (e: CancellationException) {
@@ -334,6 +345,7 @@ class ExplicitLyricsChecker(
             throw e
         } catch (e: Exception) {
             failedAt[song.videoId] = now()
+            log(song.videoId, "explicit lyrics: '${song.title}' — unread (${e.message ?: e::class.simpleName})")
             mine.complete(null)
             return null
         } finally {
@@ -375,14 +387,19 @@ class ExplicitLyricsChecker(
         }
     }
 
-    private suspend fun judge(song: Song): Boolean? {
+    private suspend fun judge(song: Song, how: StringBuilder): Boolean? {
         val exact = ownWords(song)
         // A mask in a recording's own words means the word is muted in it too.
-        if (!exact.isNullOrEmpty()) return ExplicitLyrics.isExplicit(exact, countMasked = false)
+        if (!exact.isNullOrEmpty()) {
+            how.append("own lyrics, ").append(ExplicitLyrics.score(exact.joinToString("\n"), countMasked = false)).append(" pts")
+            return ExplicitLyrics.isExplicit(exact, countMasked = false)
+        }
+        how.append("no own lyrics")
 
         if (UNSUNG.containsMatchIn(song.title.lowercase(Locale.ROOT)) ||
             CLEAN_COVER_ACTS.containsMatchIn(song.artist.lowercase(Locale.ROOT))
         ) {
+            how.append(", instrumental or clean cover")
             return false
         }
 
@@ -398,21 +415,36 @@ class ExplicitLyricsChecker(
                     ExplicitLyrics.isExplicit(lines)
                 }.also { finished = true }
             }
+            if (!finished) how.append(", other sources out of time")
             when {
                 explicitAnswer != null -> {
                     val sung = namesakes.await().filter { it.isNotEmpty() }
+                    how.append(", another source explicit; namesakes ").append(sung.scores())
                     !(sung.size >= SAME_TITLE_MIN && sung.none(ExplicitLyrics::isExplicit))
                 }
-                heard -> false
-                // Out of time with nothing heard says nothing about the song.
-                !finished -> null
+                heard -> {
+                    how.append(", other sources clean")
+                    false
+                }
                 else -> {
+                    // Nothing has words for the song itself — whether every
+                    // source said so or ran out of time — so the songs that
+                    // share its title speak for it, if there are enough.
                     val sung = namesakes.await().filter { it.isNotEmpty() }
-                    sung.size >= SAME_TITLE_MIN && sung.count(ExplicitLyrics::isExplicit) * 2 > sung.size
+                    how.append(", namesakes ").append(sung.scores())
+                    when {
+                        sung.size >= SAME_TITLE_MIN -> sung.count(ExplicitLyrics::isExplicit) * 2 > sung.size
+                        // Too few to go by, and the sources never finished: no verdict.
+                        !finished -> null
+                        else -> false
+                    }
                 }
             }.also { namesakes.cancel() }
         }
     }
+
+    private fun List<List<String>>.scores(): String =
+        joinToString(",", "[", "]") { ExplicitLyrics.score(it.joinToString("\n")).toString() }
 
     companion object {
         /**

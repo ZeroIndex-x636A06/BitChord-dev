@@ -195,8 +195,9 @@ object LyricsRepository {
      * are cancelled.
      *
      * [LyricsSource.GENIUS] is asked last, and only when nothing else had any
-     * words, as in [lyrics]. A source that takes longer than [perSourceMs]
-     * counts as having none. Fails when every source that was asked failed
+     * words, as in [lyrics] — unless [geniusLast] is off, when it is asked with
+     * the rest: one after the other, the two waits add up. A source that takes
+     * longer than [perSourceMs] counts as having none. Fails when every source that was asked failed
      * outright — offline, say — so that can't be read as "no lyrics anywhere".
      */
     fun everySource(
@@ -207,6 +208,7 @@ object LyricsRepository {
         album: String? = null,
         sources: Set<LyricsSource>,
         perSourceMs: Long = Long.MAX_VALUE,
+        geniusLast: Boolean = true,
     ): Flow<List<String>> = channelFlow {
         val asked = LyricsSource.offered.filter { it in sources }
         if (asked.isEmpty()) return@channelFlow
@@ -249,10 +251,10 @@ object LyricsRepository {
             }
         }
         try {
-            asked.filter { it != LyricsSource.GENIUS }
+            asked.filter { it != LyricsSource.GENIUS || !geniusLast }
                 .map { source -> launch(Dispatchers.IO) { ask(source) } }
                 .joinAll()
-            if (!found.get() && LyricsSource.GENIUS in asked) ask(LyricsSource.GENIUS)
+            if (geniusLast && !found.get() && LyricsSource.GENIUS in asked) ask(LyricsSource.GENIUS)
         } finally {
             documents.cancel()
         }

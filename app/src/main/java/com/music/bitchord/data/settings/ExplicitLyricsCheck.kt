@@ -2,6 +2,7 @@ package com.music.bitchord.data.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.music.bitchord.data.TrackLog
 import com.music.bitchord.data.model.Song
 import com.music.bitchord.playback.ExplicitLyricsChecker
 import com.music.bitchord.playback.ExplicitLyricsStore
@@ -33,11 +34,12 @@ object ExplicitLyricsCheck {
         if (this::prefs.isInitialized) prefs.edit().putString(KEY_VERDICTS, encoded).apply()
     }
 
+    // The lyrics sources ticked in Settings, whether or not lyrics are shown
+    // on screen: turning the lyrics panel off is not turning this check off.
     val checker = ExplicitLyricsChecker(
         store,
-        StandardExplicitLyrics {
-            if (AppSettings.syncedLyrics.value) AppSettings.lyricsSources.value else emptySet()
-        },
+        StandardExplicitLyrics { AppSettings.lyricsSources.value },
+        log = { videoId, message -> TrackLog.d("BitChord", message, videoId) },
     )
 
     fun init(context: Context) {

@@ -3,6 +3,7 @@ package com.music.bitchord.playback
 import com.music.bitchord.data.model.Song
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -221,6 +222,20 @@ class ExplicitLyricsTest {
         // Mostly clean namesakes, or too few to go by: clean.
         assertEquals(false, checker(Words(sameTitle = listOf(swearing, clean, clean))).check(song("a")))
         assertEquals(false, checker(Words(sameTitle = listOf(swearing, swearing))).check(song("b")))
+    }
+
+    @Test
+    fun `sources running out of time still leave the namesakes to decide`() = runBlocking {
+        // The remake of Jump Around: no source has its words, and the slowest
+        // of them outlast the wait. Its namesakes are in hand by then.
+        val slow = object : ExplicitLyricsSource {
+            override suspend fun exact(song: Song): List<String>? = null
+            override fun others(song: Song): Flow<List<String>> = flow {
+                kotlinx.coroutines.delay(ExplicitLyricsChecker.OTHERS_MS + 1_000)
+            }
+            override suspend fun sameTitle(song: Song) = listOf(swearing, swearing, clean, swearing)
+        }
+        assertEquals(true, ExplicitLyricsChecker(ExplicitLyricsStore { }, slow).check(song("remake")))
     }
 
     @Test

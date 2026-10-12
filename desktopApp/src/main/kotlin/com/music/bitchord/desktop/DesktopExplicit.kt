@@ -63,18 +63,17 @@ internal object DesktopExplicit {
      * Reads YouTube Music's own lyrics and the lyrics sources ticked in Settings — see
      * [ExplicitLyricsChecker] for which words count. A source left unticked is never contacted.
      */
+    // The lyrics sources ticked in Settings, whether or not lyrics are shown: turning the lyrics
+    // panel off is not turning this check off.
     val lyricsChecker = ExplicitLyricsChecker(
         lyricsStore,
         StandardExplicitLyrics {
             val settings = DesktopPersistence()
-            if (!settings.boolean(DesktopLyricsClient.KEY_SYNCED_LYRICS, true)) {
-                emptySet()
-            } else {
-                DesktopLyricsClient.enabledSources(settings.lyricsSourceOrder(), settings.lyricsEnabledSources())
-                    .mapNotNull(::lyricsSourceNamed)
-                    .toSet()
-            }
+            DesktopLyricsClient.enabledSources(settings.lyricsSourceOrder(), settings.lyricsEnabledSources())
+                .mapNotNull(::lyricsSourceNamed)
+                .toSet()
         },
+        log = { _, message -> DesktopTrackLog.log(message) },
     )
 
     /** Checks outlive whatever started them: a click stops waiting, the check doesn't. */
