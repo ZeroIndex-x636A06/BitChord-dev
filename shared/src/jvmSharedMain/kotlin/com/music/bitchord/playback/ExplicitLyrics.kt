@@ -1,11 +1,21 @@
 package com.music.bitchord.playback
 
+import com.music.bitchord.data.lyrics.LrcLib
+import com.music.bitchord.data.lyrics.LyricsRepository
+import com.music.bitchord.data.lyrics.LyricsSource
+import com.music.bitchord.data.lyrics.YouTubeMusicLyrics
 import com.music.bitchord.data.model.Song
+import com.music.bitchord.data.model.durationMillis
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
@@ -34,10 +44,9 @@ import java.util.concurrent.ConcurrentHashMap
  * is a song explicit for what it's *about* (*Pumped Up Kicks*, *Low*) rather
  * than the words it uses.
  *
- * Lyrics sites usually print the uncensored words even for an edited release,
- * so this can flag a clean edit. That is why the result is kept per video id
- * rather than per title, and why a song the explicit filter already found to
- * be a clean release is never put through it.
+ * Which lyrics are read, and in what order, is [ExplicitLyricsChecker]'s
+ * business; results are kept per video id, since a clean edit and its
+ * original share a title.
  */
 object ExplicitLyrics {
 
@@ -50,12 +59,19 @@ object ExplicitLyrics {
     /** Points for each strong word. */
     const val STRONG_POINTS = 2
 
-    fun score(lyrics: String): Int = matches(lyrics).entries.sumOf { (term, count) -> term.points * count }
+    /**
+     * [countMasked] off leaves masked spellings ("f***") out — for a
+     * recording's own lyrics, where a mask means the word was taken out of
+     * the recording too.
+     */
+    fun score(lyrics: String, countMasked: Boolean = true): Int =
+        matches(lyrics).entries.sumOf { (term, count) -> if (term.masked && !countMasked) 0 else term.points * count }
 
-    fun isExplicit(lines: List<String>): Boolean = score(lines.joinToString("\n")) >= THRESHOLD
+    fun isExplicit(lines: List<String>, countMasked: Boolean = true): Boolean =
+        score(lines.joinToString("\n"), countMasked) >= THRESHOLD
 
     /** One counted word: how it's listed in a report, what it's worth, and how to find it. */
-    class Term(val name: String, val points: Int, val pattern: Regex) {
+    class Term(val name: String, val points: Int, val pattern: Regex, val masked: Boolean = false) {
         override fun toString() = name
     }
 
@@ -70,10 +86,13 @@ object ExplicitLyrics {
         return TERMS.associateWith { it.pattern.findAll(text).count() }.filterValues { it > 0 }
     }
 
+    /** A mask straight after a word's first letter, and whatever is left of the word. */
+    private const val MASKED = """[*#@]+[a-z*#@]*"""
+
     private val LAUGH = Regex("""(?<![\p{L}\p{N}])ho(?:[\s,!.-]+ho)+(?![\p{L}\p{N}])""")
 
     private fun term(name: String, points: Int, pattern: String) =
-        Term(name, points, Regex("""(?<![\p{L}\p{N}])(?:$pattern)(?![\p{L}\p{N}])"""))
+        Term(name, points, Regex("""(?<![\p{L}\p{N}])(?:$pattern)(?![\p{L}\p{N}])"""), masked = "masked" in name)
 
     private fun severe(name: String, pattern: String) = term(name, SEVERE_POINTS, pattern)
     private fun strong(name: String, pattern: String) = term(name, STRONG_POINTS, pattern)
@@ -92,11 +111,17 @@ object ExplicitLyrics {
         strong("slut", """sluts?"""),
         severe("f-slur", """fag(?:got)?s?"""),
         strong("asshole", """ass ?holes?"""),
-        // Starred-out spellings some lyrics sites print instead.
-        Term("f-word (starred)", SEVERE_POINTS, Regex("""(?<![\p{L}\p{N}])f[*#@]+c?k\w*""")),
-        Term("s-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])sh?[*#@]+t\w*""")),
-        Term("b-word (starred)", STRONG_POINTS, Regex("""(?<![\p{L}\p{N}])b[*#@]+t?ch\w*""")),
-        Term("n-word (starred)", SEVERE_POINTS, Regex("""(?<![\p{L}\p{N}])n[*#@]+gg?(?:a|er)s?""")),
+        // Masked spellings — "f**k", "f***", "sh*t", "b***h", "n****" — which
+        // some sources print in place of the word. Known by the first letter
+        // and a mask straight after it; letters whose masked words don't count
+        // ("d**n", "h*ll") are left out. See [score] for where they don't count.
+        severe("f-word (masked)", """f$MASKED"""),
+        severe("n-word (masked)", """n$MASKED"""),
+        severe("c-word (masked)", """c[*#@]+[*#@n]*ts?"""),
+        strong("s-word (masked)", """sh?$MASKED"""),
+        strong("b-word (masked)", """b$MASKED"""),
+        strong("p-word (masked)", """p$MASKED"""),
+        mild("ass (masked)", """a[*#@]{2,}[a-z*#@]*"""),
         mild("ass", """ass(?:es)?"""),
         mild("dick", """dicks?"""),
         // A rooster's "cock-a-doodle" and "cock of the walk" are why this one is mild.
@@ -117,7 +142,9 @@ object ExplicitLyrics {
  *
  * Stored as one line per song, `1:<id>` or `0:<id>`, oldest first, and trimmed
  * to the newest [MAX_ENTRIES] — a cache, so losing the oldest only costs a
- * second lookup.
+ * second lookup. The first line names the [VERSION] of the check that wrote
+ * them; verdicts from another version are dropped, so songs the old check
+ * got wrong are read again.
  */
 class ExplicitLyricsStore(private val save: (String) -> Unit) {
 
@@ -130,7 +157,12 @@ class ExplicitLyricsStore(private val save: (String) -> Unit) {
     @Synchronized
     fun load(encoded: String?) {
         verdicts.clear()
-        encoded.orEmpty().lineSequence().forEach { line ->
+        val lines = encoded.orEmpty().lines()
+        if (lines.firstOrNull() != HEADER) {
+            publish()
+            return
+        }
+        lines.drop(1).forEach { line ->
             val id = line.substringAfter(':', "")
             if (id.isNotBlank()) verdicts[id] = line.startsWith("1:")
         }
@@ -146,7 +178,7 @@ class ExplicitLyricsStore(private val save: (String) -> Unit) {
         verdicts[videoId] = explicit
         while (verdicts.size > MAX_ENTRIES) verdicts.remove(verdicts.keys.first())
         publish()
-        save(verdicts.entries.joinToString("\n") { (id, bad) -> (if (bad) "1:" else "0:") + id })
+        save(HEADER + "\n" + verdicts.entries.joinToString("\n") { (id, bad) -> (if (bad) "1:" else "0:") + id })
     }
 
     /** Forgets every verdict, so songs are read again. */
@@ -163,21 +195,105 @@ class ExplicitLyricsStore(private val save: (String) -> Unit) {
 
     companion object {
         const val MAX_ENTRIES = 5_000
+
+        /** Bumped when the check changes enough that its old verdicts shouldn't stand. */
+        const val VERSION = 2
+        private const val HEADER = "v$VERSION"
+    }
+}
+
+/**
+ * Where a lyric check gets its words. [StandardExplicitLyrics] is the one both
+ * apps use; tests hand in their own.
+ */
+interface ExplicitLyricsSource {
+    /**
+     * YouTube Music's own lyrics for this very video, or null when it has none.
+     * Throws when YouTube Music couldn't be asked at all — offline is not "no
+     * lyrics".
+     */
+    suspend fun exact(song: Song): List<String>?
+
+    /** Every other lyrics source's words for the song, each as that source answers. */
+    fun others(song: Song): Flow<List<String>>
+
+    /** The words of other recordings with the song's title. */
+    suspend fun sameTitle(song: Song): List<List<String>>
+}
+
+/**
+ * The lyric check's words, from the same places the lyrics panel reads:
+ * YouTube Music for [exact] — the service the app already plays from, so it is
+ * asked whatever the lyrics settings say — and the lyrics sources switched on
+ * in Settings for the rest. A source switched off is never contacted.
+ */
+class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : ExplicitLyricsSource {
+
+    override suspend fun exact(song: Song): List<String>? =
+        YouTubeMusicLyrics.lyricsOrThrow(song.videoId)
+            ?.map { it.text.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }
+
+    override fun others(song: Song): Flow<List<String>> = LyricsRepository.everySource(
+        videoId = song.videoId,
+        title = song.title,
+        artist = song.artist,
+        durationMs = song.durationMillis(),
+        album = song.albumName,
+        // Already asked, for this very video, by [exact].
+        sources = sources() - LyricsSource.YOUTUBE_MUSIC,
+        perSourceMs = PER_SOURCE_MS,
+    )
+
+    override suspend fun sameTitle(song: Song): List<List<String>> =
+        if (LyricsSource.LRCLIB in sources()) LrcLib.sameTitle(song.title) else emptyList()
+
+    private companion object {
+        /**
+         * How long one source may take. A source that hasn't answered by then
+         * almost never has the song — the live measurements had the slowest
+         * misses at six and a half seconds — and a verdict is wanted while the
+         * song is starting, not after.
+         */
+        const val PER_SOURCE_MS = 4_000L
     }
 }
 
 /**
  * Reads a song's lyrics and records whether they make it explicit.
  *
- * [fetch] is each app's own lyrics lookup — its enabled sources, in its own
- * order — returning the lines, or null when it found none. A song with no
- * lyrics anywhere (an instrumental, or one no source carries) is recorded as
- * clean so it isn't looked up on every play; a lookup that *failed* isn't
- * recorded at all.
+ * Which words count, in order:
+ *
+ * 1. **YouTube Music's lyrics for this very video**, when it has them. They
+ *    are the only words tied to the recording rather than to a name, so they
+ *    settle it: a clean edit's are clean even when every lyrics site prints
+ *    the original's (the clean *HUMBLE.* reads 36 points on Apple's lyrics and
+ *    0 on its own), and an unmarked explicit upload's are not.
+ * 2. **Every other source**, all asked at once, and explicit if *any* of them
+ *    is — sources print the same song censored, masked or whole, and the one
+ *    that hides the words must not outvote the one that shows them. Otherwise
+ *    it is clean once one source has words and none of them is explicit.
+ *    These sources match by name, and a loose match can hand back another
+ *    song's words — "Forget You" tributes answered with "F*** You" — so an
+ *    explicit answer here is overruled when every song sharing the title
+ *    (step 3's namesakes, at least [SAME_TITLE_MIN] with words) is clean.
+ * 3. **Nothing anywhere** — usually a remake or cover nobody has transcribed.
+ *    Such a song sings what the songs sharing its title sing, so it is explicit
+ *    when at least [SAME_TITLE_MIN] of them have words and most of those are
+ *    explicit. Asked alongside step 2, so it's in hand when step 2 comes up
+ *    empty.
+ *
+ * Without words of its own, a song whose title says nobody sings on it
+ * ("Instrumental", "Karaoke", "8 Bit") is clean: whatever words other sources
+ * have are the original's, matched by name. So is one from an act that only
+ * makes instrumental or child-safe covers (Rockabye Baby!'s lullabies of rap
+ * hits, Kidz Bop).
+ *
+ * A check that couldn't finish — offline, or out of [BUDGET_MS] before any
+ * source answered — isn't recorded, so the song is read again next time.
  */
 class ExplicitLyricsChecker(
     private val store: ExplicitLyricsStore,
-    private val fetch: suspend (Song) -> List<String>?,
+    private val lyrics: ExplicitLyricsSource,
 ) {
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Boolean?>>()
 
@@ -192,9 +308,8 @@ class ExplicitLyricsChecker(
         val mine = CompletableDeferred<Boolean?>()
         inFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }
         try {
-            val lines = fetch(song)
-            val explicit = lines != null && ExplicitLyrics.isExplicit(lines)
-            store.record(song.videoId, explicit)
+            val explicit = withTimeoutOrNull(BUDGET_MS) { judge(song) }
+            if (explicit != null) store.record(song.videoId, explicit)
             mine.complete(explicit)
             return explicit
         } catch (e: CancellationException) {
@@ -206,5 +321,63 @@ class ExplicitLyricsChecker(
         } finally {
             inFlight.remove(song.videoId, mine)
         }
+    }
+
+    private suspend fun judge(song: Song): Boolean? {
+        val exact = lyrics.exact(song)
+        // A mask in a recording's own words means the word is muted in it too.
+        if (!exact.isNullOrEmpty()) return ExplicitLyrics.isExplicit(exact, countMasked = false)
+
+        if (UNSUNG.containsMatchIn(song.title.lowercase(Locale.ROOT)) ||
+            CLEAN_COVER_ACTS.containsMatchIn(song.artist.lowercase(Locale.ROOT))
+        ) {
+            return false
+        }
+
+        return coroutineScope {
+            // Wanted only if nothing has words for the song itself, but asked
+            // now so it isn't waited on after everything else.
+            val namesakes = async { runCatching { lyrics.sameTitle(song) }.getOrDefault(emptyList()) }
+            var heard = false
+            var finished = false
+            val explicitAnswer = withTimeoutOrNull(OTHERS_MS) {
+                lyrics.others(song).firstOrNull { lines ->
+                    if (lines.isNotEmpty()) heard = true
+                    ExplicitLyrics.isExplicit(lines)
+                }.also { finished = true }
+            }
+            when {
+                explicitAnswer != null -> {
+                    val sung = namesakes.await().filter { it.isNotEmpty() }
+                    !(sung.size >= SAME_TITLE_MIN && sung.none(ExplicitLyrics::isExplicit))
+                }
+                heard -> false
+                // Out of time with nothing heard says nothing about the song.
+                !finished -> null
+                else -> {
+                    val sung = namesakes.await().filter { it.isNotEmpty() }
+                    sung.size >= SAME_TITLE_MIN && sung.count(ExplicitLyrics::isExplicit) * 2 > sung.size
+                }
+            }.also { namesakes.cancel() }
+        }
+    }
+
+    companion object {
+        /** Longest a whole check may run before it gives up unrecorded. */
+        const val BUDGET_MS = 25_000L
+
+        /** Longest the other sources are waited on. */
+        const val OTHERS_MS = 15_000L
+
+        /** Namesakes with words needed before they can speak for a song with none. */
+        const val SAME_TITLE_MIN = 3
+
+        /** Titles that say there's no singing to read. */
+        private val UNSUNG = Regex("""\b(?:instrumental|karaoke|backing track|piano|music box|lullaby|lullabies|8[ -]?bit|orchestral)\b""")
+
+        /** Acts whose covers are instrumental, or sung clean on purpose. */
+        private val CLEAN_COVER_ACTS = Regex(
+            """\b(?:rockabye baby|kidz bop|vitamin string quartet|twinkle twinkle little rock star|lullaby|lullabies|music box)\b""",
+        )
     }
 }

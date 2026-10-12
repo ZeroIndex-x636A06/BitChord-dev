@@ -1335,12 +1335,18 @@ private fun BitChordApp(
         }
     }
     // "Check lyrics for explicit content": a song nobody has read yet is read
-    // before it plays, so the first play of Jump Around is the blocked one.
-    // Only the song asked for — what plays after it is read by the player as
-    // it comes up. A second tap while the first is still being read is
-    // dropped rather than queued behind it.
+    // before it plays, so the first play of Jump Around is the blocked one —
+    // but only for as long as [ExplicitLyricsCheck.TAP_WAIT_MS]. A check that
+    // needs longer carries on while the song plays, and the player drops the
+    // song if it turns out explicit. Only the song asked for — what plays
+    // after it is read by the player as it comes up. A second tap while the
+    // first is still being read is dropped rather than queued behind it.
     var lyricsCheckPending by remember { mutableStateOf<String?>(null) }
+    // The song most recently asked for, so a verdict that lands late only
+    // speaks up while it is still the one the listener wanted.
+    var lastAskedFor by remember { mutableStateOf<String?>(null) }
     val gateExplicit: (Song?, String?, () -> Unit) -> Unit = gate@{ song, sourceId, proceed ->
+        lastAskedFor = song?.videoId
         if (song == null || !AppSettings.explicitNeedsLyricsCheck(song)) {
             gateExplicitNow(song, sourceId, proceed)
             return@gate
@@ -1348,12 +1354,22 @@ private fun BitChordApp(
         if (lyricsCheckPending == song.videoId) return@gate
         lyricsCheckPending = song.videoId
         scope.launch {
-            try {
-                ExplicitLyricsCheck.checker.check(song)
+            val verdict = try {
+                ExplicitLyricsCheck.checkBeforePlaying(song)
             } finally {
                 lyricsCheckPending = null
             }
             gateExplicitNow(song, sourceId, proceed)
+            if (verdict != null) return@launch
+            // Still being read when the song started. If it turns out
+            // explicit the player drops it; say why, with the same choices
+            // the tap would have offered.
+            if (ExplicitLyricsCheck.checker.check(song) == true &&
+                lastAskedFor == song.videoId &&
+                song.explicitBlocked(sourceId = sourceId ?: song.playbackSourceId)
+            ) {
+                explicitPrompt = song to proceed
+            }
         }
     }
 

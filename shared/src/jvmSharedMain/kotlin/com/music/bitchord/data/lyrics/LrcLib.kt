@@ -42,6 +42,62 @@ object LrcLib {
             synced?.let(::parseLrc)?.takeIf { it.isNotEmpty() }
         }
 
+    /**
+     * The words of a track, timed or not — for reading what a song says rather
+     * than for showing it in time, which is why plain-text entries count here
+     * when [lyrics] passes them over. Only hits with the track's own name: the
+     * search is fuzzy enough to answer "Forget You" with "F*** You". The one
+     * closest in length wins.
+     */
+    suspend fun words(title: String, artist: String, durationMs: Long): List<String>? =
+        withContext(Dispatchers.IO) {
+            val seconds = durationMs / 1000.0
+            val wanted = title.coreName()
+            search(title.clean(), artist.clean())
+                .filter { (it["trackName"]?.jsonPrimitive?.contentOrNull)?.coreName() == wanted }
+                .mapNotNull { hit -> hit.words()?.let { hit to it } }
+                .minByOrNull { (hit, _) -> abs((hit["duration"]?.jsonPrimitive?.doubleOrNull ?: 0.0) - seconds) }
+                ?.second
+        }
+
+    /**
+     * The words of up to [limit] tracks named exactly [title], whoever recorded
+     * them, for a song no source has words for: a remake or a cover usually
+     * sings what the songs it shares a name with sing.
+     */
+    suspend fun sameTitle(title: String, limit: Int = 6): List<List<String>> =
+        withContext(Dispatchers.IO) {
+            val wanted = title.coreName()
+            if (wanted.isBlank()) return@withContext emptyList()
+            search(title.clean().substringBefore(" (").substringBefore(" ["), artist = null)
+                .filter { (it["trackName"]?.jsonPrimitive?.contentOrNull)?.coreName() == wanted }
+                .mapNotNull { it.words() }
+                .take(limit)
+        }
+
+    private fun search(title: String, artist: String?): List<JsonObject> {
+        val url = "$BASE/search".toHttpUrl().newBuilder()
+            .addQueryParameter("track_name", title)
+            .apply { if (artist != null) addQueryParameter("artist_name", artist) }
+            .build()
+        val body = get(url.toString()) ?: return emptyList()
+        return (json.parseToJsonElement(body) as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
+    }
+
+    private fun JsonObject.words(): List<String>? {
+        val synced = this["syncedLyrics"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val lines = synced?.let { parseLrc(it).map { line -> line.text } }
+            ?: this["plainLyrics"]?.jsonPrimitive?.contentOrNull?.lines()
+        return lines?.map(String::trim)?.filter(String::isNotEmpty)?.takeIf { it.isNotEmpty() }
+    }
+
+    /** A title without its bracketed tags, case or punctuation: "Jump Around (Remix)" is "jump around". */
+    private fun String.coreName(): String =
+        replace(BRACKETED, " ").substringBefore(" - ").lowercase().replace(NON_WORD, " ").trim()
+
+    private val BRACKETED = Regex("""[(\[][^)\]]*[)\]]""")
+    private val NON_WORD = Regex("""[^\p{L}\p{N}]+""")
+
     private fun exactMatch(title: String, artist: String, seconds: Int): String? {
         val url = "$BASE/get".toHttpUrl().newBuilder()
             .addQueryParameter("track_name", title)

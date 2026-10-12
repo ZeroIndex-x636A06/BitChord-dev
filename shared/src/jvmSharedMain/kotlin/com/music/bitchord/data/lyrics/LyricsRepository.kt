@@ -4,8 +4,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
@@ -178,6 +183,82 @@ object LyricsRepository {
         }
     }
 
+    /**
+     * Every source's words for a track, each as soon as that source answers —
+     * for reading what a song says rather than showing it. The explicit
+     * filter's lyric check uses this instead of [lyrics] for three reasons.
+     * Priority means nothing to it: a source that prints the words censored
+     * must not hide one that prints them whole. Timing means nothing to it
+     * either, so [LyricsSource.LRCLIB] answers with plain-text entries too,
+     * through [LrcLib.words]. And the caller usually needs only the first
+     * answer that settles things, so it can stop collecting there and the rest
+     * are cancelled.
+     *
+     * [LyricsSource.GENIUS] is asked last, and only when nothing else had any
+     * words, as in [lyrics]. A source that takes longer than [perSourceMs]
+     * counts as having none. Fails when every source that was asked failed
+     * outright — offline, say — so that can't be read as "no lyrics anywhere".
+     */
+    fun everySource(
+        videoId: String,
+        title: String,
+        artist: String,
+        durationMs: Long,
+        album: String? = null,
+        sources: Set<LyricsSource>,
+        perSourceMs: Long = Long.MAX_VALUE,
+    ): Flow<List<String>> = channelFlow {
+        val asked = LyricsSource.offered.filter { it in sources }
+        if (asked.isEmpty()) return@channelFlow
+        val searchTitle = title.forLyricsSearch()
+        val searchArtist = artist.artistForLyricsSearch()
+        // No [identify] round trip first: pinning the exact recording is for
+        // timing, and costs up to [IDENTIFY_TIMEOUT_MS] before anyone is asked.
+        // One already worked out is still used.
+        val recording = isrcs[videoId]
+        val hit: BiniLyrics.Hit? = null
+        val documents = SharedDocuments(this)
+        val answered = java.util.concurrent.atomic.AtomicInteger()
+        val failed = java.util.concurrent.atomic.AtomicInteger()
+        val found = java.util.concurrent.atomic.AtomicBoolean()
+        suspend fun ask(source: LyricsSource) {
+            try {
+                // Run outside this flow and only *waited on* for [perSourceMs]:
+                // the sources make blocking HTTP calls, which a timeout can't
+                // interrupt, so a cap on the call itself would still wait out
+                // the HTTP client's own timeout.
+                val work = detached.async {
+                    if (source == LyricsSource.LRCLIB) {
+                        LrcLib.words(searchTitle, searchArtist, durationMs)
+                    } else {
+                        fetch(source, videoId, searchTitle, searchArtist, durationMs, album, recording, hit, documents::get)
+                            ?.map { it.text }
+                    }
+                }
+                val lines = (withTimeoutOrNull(perSourceMs) { work.await() } ?: run { work.cancel(); null })
+                    ?.filter { it.isNotBlank() }
+                answered.incrementAndGet()
+                if (!lines.isNullOrEmpty()) {
+                    found.set(true)
+                    send(lines)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                failed.incrementAndGet()
+            }
+        }
+        try {
+            asked.filter { it != LyricsSource.GENIUS }
+                .map { source -> launch(Dispatchers.IO) { ask(source) } }
+                .joinAll()
+            if (!found.get() && LyricsSource.GENIUS in asked) ask(LyricsSource.GENIUS)
+        } finally {
+            documents.cancel()
+        }
+        if (answered.get() == 0 && failed.get() > 0) throw java.io.IOException("no lyrics source could be reached")
+    }
+
     private suspend fun fetch(
         source: LyricsSource,
         videoId: String,
@@ -261,6 +342,12 @@ object LyricsRepository {
         remember(videoId, hit.isrc)
         return hit
     }
+
+    /**
+     * Where [everySource] runs each source, so that giving up on one doesn't
+     * mean waiting for its blocking call to come back.
+     */
+    private val detached = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** How many recordings to keep in hand; see [isrcs]. */
     private const val REMEMBERED = 100

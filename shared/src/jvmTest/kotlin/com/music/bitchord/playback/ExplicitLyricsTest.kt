@@ -1,6 +1,8 @@
 package com.music.bitchord.playback
 
 import com.music.bitchord.data.model.Song
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -74,6 +76,16 @@ class ExplicitLyricsTest {
     }
 
     @Test
+    fun `masked words count by their first letter`() {
+        // What edited releases and some sources print instead.
+        assertEquals(ExplicitLyrics.SEVERE_POINTS, ExplicitLyrics.score("F*** you"))
+        assertEquals(ExplicitLyrics.SEVERE_POINTS, ExplicitLyrics.score("n***a please"))
+        assertEquals(ExplicitLyrics.STRONG_POINTS, ExplicitLyrics.score("you b***h"))
+        // Masked words that don't count unmasked don't count masked either.
+        assertEquals(0, ExplicitLyrics.score("d**n it all to h*ll"))
+    }
+
+    @Test
     fun `case and inflection don't hide a word`() {
         assertEquals(2 * ExplicitLyrics.SEVERE_POINTS, ExplicitLyrics.score("FUCKING Motherfucker"))
     }
@@ -93,6 +105,14 @@ class ExplicitLyricsTest {
     }
 
     @Test
+    fun `verdicts from an older check are read again`() {
+        val store = ExplicitLyricsStore { }
+        store.load("1:old\n0:also-old")
+        assertFalse(store.knows("old"))
+        assertTrue(store.flagged.value.isEmpty())
+    }
+
+    @Test
     fun `the oldest verdicts go first when the store is full`() {
         val store = ExplicitLyricsStore { }
         repeat(ExplicitLyricsStore.MAX_ENTRIES + 1) { store.record("id$it", it == 0) }
@@ -103,35 +123,119 @@ class ExplicitLyricsTest {
 
     // ---- Checking ----------------------------------------------------------
 
+    /** Words from each place a check reads, as the tests want them. */
+    private class Words(
+        val exact: List<String>? = null,
+        val others: List<List<String>> = emptyList(),
+        val sameTitle: List<List<String>> = emptyList(),
+        val offline: Boolean = false,
+    ) : ExplicitLyricsSource {
+        var asked = 0
+        var namesakesAsked = 0
+        override suspend fun exact(song: Song): List<String>? {
+            asked++
+            if (offline) throw java.io.IOException("offline")
+            return exact
+        }
+        override fun others(song: Song): Flow<List<String>> = others.asFlow()
+        override suspend fun sameTitle(song: Song): List<List<String>> {
+            namesakesAsked++
+            return sameTitle
+        }
+    }
+
+    private val swearing = listOf("fuck it", "you son of a bitch")
+    private val clean = listOf("la la la", "I love you")
+
+    private fun checker(words: Words, store: ExplicitLyricsStore = ExplicitLyricsStore { }) =
+        ExplicitLyricsChecker(store, words)
+
     @Test
     fun `a song is read once`() = runBlocking {
-        var fetched = 0
+        val words = Words(exact = swearing)
         val store = ExplicitLyricsStore { }
-        val checker = ExplicitLyricsChecker(store) { fetched++; listOf("fuck", "shit") }
+        val checker = checker(words, store)
         assertTrue(checker.needsCheck(song("a")))
         assertEquals(true, checker.check(song("a")))
         assertEquals(true, checker.check(song("a")))
-        assertEquals(1, fetched)
+        assertEquals(1, words.asked)
         assertFalse(checker.needsCheck(song("a")))
         assertEquals(setOf("a"), store.flagged.value)
     }
 
     @Test
-    fun `no lyrics counts as clean but a failed lookup is not remembered`() = runBlocking {
+    fun `this video's own lyrics settle it`() = runBlocking {
+        // A clean edit: YouTube Music's words for it are clean, while lyrics
+        // sites print the original's (the clean HUMBLE. reads 36 on Apple's).
+        assertEquals(false, checker(Words(exact = clean, others = listOf(swearing))).check(song("edit")))
+        assertEquals(true, checker(Words(exact = swearing, others = listOf(clean))).check(song("upload")))
+        // Masked in its own words: muted in the recording, so clean.
+        assertEquals(false, checker(Words(exact = listOf("f*** it", "you b***h"))).check(song("muted")))
+    }
+
+    @Test
+    fun `any source showing the words is enough`() = runBlocking {
+        // One source prints it censored, another whole.
+        val words = Words(others = listOf(listOf("you son of a b----", "la la"), swearing))
+        assertEquals(true, checker(words).check(song("x")))
+        assertEquals(false, checker(Words(others = listOf(clean, clean))).check(song("y")))
+    }
+
+    @Test
+    fun `explicit words found by name lose to clean namesakes`() = runBlocking {
+        // A "Forget You" tribute: one source matched it to "F*** You", while
+        // every song actually called "Forget You" is clean.
+        val tribute = Words(others = listOf(swearing), sameTitle = List(6) { clean })
+        assertEquals(false, checker(tribute).check(song("tribute")))
+        // A cover whose namesakes agree stays blocked (Vanilla Ice's Jump Around).
+        val cover = Words(others = listOf(swearing), sameTitle = listOf(swearing, swearing, clean, swearing))
+        assertEquals(true, checker(cover).check(song("cover")))
+        // Too few namesakes to overrule anything.
+        assertEquals(true, checker(Words(others = listOf(swearing), sameTitle = listOf(clean))).check(song("rare")))
+    }
+
+    @Test
+    fun `a song nobody has words for goes by the songs that share its title`() = runBlocking {
+        // A remake of Jump Around: no words anywhere, while five of the six
+        // songs called "Jump Around" are explicit.
+        val namesakes = Words(sameTitle = listOf(swearing, swearing, clean, swearing, swearing, swearing))
+        assertEquals(true, checker(namesakes).check(song("remake")))
+        // Mostly clean namesakes, or too few to go by: clean.
+        assertEquals(false, checker(Words(sameTitle = listOf(swearing, clean, clean))).check(song("a")))
+        assertEquals(false, checker(Words(sameTitle = listOf(swearing, swearing))).check(song("b")))
+    }
+
+    @Test
+    fun `an instrumental is clean whatever words its name finds`() = runBlocking {
+        // Sources match the original's words by name: "Bodak Yellow (8 Bit
+        // Version)" turned up the original's. Nobody sings on these.
+        val words = Words(others = listOf(swearing), sameTitle = List(5) { swearing })
+        for (title in listOf("Lose Yourself (Instrumental Karaoke Version)", "Bodak Yellow (8 Bit Version)")) {
+            assertEquals(false, checker(words).check(song(title).copy(title = title)), title)
+        }
+        assertEquals(0, words.namesakesAsked)
+        // Nor a lullaby act's cover of a rap hit.
+        val lullaby = song("rb").copy(title = "The Real Slim Shady", artist = "Rockabye Baby!")
+        assertEquals(false, checker(words).check(lullaby))
+        // Unless the video's own lyrics say there is singing after all.
+        val sung = Words(exact = swearing)
+        assertEquals(true, checker(sung).check(song("p").copy(title = "Sicko Mode (Piano Acoustic)")))
+    }
+
+    @Test
+    fun `being offline is not remembered`() = runBlocking {
         val store = ExplicitLyricsStore { }
-        assertEquals(false, ExplicitLyricsChecker(store) { null }.check(song("instrumental")))
-        assertTrue(store.knows("instrumental"))
-        assertNull(ExplicitLyricsChecker(store) { error("offline") }.check(song("offline")))
+        assertNull(checker(Words(offline = true), store).check(song("offline")))
         assertFalse(store.knows("offline"))
     }
 
     @Test
     fun `songs the catalogue already marks are never read`() = runBlocking {
-        var fetched = 0
-        val checker = ExplicitLyricsChecker(ExplicitLyricsStore { }) { fetched++; emptyList() }
+        val words = Words(exact = clean)
+        val checker = checker(words)
         assertFalse(checker.needsCheck(song("e", explicit = true)))
         assertEquals(true, checker.check(song("e", explicit = true)))
-        assertEquals(0, fetched)
+        assertEquals(0, words.asked)
     }
 
     // ---- The filter --------------------------------------------------------
