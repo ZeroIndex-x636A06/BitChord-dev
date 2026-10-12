@@ -1118,7 +1118,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             YtMusicRepository.removeFromPlaylist(
                 playlistId,
-                listOf(setVideoId to song.videoId),
+                // A row shown as its song still holds the video on the account.
+                listOf(setVideoId to (videoOnRow[setVideoId] ?: song.videoId)),
             ).fold(
                 onSuccess = {
                     libraryStale = true
@@ -2368,6 +2369,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        /** Playlist rows looked up for their song at once — see [showSongVersions]. */
+        private const val SONG_VERSION_LOOKUPS = 3
+
+        /** Playlist rows whose songs are published to the page together. */
+        private const val SONG_VERSION_BATCH = 6
+
         /** Per-addon budget for the Addons search tab; a slow addon is left out, not waited on. */
         private const val ADDON_SEARCH_TIMEOUT_MS = 12_000L
         private const val ADDON_SEARCH_LIMIT = 20
@@ -2673,6 +2680,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // Only once the first page is on screen: [fillIn] appends to it,
             // and has nothing to append to before this.
             more?.let { fillIn(browseId, it, thumbnailUrl ?: artwork) }
+            showSongVersions(browseId)
         }
     }
 
@@ -2886,10 +2894,79 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         suggestedSongs = current.suggestedSongs + addedSuggested,
                     )
                 }
+                showSongVersions(browseId)
                 next = fetched.continuation
             }
         }
     }
+
+    /**
+     * The video id each playlist row shown as its song stood for, by the row's
+     * playlist entry — removing it from the playlist names the entry and the
+     * video that is really on it. See [showSongVersions].
+     */
+    private val videoOnRow = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Video rows already looked up for their song, by playlist, so a page grown by [fillIn] only asks for the new ones. */
+    private val songVersionAsked = java.util.concurrent.ConcurrentHashMap<String, MutableSet<String>>()
+
+    /** Song lookups for playlist rows running together; each is a search. */
+    private val songVersionGate = kotlinx.coroutines.sync.Semaphore(SONG_VERSION_LOOKUPS)
+
+    /**
+     * "Prefer music-only version" for a whole playlist: its music-video rows
+     * are shown — and so played, queued and kept — as the songs they are
+     * videos of, the same lookup the player makes for a video it is about to
+     * play. A video with no song version stays as it is. Only for a YouTube
+     * playlist (an album is songs already), and only with the setting on; the
+     * playlist on the account is left alone.
+     */
+    private fun showSongVersions(browseId: String) {
+        if (!AppSettings.preferMusicOnly.value || !browseId.startsWith("VL")) return
+        val page = _detailStack.value.firstOrNull { it.browseId == browseId } ?: return
+        val asked = songVersionAsked.getOrPut(browseId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }
+        val videos = (page.songs as? UiState.Success)?.data.orEmpty()
+            .filter { it.isVideo && it.localUri == null && it.localPath == null && asked.add(it.rowKey()) }
+        if (videos.isEmpty()) return
+        viewModelScope.launch {
+            videos.chunked(SONG_VERSION_BATCH).forEach { batch ->
+                val found = coroutineScope {
+                    batch.map { row ->
+                        async {
+                            songVersionGate.withPermit {
+                                val song = runCatching { YtMusicRepository.resolveAudio(row) }.getOrNull()
+                                    ?.takeIf { !it.isVideo || it.videoId == row.videoId }
+                                    ?.takeIf { it != row }
+                                song?.let {
+                                    row.setVideoId?.let { entry -> videoOnRow[entry] = row.videoId }
+                                    row.rowKey() to it.asRowOf(row)
+                                }
+                            }
+                        }
+                    }.mapNotNull { it.await() }.toMap()
+                }
+                if (found.isEmpty()) return@forEach
+                _detailStack.value = _detailStack.value.map { open ->
+                    val songs = (open.songs as? UiState.Success)?.data
+                    if (open.browseId != browseId || songs == null) {
+                        open
+                    } else {
+                        open.copy(songs = UiState.Success(songs.map { found[it.rowKey()] ?: it }))
+                    }
+                }
+            }
+        }
+    }
+
+    /** A playlist row's identity: its entry when it has one (the same video can be on a playlist twice). */
+    private fun Song.rowKey(): String = setVideoId ?: videoId
+
+    /** [this] song standing in for the playlist [row]: the row's entry and cover fallback, the song's everything else. */
+    private fun Song.asRowOf(row: Song): Song = copy(
+        setVideoId = row.setVideoId,
+        thumbnailUrl = thumbnailUrl ?: row.thumbnailUrl,
+        isVideoOrigin = true,
+    )
 
     /**
      * An album's track listing doesn't repeat the cover on every row — the
