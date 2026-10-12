@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.music.bitchord.R
 import com.music.bitchord.auth.AuthStore
+import com.music.bitchord.auth.SignedIn
 import com.music.bitchord.auth.GoogleAccountSession
 import com.music.bitchord.auth.YouTubeProfile
 import com.music.bitchord.auth.profileId
@@ -79,6 +80,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import com.music.bitchord.data.sources.AddonSource
 import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.SourceRegistry
 import com.music.bitchord.data.sources.SourceResolver
@@ -92,13 +94,14 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /** What the Search tab searches: YouTube Music, or the Local Music folder on this device. */
-enum class SearchSource { YOUTUBE, LIBRARY }
+enum class SearchSource { YOUTUBE, LIBRARY, ADDONS }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val authStore = AuthStore(app)
 
-    private val _signedIn = MutableStateFlow(authStore.isSignedIn)
+    // Process-wide, so the playback service offers Like on the same tracks.
+    private val _signedIn = SignedIn.state(app)
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
 
     private val _home = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
@@ -194,6 +197,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Where the Search tab looks — see [setSearchSource]. */
     private val _searchSource = MutableStateFlow(SearchSource.YOUTUBE)
     val searchSource: StateFlow<SearchSource> = _searchSource.asStateFlow()
+
+    /**
+     * The Addons source's answer for the submitted query: every enabled addon
+     * searched at once and their rows interleaved. Null until something has
+     * been submitted. These songs carry source track keys, so a tap plays the
+     * addon's own stream with no YouTube lookup in between.
+     */
+    private val _addonResults = MutableStateFlow<UiState<List<Song>>?>(null)
+    val addonResults: StateFlow<UiState<List<Song>>?> = _addonResults.asStateFlow()
+    private var addonSearchJob: Job? = null
+
+    /** The words typed into the Addons search before, newest first. */
+    val addonSearchHistory: StateFlow<List<String>> = SearchHistory.addonRecent
+
+    fun removeAddonSearch(query: String) = SearchHistory.removeAddonQuery(query)
+
+    fun clearAddonSearchHistory() = SearchHistory.clearAddonQueries()
 
     /** Every track in the Local Music folder, read when the Library source is picked. */
     private val _librarySongs = MutableStateFlow<UiState<List<Song>>>(UiState.Loading)
@@ -1893,7 +1913,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         searchSubmitted = true
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
-        runSearch()
+        // Picking a suggestion or history item is deliberate, but it must NOT
+        // pollute the user's YTMusic server-side search history — only an
+        // explicit keyboard submission should do that.  Use the anonymous
+        // endpoint so YouTube does not log this query against the account.
+        runSearch(anonymous = true)
     }
 
     fun removeSearch(id: String) = SearchHistory.remove(id)
@@ -1907,6 +1931,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _suggestions.value = emptyList()
             _typeaheadResults.value = emptyList()
             _results.value = null
+            addonSearchJob?.cancel()
+            _addonResults.value = null
             // The list is about to switch from search results to recent
             // searches (or the empty state) — without this it can keep
             // whatever scroll offset the results list was left at, landing
@@ -1918,7 +1944,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         searchSubmitted = false
         // The Library source answers from the device on every keystroke (see
         // [libraryResults]); YouTube's completions have nothing to add to it.
-        if (_searchSource.value == SearchSource.LIBRARY) return
+        if (_searchSource.value != SearchSource.YOUTUBE) return
         // While typing, surface text completions — the pipeline already feeds
         // them through [suggestRequests] and publishes results via typeahead.
         suggestRequests.tryEmit(newValue)
@@ -1934,7 +1960,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         searchSubmitted = true
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
-        runSearch()
+        if (_searchSource.value == SearchSource.ADDONS) {
+            runAddonSearch(q)
+            return
+        }
+        runSearch(anonymous = false)
+    }
+
+    /**
+     * Asks every enabled addon for [q] in parallel. A slow or failing addon
+     * only costs its own rows; the list is the rest of them, round-robin so
+     * no single catalogue buries the others.
+     */
+    private fun runAddonSearch(q: String) {
+        SearchHistory.recordAddonQuery(q)
+        addonSearchJob?.cancel()
+        _searchScrollReset.value += 1
+        val addons = SourceRegistry.active().filterIsInstance<AddonSource>()
+        if (addons.isEmpty()) {
+            _addonResults.value = UiState.Error(text(R.string.search_addons_none))
+            return
+        }
+        _addonResults.value = UiState.Loading
+        addonSearchJob = viewModelScope.launch {
+            val perAddon = coroutineScope {
+                addons.map { addon ->
+                    async {
+                        withTimeoutOrNull(ADDON_SEARCH_TIMEOUT_MS) {
+                            runCatching { addon.search(q, limit = ADDON_SEARCH_LIMIT) }.getOrDefault(emptyList())
+                        } ?: emptyList()
+                    }
+                }.map { it.await() }
+            }
+            val merged = buildList {
+                val longest = perAddon.maxOfOrNull { it.size } ?: 0
+                for (i in 0 until longest) perAddon.forEach { rows -> rows.getOrNull(i)?.let(::add) }
+            }
+            _addonResults.value = UiState.Success(merged)
+        }
     }
 
     /**
@@ -1953,6 +2016,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         when (source) {
             SearchSource.LIBRARY -> loadLibrarySongs()
             SearchSource.YOUTUBE -> submitSearch()
+            SearchSource.ADDONS -> if (_query.value.isNotBlank()) submitSearch()
         }
     }
 
@@ -1996,6 +2060,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val query: String,
         val filter: SearchFilter,
         val requestId: Long,
+        val anonymous: Boolean = true,
     )
 
     private fun cacheKey(query: String, filter: SearchFilter) = "${filter.name}:$query"
@@ -2013,7 +2078,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             ?.rows
     }
 
-    private fun runSearch() {
+    private fun runSearch(anonymous: Boolean = true) {
         val query = _query.value
         if (query.isBlank()) {
             // Nothing in flight can still be waiting to overwrite this: the
@@ -2028,7 +2093,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _searchScrollReset.value += 1
         searchSession = null
         _searchLoadingMore.value = false
-        searchRequests.tryEmit(SearchRequest(query, _filter.value, id))
+        searchRequests.tryEmit(SearchRequest(query, _filter.value, id, anonymous))
     }
 
     /**
@@ -2060,7 +2125,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val exact = searchCache.get(key)
                 val cached = exact?.rows ?: prefixMatch(request.query, request.filter)
                 _results.value = cached?.let { UiState.Success(it) } ?: UiState.Loading
-                if (exact != null) {
+                // An explicit submit still has to reach the server even when
+                // an anonymous lookup cached the same query: that call is what
+                // records it in the account's history.
+                if (exact != null && request.anonymous) {
                     searchSession = SearchSession(key, request.requestId, request.filter, exact.continuation)
                     return@collectLatest
                 }
@@ -2074,7 +2142,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // see [SourceResolver.substituteForYouTube] — which upgrades
                 // the ones it holds without any of them having to be a
                 // separate row to pick between.
-                val result = YtMusicRepository.searchPage(request.query, request.filter)
+                val result = YtMusicRepository.searchPage(request.query, request.filter, request.anonymous)
                 // A search that has been superseded shouldn't land on screen,
                 // whether it succeeded or failed.
                 if (request.requestId != newestRequestId.get()) return@collectLatest
@@ -2304,6 +2372,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        /** Per-addon budget for the Addons search tab; a slow addon is left out, not waited on. */
+        private const val ADDON_SEARCH_TIMEOUT_MS = 12_000L
+        private const val ADDON_SEARCH_LIMIT = 20
+
         /** How many Spotify tracks are looked up on YouTube Music at once. */
         private const val SPOTIFY_MATCH_PARALLELISM = 6
 
