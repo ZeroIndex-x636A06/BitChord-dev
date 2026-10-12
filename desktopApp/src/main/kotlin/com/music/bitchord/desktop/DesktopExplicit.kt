@@ -20,7 +20,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * The desktop app's explicit-filter settings (issue #720), kept in its own
@@ -79,13 +81,19 @@ internal object DesktopExplicit {
     private val lyricsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * Starts reading [song] and waits for the verdict for at most [LYRICS_TAP_WAIT_MS] — what a
-     * click holds the song for. A check still running after that keeps going, and the queue drops
-     * the song if it turns out explicit; null meanwhile.
+     * The verdict for a song about to play, read in full if it hasn't been — the click waits for
+     * it, at most [ExplicitLyricsChecker.BUDGET_MS]. Run where leaving the page can't cut it short;
+     * null when it couldn't be read.
      */
-    suspend fun checkLyricsBeforePlaying(song: Song): Boolean? {
-        val verdict = lyricsScope.async { lyricsChecker.check(song) }
-        return withTimeoutOrNull(LYRICS_TAP_WAIT_MS) { verdict.await() }
+    suspend fun checkLyricsBeforePlaying(song: Song): Boolean? = lyricsScope.async { lyricsChecker.check(song) }.await()
+
+    /** Prechecks running together, so a scrolled list doesn't fire off a burst. */
+    private val prechecks = Semaphore(PRECHECKS_AT_ONCE)
+
+    /** [ExplicitLyricsChecker.precheck] for a song on screen, a couple at a time. */
+    fun precheckLyrics(song: Song) {
+        if (!needsLyricsCheck(song)) return
+        lyricsScope.launch { prechecks.withPermit { lyricsChecker.precheck(song) } }
     }
 
     /** Whether [song]'s lyrics still have to be read before the filter can judge it. */
@@ -139,8 +147,7 @@ internal object DesktopExplicit {
     private const val KEY_ALLOWED = "explicit_allowed_songs"
     private const val KEY_LYRICS_CHECK = "explicit_lyrics_check"
     private const val KEY_LYRICS_VERDICTS = "explicit_lyrics_verdicts"
-    /** How long a click waits on the lyric check before the song starts anyway. */
-    private const val LYRICS_TAP_WAIT_MS = 2_500L
+    private const val PRECHECKS_AT_ONCE = 2
 }
 
 /** [ExplicitFilter.permits] against the desktop app's current settings. */

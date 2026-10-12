@@ -5,6 +5,7 @@ import com.music.bitchord.ui.components.LocalShelfRowChrome
 import com.music.bitchord.ui.components.ExplicitBadge
 import com.music.bitchord.ui.components.LocalExplicitBlocked
 import com.music.bitchord.ui.components.LocalExplicitByLyrics
+import com.music.bitchord.ui.components.LocalLyricsPrecheck
 import com.music.bitchord.ui.components.showsExplicit
 import com.music.bitchord.playback.ExplicitFilter
 import com.music.bitchord.playback.ExplicitFilterMode
@@ -645,9 +646,10 @@ fun BitChordDesktopApp() {
     var autoplay by remember { mutableStateOf(persistence.boolean("autoplay", true)) }
     // An explicit song the filter stopped, and what to do once it's allowed (issue #720).
     var explicitPrompt by remember { mutableStateOf<Pair<Song, () -> Unit>?>(null) }
-    // The song most recently asked for, so a lyric verdict that lands late only speaks up while it
-    // is still the one the listener wanted.
+    // The song most recently asked for: a lyric verdict for any earlier one is let go.
     var lastAskedFor by remember { mutableStateOf<String?>(null) }
+    // The song whose lyrics a click is waiting on, for the "Checking lyrics…" pill.
+    var lyricsCheckPending by remember { mutableStateOf<String?>(null) }
     var dontRepeatSuggestions by remember {
         mutableStateOf(persistence.boolean(KEY_DONT_REPEAT_SUGGESTIONS, false))
     }
@@ -933,16 +935,19 @@ fun BitChordDesktopApp() {
     }
 
     /**
-     * A song that started while its lyrics were still being read: if they turn out explicit, the
-     * queue drops it, so say why — with the same choices the click would have offered — as long as
-     * it is still the last thing asked for.
+     * Reads [song]'s lyrics in full, with the "Checking lyrics…" pill up, then runs [then] — unless
+     * something else was asked for meanwhile, which takes over.
      */
-    suspend fun promptIfLateVerdictBlocks(song: Song, sourceId: String?, proceed: () -> Unit) {
-        if (DesktopExplicit.lyricsChecker.check(song) == true &&
-            lastAskedFor == song.videoId &&
-            song.desktopExplicitBlocked(sourceId = sourceId ?: song.playbackSourceId)
-        ) {
-            explicitPrompt = song to proceed
+    fun readLyricsThen(song: Song, then: () -> Unit) {
+        if (lyricsCheckPending == song.videoId) return
+        lyricsCheckPending = song.videoId
+        scope.launch {
+            try {
+                DesktopExplicit.checkLyricsBeforePlaying(song)
+            } finally {
+                if (lyricsCheckPending == song.videoId) lyricsCheckPending = null
+            }
+            if (lastAskedFor == song.videoId) then()
         }
     }
 
@@ -954,16 +959,13 @@ fun BitChordDesktopApp() {
     fun gateExplicit(song: Song?, sourceId: String?, lyricsRead: Boolean = false, proceed: () -> Unit) {
         lastAskedFor = song?.videoId
         // "Check lyrics for explicit content": a song nobody has read yet is read before it plays,
-        // for up to a couple of seconds, then judged with whatever verdict is in. What plays after
-        // it is read as it comes up.
+        // and never starts before its verdict is in. Most songs on screen have been read already
+        // (see [DesktopExplicit.precheckLyrics]). What plays after it is read as it comes up.
         if (!lyricsRead && song != null && DesktopExplicit.needsLyricsCheck(song)) {
-            scope.launch {
-                val verdict = DesktopExplicit.checkLyricsBeforePlaying(song)
-                gateExplicit(song, sourceId, lyricsRead = true, proceed = proceed)
-                if (verdict == null) promptIfLateVerdictBlocks(song, sourceId, proceed)
-            }
+            readLyricsThen(song) { gateExplicit(song, sourceId, lyricsRead = true, proceed = proceed) }
             return
         }
+        lyricsCheckPending = null
         if (song != null && song.desktopExplicitBlocked(sourceId = sourceId ?: song.playbackSourceId)) {
             explicitPrompt = song to proceed
         } else {
@@ -986,15 +988,10 @@ fun BitChordDesktopApp() {
         val picked = songs.getOrNull(startIndex)
         lastAskedFor = picked?.videoId
         if (!lyricsRead && picked != null && DesktopExplicit.needsLyricsCheck(picked)) {
-            scope.launch {
-                val verdict = DesktopExplicit.checkLyricsBeforePlaying(picked)
-                playSongs(songs, startIndex, source, lyricsRead = true)
-                if (verdict == null) {
-                    promptIfLateVerdictBlocks(picked, source?.id) { playSongs(songs, startIndex, source, lyricsRead = true) }
-                }
-            }
+            readLyricsThen(picked) { playSongs(songs, startIndex, source, lyricsRead = true) }
             return
         }
+        lyricsCheckPending = null
         if (picked != null && picked.desktopExplicitBlocked(sourceId = source?.id ?: picked.playbackSourceId)) {
             explicitPrompt = picked to { playSongs(songs, startIndex, source) }
             return
@@ -3144,6 +3141,7 @@ fun BitChordDesktopApp() {
             // Greys out songs the explicit filter blocks, in every shared row and card.
             LocalExplicitBlocked provides rememberDesktopRowBlocked(explicitPolicy),
             LocalExplicitByLyrics provides rememberDesktopExplicitByLyrics(explicitPolicy),
+            LocalLyricsPrecheck provides DesktopExplicit::precheckLyrics,
         ) {
             DesktopFrame(
                 // The phone's page is black, not the near-black of its cards.
@@ -3625,6 +3623,7 @@ fun BitChordDesktopApp() {
                             onDismiss = ::closePlaylistDialogs,
                         )
                     }
+                    DesktopLyricsCheckPill(visible = lyricsCheckPending != null)
                     explicitPrompt?.let { (song, proceed) ->
                         // Keyed on the song so a second blocked click starts a fresh card rather
                         // than reusing one that is animating out.

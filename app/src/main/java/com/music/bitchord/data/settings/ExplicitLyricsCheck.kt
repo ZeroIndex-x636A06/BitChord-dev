@@ -10,7 +10,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * The phone's side of "Check lyrics for explicit content": the shared
@@ -42,22 +44,24 @@ object ExplicitLyricsCheck {
         store.load(prefs.getString(KEY_VERDICTS, null))
     }
 
-    /**
-     * Starts reading [song] and waits for the verdict for at most [TAP_WAIT_MS]
-     * — what a tap holds the song for. A check still running after that keeps
-     * going, and when it finds the song explicit the player drops it, whether
-     * it has started or not; null meanwhile.
-     */
-    suspend fun checkBeforePlaying(song: Song): Boolean? {
-        val verdict = scope.async { checker.check(song) }
-        return withTimeoutOrNull(TAP_WAIT_MS) { verdict.await() }
-    }
+    /** Prechecks running together, so a scrolled list doesn't fire off a burst. */
+    private val prechecks = Semaphore(PRECHECKS_AT_ONCE)
 
     /**
-     * How long a tap waits on the lyric check before the song starts anyway.
-     * Most songs are settled well inside it, by YouTube Music's own lyrics.
+     * The verdict for a song about to play, read in full if it hasn't been —
+     * the tap waits for it, at most [ExplicitLyricsChecker.BUDGET_MS]. Run
+     * where leaving the screen can't cut it short; null when it couldn't be
+     * read.
      */
-    const val TAP_WAIT_MS = 2_500L
+    suspend fun checkBeforePlaying(song: Song): Boolean? = scope.async { checker.check(song) }.await()
+
+    /** [ExplicitLyricsChecker.precheck] for a song on screen, a couple at a time. */
+    fun precheck(song: Song) {
+        if (!AppSettings.explicitNeedsLyricsCheck(song)) return
+        scope.launch { prechecks.withPermit { checker.precheck(song) } }
+    }
+
+    private const val PRECHECKS_AT_ONCE = 2
 
     private const val FILE = "explicit_lyrics"
     private const val KEY_VERDICTS = "verdicts"

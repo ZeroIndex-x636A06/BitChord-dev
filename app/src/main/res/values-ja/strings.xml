@@ -1294,6 +1294,7 @@
     <string name="block_explicit_song">この曲を再びブロック</string>
     <string name="explicit_songs_skipped">フィルターにより露骨な表現を含む曲をスキップしました</string>
     <string name="check_lyrics_explicit">歌詞の露骨な表現をチェック</string>
+    <string name="checking_lyrics">歌詞を確認中…</string>
     <string name="check_lyrics_explicit_subtitle">YouTube Music で露骨と表示されていなくても、歌詞に汚い言葉が複数ある曲もブロックします</string>
     <string name="explicit_lyrics_blocked_message">「%1$s」の歌詞には露骨な表現が含まれるため、フィルターでブロックされています。</string>
 </resources>

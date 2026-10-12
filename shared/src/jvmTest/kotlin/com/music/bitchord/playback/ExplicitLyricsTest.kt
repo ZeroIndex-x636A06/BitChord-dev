@@ -164,6 +164,24 @@ class ExplicitLyricsTest {
     }
 
     @Test
+    fun `a precheck settles songs YouTube Music has lyrics for, and nothing else`() = runBlocking {
+        val store = ExplicitLyricsStore { }
+        val withWords = Words(exact = swearing)
+        checker(withWords, store).precheck(song("own"))
+        assertTrue(store.knows("own"))
+        assertEquals(setOf("own"), store.flagged.value)
+
+        // No lyrics of its own: nothing recorded, and the tap's full check
+        // doesn't ask YouTube Music a second time.
+        val without = Words(others = listOf(clean))
+        val checker = checker(without, store)
+        checker.precheck(song("none"))
+        assertFalse(store.knows("none"))
+        assertEquals(false, checker.check(song("none")))
+        assertEquals(1, without.asked)
+    }
+
+    @Test
     fun `this video's own lyrics settle it`() = runBlocking {
         // A clean edit: YouTube Music's words for it are clean, while lyrics
         // sites print the original's (the clean HUMBLE. reads 36 on Apple's).

@@ -110,6 +110,7 @@
     <string name="d_one_song_allowed">1 गाने को फ़िल्टर से अनुमति मिली</string>
     <string name="d_songs_allowed">%1$d गानों को फ़िल्टर से अनुमति मिली</string>
     <string name="d_check_lyrics_explicit">बोलों में अश्लील सामग्री जाँचें</string>
+    <string name="d_checking_lyrics">बोल जाँचे जा रहे हैं…</string>
     <string name="d_check_lyrics_explicit_subtitle">उन गानों को भी ब्लॉक करें जिनके बोलों में कई अपशब्द हों, भले ही YouTube Music उन्हें अश्लील न बताए</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s” के बोल अश्लील हैं और आपका फ़िल्टर इसे ब्लॉक कर रहा है।</string>
 </resources>

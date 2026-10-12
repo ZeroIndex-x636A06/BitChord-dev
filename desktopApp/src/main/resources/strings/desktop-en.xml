@@ -112,6 +112,7 @@
     <string name="d_one_song_allowed">1 song allowed past the filter</string>
     <string name="d_songs_allowed">%1$d songs allowed past the filter</string>
     <string name="d_check_lyrics_explicit">Check lyrics for explicit content</string>
+    <string name="d_checking_lyrics">Checking lyrics…</string>
     <string name="d_check_lyrics_explicit_subtitle">Also block songs whose lyrics have several swear words, even if YouTube Music doesn’t mark them explicit</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s” has explicit lyrics and your filter is blocking it.</string>
 </resources>

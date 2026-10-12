@@ -8,14 +8,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -29,6 +35,8 @@ import com.music.bitchord.data.settings.AppSettings
 data class QueueActionNotice(
     val id: Int,
     val message: String,
+    /** Something is still going on: drawn with a spinner, and stays up until replaced. */
+    val busy: Boolean = false,
 )
 
 /** Brief queue confirmation shown immediately above the mini player. */
@@ -65,11 +73,23 @@ fun QueueActionNoticeHost(
                     .padding(bottom = 8.dp)
                     .semantics { liveRegion = LiveRegionMode.Polite },
             ) {
-                Text(
-                    text = current.message,
-                    style = MaterialTheme.typography.bodyLarge,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-                )
+                ) {
+                    if (current.busy) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                    }
+                    Text(
+                        text = current.message,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
             }
         }
     }

@@ -1319,6 +1319,7 @@
     <string name="block_explicit_song">Bloquer à nouveau ce titre explicite</string>
     <string name="explicit_songs_skipped">Titres explicites ignorés par votre filtre</string>
     <string name="check_lyrics_explicit">Vérifier les paroles explicites</string>
+    <string name="checking_lyrics">Vérification des paroles…</string>
     <string name="check_lyrics_explicit_subtitle">Bloque aussi les titres dont les paroles contiennent plusieurs grossièretés, même si YouTube Music ne les marque pas comme explicites</string>
     <string name="explicit_lyrics_blocked_message">« %1$s » a des paroles explicites et votre filtre le bloque.</string>
 </resources>

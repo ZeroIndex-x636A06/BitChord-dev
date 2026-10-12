@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -164,6 +165,40 @@ internal fun DesktopExplicitBlockedDialog(
         }
     }
 }
+
+/**
+ * "Checking lyrics…" above the player bar while a click waits on the lyric check. Comes up only
+ * once the check has taken [LYRICS_PILL_AFTER_MS], so a quick one doesn't flicker; takes no clicks.
+ */
+@Composable
+internal fun DesktopLyricsCheckPill(visible: Boolean) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(visible) {
+        if (visible) delay(LYRICS_PILL_AFTER_MS)
+        shown = visible
+    }
+    Box(Modifier.fillMaxSize().padding(bottom = 112.dp), contentAlignment = Alignment.BottomCenter) {
+        AnimatedVisibility(visible = shown, enter = fadeIn(tween(ENTER_MS)), exit = fadeOut(tween(EXIT_MS))) {
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF282828))
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    DesktopStrings["d_checking_lyrics", "Checking lyrics…"],
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                )
+            }
+        }
+    }
+}
+
+private const val LYRICS_PILL_AFTER_MS = 300L
 
 /** How long "Clear all" waits for its confirming second click. */
 private const val CLEAR_CONFIRM_WINDOW_MS = 4_000L

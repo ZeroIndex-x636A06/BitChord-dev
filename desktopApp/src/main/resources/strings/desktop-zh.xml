@@ -110,6 +110,7 @@
     <string name="d_one_song_allowed">已允许 1 首歌曲通过过滤</string>
     <string name="d_songs_allowed">已允许 %1$d 首歌曲通过过滤</string>
     <string name="d_check_lyrics_explicit">检查歌词中的露骨内容</string>
+    <string name="d_checking_lyrics">正在检查歌词…</string>
     <string name="d_check_lyrics_explicit_subtitle">即使 YouTube Music 未标记为露骨，歌词中含多个脏话的歌曲也会被屏蔽</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s”的歌词含露骨内容，已被你的过滤器屏蔽。</string>
 </resources>

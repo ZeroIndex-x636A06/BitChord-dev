@@ -1290,6 +1290,7 @@
     <string name="block_explicit_song">Volver a bloquear esta canción explícita</string>
     <string name="explicit_songs_skipped">Tu filtro omitió las canciones explícitas</string>
     <string name="check_lyrics_explicit">Revisar letras con contenido explícito</string>
+    <string name="checking_lyrics">Revisando la letra…</string>
     <string name="check_lyrics_explicit_subtitle">También bloquea canciones cuya letra tiene varias groserías, aunque YouTube Music no las marque como explícitas</string>
     <string name="explicit_lyrics_blocked_message">“%1$s” tiene letra explícita y tu filtro la está bloqueando.</string>
 </resources>

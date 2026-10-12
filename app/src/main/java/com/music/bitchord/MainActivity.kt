@@ -204,6 +204,7 @@ import com.music.bitchord.ui.components.rememberExplicitPolicy
 import com.music.bitchord.ui.components.rememberExplicitRowBlocked
 import com.music.bitchord.ui.components.rememberExplicitByLyrics
 import com.music.bitchord.ui.components.LocalExplicitByLyrics
+import com.music.bitchord.ui.components.LocalLyricsPrecheck
 import com.music.bitchord.data.settings.ExplicitLyricsCheck
 import com.music.bitchord.data.settings.SearchHistory
 import com.music.bitchord.playback.explicitBlocked
@@ -347,6 +348,9 @@ private const val TOP_FADE_RAMP = 0.3f
 
 private const val INITIAL_RADIO_TRACKS = 24
 
+/** How long a lyric check runs before "Checking lyrics…" goes up — so a quick one doesn't flicker. */
+private const val LYRICS_NOTICE_AFTER_MS = 300L
+
 internal fun shouldSkipAfterDislike(
     previousStatus: LikeStatus,
     targetVideoId: String,
@@ -406,6 +410,7 @@ class MainActivity : AppCompatActivity() {
                     LocalAppBackdrop provides appBackdrop,
                     LocalExplicitBlocked provides explicitRowBlocked,
                     LocalExplicitByLyrics provides explicitByLyrics,
+                    LocalLyricsPrecheck provides ExplicitLyricsCheck::precheck,
                 ) {
                 // The window's width, measured rather than asked for.
                 //
@@ -954,6 +959,8 @@ private fun BitChordApp(
     }
     LaunchedEffect(queueNotice?.id) {
         val shown = queueNotice ?: return@LaunchedEffect
+        // A busy notice stays until whatever it is waiting on clears it.
+        if (shown.busy) return@LaunchedEffect
         delay(3_000)
         if (queueNotice?.id == shown.id) queueNotice = null
     }
@@ -1335,42 +1342,45 @@ private fun BitChordApp(
         }
     }
     // "Check lyrics for explicit content": a song nobody has read yet is read
-    // before it plays, so the first play of Jump Around is the blocked one —
-    // but only for as long as [ExplicitLyricsCheck.TAP_WAIT_MS]. A check that
-    // needs longer carries on while the song plays, and the player drops the
-    // song if it turns out explicit. Only the song asked for — what plays
-    // after it is read by the player as it comes up. A second tap while the
-    // first is still being read is dropped rather than queued behind it.
+    // before it plays, so the first play of Jump Around is the blocked one,
+    // and it never starts before its verdict is in. Most songs on screen have
+    // been read already (see [ExplicitLyricsCheck.precheck]); for the rest a
+    // "Checking lyrics…" notice says what the wait is. Only the song asked
+    // for — what plays after it is read by the player as it comes up. A
+    // second tap on the same song while it is being read is dropped; a tap on
+    // another song takes over from it.
     var lyricsCheckPending by remember { mutableStateOf<String?>(null) }
-    // The song most recently asked for, so a verdict that lands late only
-    // speaks up while it is still the one the listener wanted.
+    // The song most recently asked for: a verdict for any earlier one is let go.
     var lastAskedFor by remember { mutableStateOf<String?>(null) }
     val gateExplicit: (Song?, String?, () -> Unit) -> Unit = gate@{ song, sourceId, proceed ->
         lastAskedFor = song?.videoId
         if (song == null || !AppSettings.explicitNeedsLyricsCheck(song)) {
+            lyricsCheckPending = null
             gateExplicitNow(song, sourceId, proceed)
             return@gate
         }
         if (lyricsCheckPending == song.videoId) return@gate
         lyricsCheckPending = song.videoId
         scope.launch {
-            val verdict = try {
+            try {
                 ExplicitLyricsCheck.checkBeforePlaying(song)
             } finally {
-                lyricsCheckPending = null
+                if (lyricsCheckPending == song.videoId) lyricsCheckPending = null
             }
+            if (lastAskedFor != song.videoId) return@launch
             gateExplicitNow(song, sourceId, proceed)
-            if (verdict != null) return@launch
-            // Still being read when the song started. If it turns out
-            // explicit the player drops it; say why, with the same choices
-            // the tap would have offered.
-            if (ExplicitLyricsCheck.checker.check(song) == true &&
-                lastAskedFor == song.videoId &&
-                song.explicitBlocked(sourceId = sourceId ?: song.playbackSourceId)
-            ) {
-                explicitPrompt = song to proceed
-            }
         }
+    }
+    // The wait made visible, on the strip above the mini player. Not for a
+    // check that answers at once, so a quick one doesn't flicker.
+    LaunchedEffect(lyricsCheckPending) {
+        if (lyricsCheckPending == null) {
+            if (queueNotice?.busy == true) queueNotice = null
+            return@LaunchedEffect
+        }
+        delay(LYRICS_NOTICE_AFTER_MS)
+        queueNoticeId += 1
+        queueNotice = QueueActionNotice(queueNoticeId, context.getString(R.string.checking_lyrics), busy = true)
     }
 
     val playFromUnchecked: (List<Song>, Int, QueueSource) -> Unit = playFrom@{ allSongs, allIndex, source ->

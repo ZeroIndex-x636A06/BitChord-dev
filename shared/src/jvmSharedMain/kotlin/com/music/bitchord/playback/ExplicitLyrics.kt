@@ -250,11 +250,10 @@ class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : Exp
     private companion object {
         /**
          * How long one source may take. A source that hasn't answered by then
-         * almost never has the song — the live measurements had the slowest
-         * misses at six and a half seconds — and a verdict is wanted while the
-         * song is starting, not after.
+         * rarely has the song — in the live measurements most answers came
+         * within two seconds — and a tap is waiting on the verdict.
          */
-        const val PER_SOURCE_MS = 4_000L
+        const val PER_SOURCE_MS = 3_000L
     }
 }
 
@@ -290,12 +289,20 @@ class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : Exp
  *
  * A check that couldn't finish — offline, or out of [BUDGET_MS] before any
  * source answered — isn't recorded, so the song is read again next time.
+ *
+ * [precheck] does step 1 alone, for songs a list is showing: it is one quick
+ * request to YouTube Music, settles most songs, and means a tap on them has
+ * nothing left to wait for.
  */
 class ExplicitLyricsChecker(
     private val store: ExplicitLyricsStore,
     private val lyrics: ExplicitLyricsSource,
 ) {
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Boolean?>>()
+    private val ownInFlight = ConcurrentHashMap<String, CompletableDeferred<List<String>?>>()
+
+    /** Songs YouTube Music has no lyrics for, so a tap after a [precheck] doesn't ask again. */
+    private val noOwnWords: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     /** Whether [song] still has to be read before the filter can judge it. */
     fun needsCheck(song: Song): Boolean =
@@ -323,8 +330,42 @@ class ExplicitLyricsChecker(
         }
     }
 
+    /**
+     * Step 1 alone, for a song on screen: when YouTube Music has lyrics for
+     * this very video they settle it, and the verdict is recorded so a tap on
+     * it plays at once. Otherwise nothing is recorded; a tap does the rest.
+     */
+    suspend fun precheck(song: Song) {
+        if (!needsCheck(song)) return
+        val own = runCatching { ownWords(song) }.getOrNull()
+        if (!own.isNullOrEmpty() && !store.knows(song.videoId)) {
+            store.record(song.videoId, ExplicitLyrics.isExplicit(own, countMasked = false))
+        }
+    }
+
+    /** [ExplicitLyricsSource.exact], asked once per song however many want it at the same time. */
+    private suspend fun ownWords(song: Song): List<String>? {
+        if (song.videoId in noOwnWords) return null
+        val mine = CompletableDeferred<List<String>?>()
+        ownInFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }
+        try {
+            val words = lyrics.exact(song)
+            if (words.isNullOrEmpty()) {
+                if (noOwnWords.size >= MAX_REMEMBERED_MISSES) noOwnWords.clear()
+                noOwnWords += song.videoId
+            }
+            mine.complete(words)
+            return words
+        } catch (e: Throwable) {
+            mine.completeExceptionally(e)
+            throw e
+        } finally {
+            ownInFlight.remove(song.videoId, mine)
+        }
+    }
+
     private suspend fun judge(song: Song): Boolean? {
-        val exact = lyrics.exact(song)
+        val exact = ownWords(song)
         // A mask in a recording's own words means the word is muted in it too.
         if (!exact.isNullOrEmpty()) return ExplicitLyrics.isExplicit(exact, countMasked = false)
 
@@ -363,11 +404,17 @@ class ExplicitLyricsChecker(
     }
 
     companion object {
-        /** Longest a whole check may run before it gives up unrecorded. */
-        const val BUDGET_MS = 25_000L
+        /**
+         * Longest a whole check may run before it gives up unrecorded. A tap
+         * waits for the verdict, so this is also the longest a tap can wait.
+         */
+        const val BUDGET_MS = 8_000L
 
         /** Longest the other sources are waited on. */
-        const val OTHERS_MS = 15_000L
+        const val OTHERS_MS = 6_000L
+
+        /** Videos remembered as having no YouTube Music lyrics, before the list starts over. */
+        private const val MAX_REMEMBERED_MISSES = 2_000
 
         /** Namesakes with words needed before they can speak for a song with none. */
         const val SAME_TITLE_MIN = 3
