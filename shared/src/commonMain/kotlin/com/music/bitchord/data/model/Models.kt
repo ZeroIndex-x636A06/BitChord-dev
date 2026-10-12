@@ -1,5 +1,7 @@
 package com.music.bitchord.data.model
 
+import kotlin.math.abs
+
 /** Tier of an item in the playback queue. */
 enum class QueueTier {
     /** Explicitly queued by user ("Play Next", "Add to Queue", or preserved user queue). */
@@ -210,13 +212,52 @@ fun Song.artworkAt(px: Int): String? = thumbnailUrl.artworkAt(px)
  * That is the trade the highlight is meant to make — it says "this is the song
  * you are hearing", not "this is the queue entry you are hearing".
  *
+ * Length is the one tiebreak that travels across catalogues. A deluxe edition
+ * can carry two different recordings under one name — Xscape lists each song
+ * twice, the 2014 production and the original demo — and those differ by tens
+ * of seconds, where one recording from two sources differs by a second or two.
+ * So two rows whose stated lengths are further apart than
+ * [SAME_RECORDING_TOLERANCE_MS] are different songs. A row that states no
+ * length is never ruled out on that account.
+ *
  * The one place that must not use this is the player's own queue, where the
  * entry, not the song, is what the row stands for — that list matches on
  * position.
  */
 fun Song.isSameTrackAs(other: Song?): Boolean {
     other ?: return false
-    return title == other.title && artist == other.artist
+    if (title != other.title || artist != other.artist) return false
+    val mine = durationMillis()
+    val theirs = other.durationMillis()
+    return mine == 0L || theirs == 0L || abs(mine - theirs) <= SAME_RECORDING_TOLERANCE_MS
+}
+
+/**
+ * How far apart two stated lengths may be and still be the same recording.
+ * Sources round differently and some trim a second of silence; a different
+ * recording of the same song is almost never this close.
+ */
+const val SAME_RECORDING_TOLERANCE_MS = 3_000L
+
+/**
+ * Which rows of this list stand for [current], as a test to run per row.
+ *
+ * [Song.isSameTrackAs] is right for a row with nothing better to go on, but a
+ * list that holds the very entry being played does have something better: its
+ * id. When it does, that row alone lights up, so two same-named, same-length
+ * versions on one release can no longer both claim to be playing. Only when
+ * the playing id is not in the list — it came from a download, a local file or
+ * another catalogue — does the name-and-credit match take over, and then for
+ * the first row it finds.
+ */
+fun List<Song>.nowPlayingMatcher(current: Song?): (Song) -> Boolean {
+    current ?: return { false }
+    val id = current.videoId
+    if (any { it.videoId == id }) return { it.videoId == id }
+    // Not in the list: the closest row by name, credit and length — one of
+    // them, so two rows with no length to tell them apart don't both light up.
+    val match = firstOrNull { it.isSameTrackAs(current) }?.videoId ?: return { false }
+    return { it.videoId == match }
 }
 
 /**
