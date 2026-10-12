@@ -1289,4 +1289,37 @@
     <string name="spotify_sign_in">Bei Spotify anmelden</string>
     <string name="spotify_use_spdc_token">sp_dc-Token verwenden</string>
     <string name="spotify_track_unavailable">Diesen Titel gab es nicht auf YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Explizite Inhalte filtern</string>
+    <string name="filter_explicit_content_subtitle">Autoplay und Radio fügen keine als explizit markierten Songs hinzu</string>
+    <string name="block_explicit_everywhere">Explizite Songs überall sperren</string>
+    <string name="block_explicit_everywhere_subtitle">Explizite Songs werden nur abgespielt, wenn du sie einzeln erlaubst</string>
+    <string name="allow_explicit_in_my_playlists">Explizite Songs in meinen Playlists erlauben</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Songs in Playlists, die du erstellt hast, werden normal abgespielt, auch wenn sie anderswo gesperrt sind</string>
+    <string name="allowed_explicit_songs">Erlaubte explizite Songs</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d Song am Filter vorbei erlaubt</item>
+        <item quantity="other">%1$d Songs am Filter vorbei erlaubt</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Diese werden abgespielt, auch wenn der Filter explizite Songs sperrt. Entferne einen, um ihn wieder zu sperren.</string>
+    <string name="allowed_explicit_songs_empty">Noch keine Songs erlaubt. Tippe auf einen ausgegrauten Song und wähle Erlauben, oder nutze „Diesen expliziten Song erlauben“ in seinem Menü.</string>
+    <string name="clear_all">Alle löschen</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">%1$d Song entfernen</item>
+        <item quantity="other">Alle %1$d Songs entfernen</item>
+    </plurals>
+    <string name="explicit_song_blocked">Expliziter Song</string>
+    <string name="explicit_song_blocked_message">„%1$s“ ist als explizit markiert und wird von deinem Filter gesperrt.</string>
+    <string name="allow_this_song">Diesen Song erlauben</string>
+    <string name="turn_off_blocking">Sperre ausschalten</string>
+    <string name="turn_off_lyrics_check">Songtext-Prüfung ausschalten</string>
+    <string name="tap_again_to_confirm">Zum Bestätigen erneut tippen</string>
+    <string name="allow_explicit_song">Diesen expliziten Song erlauben</string>
+    <string name="block_explicit_song">Diesen expliziten Song wieder sperren</string>
+    <string name="explicit_songs_skipped">Explizite Songs wurden von deinem Filter übersprungen</string>
+    <string name="check_lyrics_explicit">Songtexte auf explizite Inhalte prüfen</string>
+    <string name="checking_lyrics">Songtext wird geprüft…</string>
+    <string name="check_lyrics_explicit_subtitle">Sperrt auch Songs, deren Texte mehrere Schimpfwörter enthalten, selbst wenn YouTube Music sie nicht als explizit markiert</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Aktiviere Songtexte, um dies zu nutzen</string>
+    <string name="explicit_lyrics_blocked_message">„%1$s“ hat einen expliziten Text und wird von deinem Filter gesperrt.</string>
 </resources>

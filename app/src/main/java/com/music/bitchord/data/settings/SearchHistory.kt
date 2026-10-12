@@ -62,6 +62,16 @@ object SearchHistory {
         save((listOf(entity) + deduped).take(MAX_ENTRIES))
     }
 
+    /**
+     * Fills in a track's explicit badge, found out after it was recorded,
+     * without moving it — see [SearchHistoryEntity.isExplicit].
+     */
+    fun noteExplicit(id: String, explicit: Boolean) {
+        val current = _recent.value
+        if (current.none { it.id == id && it.isExplicit != explicit }) return
+        save(current.map { if (it.id == id) it.copy(isExplicit = explicit) else it })
+    }
+
     fun remove(id: String) {
         save(_recent.value.filterNot { it.id.equals(id, ignoreCase = true) })
     }

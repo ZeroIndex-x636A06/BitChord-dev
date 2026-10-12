@@ -122,6 +122,9 @@ object YtMusicRepository {
                     thumbnailUrl = it.thumbnailUrl,
                     videoId = it.videoId,
                     browseId = null,
+                    // Carried through so Recents can badge and filter explicit
+                    // tracks like every other list does.
+                    isExplicit = it.isExplicit,
                 )
             },
         )

@@ -66,4 +66,5 @@ internal enum class DesktopSettingsPage {
     SPOTIFY_CANVAS,
     INTEGRATIONS,
     LICENSES,
+    ALLOWED_EXPLICIT,
 }

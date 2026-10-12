@@ -1290,4 +1290,37 @@
     <string name="spotify_sign_in">Se connecter avec Spotify</string>
     <string name="spotify_use_spdc_token">Utiliser un jeton sp_dc</string>
     <string name="spotify_track_unavailable">Impossible de trouver ce titre sur YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Filtrer le contenu explicite</string>
+    <string name="filter_explicit_content_subtitle">La lecture automatique et la radio n\'ajouteront pas de titres marqués explicites</string>
+    <string name="block_explicit_everywhere">Bloquer les titres explicites partout</string>
+    <string name="block_explicit_everywhere_subtitle">Les titres explicites ne seront pas lus, sauf si vous les autorisez un par un</string>
+    <string name="allow_explicit_in_my_playlists">Autoriser les titres explicites dans mes playlists</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Les titres ajoutés à vos propres playlists sont lus normalement, même s\'ils sont bloqués ailleurs</string>
+    <string name="allowed_explicit_songs">Titres explicites autorisés</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">%1$d titre autorisé malgré le filtre</item>
+        <item quantity="other">%1$d titres autorisés malgré le filtre</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Ces titres sont lus même quand le filtre bloque les titres explicites. Retirez-en un pour le bloquer à nouveau.</string>
+    <string name="allowed_explicit_songs_empty">Aucun titre autorisé pour l\'instant. Touchez un titre grisé et choisissez Autoriser, ou utilisez « Autoriser ce titre explicite » dans son menu.</string>
+    <string name="clear_all">Tout effacer</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">Retirer %1$d titre</item>
+        <item quantity="other">Retirer les %1$d titres</item>
+    </plurals>
+    <string name="explicit_song_blocked">Titre explicite</string>
+    <string name="explicit_song_blocked_message">« %1$s » est marqué explicite et votre filtre le bloque.</string>
+    <string name="allow_this_song">Autoriser ce titre</string>
+    <string name="turn_off_blocking">Désactiver le blocage</string>
+    <string name="turn_off_lyrics_check">Désactiver la vérification des paroles</string>
+    <string name="tap_again_to_confirm">Touchez à nouveau pour confirmer</string>
+    <string name="allow_explicit_song">Autoriser ce titre explicite</string>
+    <string name="block_explicit_song">Bloquer à nouveau ce titre explicite</string>
+    <string name="explicit_songs_skipped">Titres explicites ignorés par votre filtre</string>
+    <string name="check_lyrics_explicit">Vérifier les paroles explicites</string>
+    <string name="checking_lyrics">Vérification des paroles…</string>
+    <string name="check_lyrics_explicit_subtitle">Bloque aussi les titres dont les paroles contiennent plusieurs grossièretés, même si YouTube Music ne les marque pas comme explicites</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Activez les paroles pour utiliser ceci</string>
+    <string name="explicit_lyrics_blocked_message">« %1$s » a des paroles explicites et votre filtre le bloque.</string>
 </resources>

@@ -12,9 +12,15 @@ import kotlinx.serialization.json.longOrNull
 
 /** Lyrics exposed by YouTube Music's Lyrics tab for the exact playing video. */
 object YouTubeMusicLyrics {
-    suspend fun lyrics(videoId: String): List<LyricLine>? = withContext(Dispatchers.IO) {
+    suspend fun lyrics(videoId: String): List<LyricLine>? = runCatching { lyricsOrThrow(videoId) }.getOrNull()
+
+    /**
+     * [lyrics], except that a request that failed throws instead of reading as
+     * "no lyrics" — for callers that must not take being offline for an answer.
+     */
+    suspend fun lyricsOrThrow(videoId: String): List<LyricLine>? = withContext(Dispatchers.IO) {
         if (!YOUTUBE_ID.matches(videoId)) return@withContext null
-        val next = runCatching { Innertube.next(videoId) }.getOrNull() ?: return@withContext null
+        val next = Innertube.next(videoId)
         val endpoint = next.objectsNamed("tabRenderer")
             .firstOrNull { it.youtubeStrings().any { text -> text.equals("Lyrics", ignoreCase = true) } }
             ?.objectsNamed("browseEndpoint")?.firstOrNull()
@@ -25,7 +31,7 @@ object YouTubeMusicLyrics {
         val browseId = (endpoint["browseId"] as? JsonPrimitive)?.contentOrNull
             ?: return@withContext null
         val params = (endpoint["params"] as? JsonPrimitive)?.contentOrNull
-        val page = runCatching { Innertube.browse(browseId, params) }.getOrNull() ?: return@withContext null
+        val page = Innertube.browse(browseId, params)
         val shelf = page.objectsNamed("musicDescriptionShelfRenderer").firstOrNull()
             ?: return@withContext null
         val text = shelf["description"]?.youtubeStrings()?.joinToString("").orEmpty().trim()

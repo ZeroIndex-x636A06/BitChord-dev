@@ -1828,6 +1828,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(fromTypeahead.song.artist).joinToString(" · "),
                 artworkUrl = fromTypeahead.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = fromTypeahead.song.isExplicit,
             ))
             return
         }
@@ -1838,6 +1839,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(fromTypeahead.song.artist).joinToString(" · "),
                 artworkUrl = fromTypeahead.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = fromTypeahead.song.isExplicit,
             ))
             return
         }
@@ -1852,6 +1854,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(topResult.song.artist).joinToString(" · "),
                 artworkUrl = topResult.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = topResult.song.isExplicit,
             ))
         } else if (topResult is SearchResult.TopTrack) {
             recordEntity(SearchHistoryEntity(
@@ -1860,6 +1863,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(topResult.song.artist).joinToString(" · "),
                 artworkUrl = topResult.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = topResult.song.isExplicit,
             ))
         } else {
             // Fallback: record as a raw-text entity for backwards compatibility

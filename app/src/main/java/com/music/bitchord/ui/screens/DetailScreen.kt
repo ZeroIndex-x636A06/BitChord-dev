@@ -2,6 +2,9 @@ package com.music.bitchord.ui.screens
 
 import android.os.Build
 import com.music.bitchord.R
+import com.music.bitchord.playback.firstPlayableIndex
+import com.music.bitchord.ui.components.LocalExplicitBlocked
+import com.music.bitchord.ui.components.explicitDimmed
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -454,7 +457,7 @@ fun DetailScreen(
                         artHeight = artHeight,
                         trackCount = songs.size,
                         songs = songs,
-                        onPlay = { onSongClick(songs, 0) },
+                        onPlay = { onSongClick(songs, songs.firstPlayableIndex(page.browseId)) },
                         onShuffle = { onShuffle(songs) },
                         searching = searching,
                         onSearch = {
@@ -492,7 +495,7 @@ fun DetailScreen(
                 item(key = "actions") {
                     ActionRow(
                         palette = palette,
-                        onPlay = { onSongClick(songs, 0) },
+                        onPlay = { onSongClick(songs, songs.firstPlayableIndex(page.browseId)) },
                         onShuffle = { onShuffle(songs) },
                         subscription = page.subscription?.takeIf { onToggleSubscription != null },
                         onToggleSubscription = onToggleSubscription,
@@ -1628,6 +1631,7 @@ private fun CompactSongRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .explicitDimmed(LocalExplicitBlocked.current(song))
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1687,6 +1691,7 @@ private fun SuggestedSongRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .explicitDimmed(LocalExplicitBlocked.current(song))
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .padding(horizontal = PAGE_GUTTER, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
