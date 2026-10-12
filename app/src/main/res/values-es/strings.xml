@@ -1284,6 +1284,7 @@
     <string name="explicit_song_blocked_message">«%1$s» está marcada como explícita y tu filtro la bloquea.</string>
     <string name="allow_this_song">Permitir esta canción</string>
     <string name="turn_off_blocking">Desactivar el bloqueo</string>
+    <string name="turn_off_lyrics_check">Desactivar revisión de letras</string>
     <string name="tap_again_to_confirm">Toca de nuevo para confirmar</string>
     <string name="allow_explicit_song">Permitir esta canción explícita</string>
     <string name="block_explicit_song">Volver a bloquear esta canción explícita</string>

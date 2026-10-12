@@ -92,6 +92,7 @@
     <string name="d_explicit_song">स्पष्ट गाना</string>
     <string name="d_explicit_song_blocked_message">“%1$s” स्पष्ट चिह्नित है और आपका फ़िल्टर इसे ब्लॉक कर रहा है।</string>
     <string name="d_turn_off_blocking">ब्लॉक करना बंद करें</string>
+    <string name="d_turn_off_lyrics_check">बोलों की जाँच बंद करें</string>
     <string name="d_allow_this_song">इस गाने की अनुमति दें</string>
     <string name="d_allowed_explicit_songs">अनुमत स्पष्ट गाने</string>
     <string name="d_allowed_explicit_songs_empty">अभी तक किसी गाने को अनुमति नहीं दी गई। धूसर गाने पर टैप करके अनुमति दें चुनें, या उसके मेनू में “इस स्पष्ट गाने की अनुमति दें” का उपयोग करें।</string>

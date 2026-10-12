@@ -1288,6 +1288,7 @@
     <string name="explicit_song_blocked_message">「%1$s」は露骨な表現を含む曲として指定されており、フィルターでブロックされています。</string>
     <string name="allow_this_song">この曲を許可</string>
     <string name="turn_off_blocking">ブロックをオフにする</string>
+    <string name="turn_off_lyrics_check">歌詞チェックをオフにする</string>
     <string name="tap_again_to_confirm">もう一度タップして確定</string>
     <string name="allow_explicit_song">この曲を許可</string>
     <string name="block_explicit_song">この曲を再びブロック</string>

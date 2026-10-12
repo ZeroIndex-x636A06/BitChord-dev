@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Titre explicite</string>
     <string name="d_explicit_song_blocked_message">« %1$s » est marqué explicite et votre filtre le bloque.</string>
     <string name="d_turn_off_blocking">Désactiver le blocage</string>
+    <string name="d_turn_off_lyrics_check">Désactiver la vérification des paroles</string>
     <string name="d_allow_this_song">Autoriser ce titre</string>
     <string name="d_allowed_explicit_songs">Titres explicites autorisés</string>
     <string name="d_allowed_explicit_songs_empty">Aucun titre autorisé pour l\'instant. Touchez un titre grisé et choisissez Autoriser, ou utilisez « Autoriser ce titre explicite » dans son menu.</string>

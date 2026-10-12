@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Brano esplicito</string>
     <string name="d_explicit_song_blocked_message">«%1$s» è contrassegnato come esplicito e il tuo filtro lo blocca.</string>
     <string name="d_turn_off_blocking">Disattiva il blocco</string>
+    <string name="d_turn_off_lyrics_check">Disattiva il controllo dei testi</string>
     <string name="d_allow_this_song">Consenti questo brano</string>
     <string name="d_allowed_explicit_songs">Brani espliciti consentiti</string>
     <string name="d_allowed_explicit_songs_empty">Nessun brano consentito. Tocca un brano in grigio e scegli Consenti, oppure usa «Consenti questo brano esplicito» nel suo menu.</string>

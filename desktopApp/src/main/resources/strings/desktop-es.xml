@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Canción explícita</string>
     <string name="d_explicit_song_blocked_message">«%1$s» está marcada como explícita y tu filtro la bloquea.</string>
     <string name="d_turn_off_blocking">Desactivar el bloqueo</string>
+    <string name="d_turn_off_lyrics_check">Desactivar revisión de letras</string>
     <string name="d_allow_this_song">Permitir esta canción</string>
     <string name="d_allowed_explicit_songs">Canciones explícitas permitidas</string>
     <string name="d_allowed_explicit_songs_empty">Aún no hay canciones permitidas. Toca una canción atenuada y elige Permitir, o usa «Permitir esta canción explícita» en su menú.</string>

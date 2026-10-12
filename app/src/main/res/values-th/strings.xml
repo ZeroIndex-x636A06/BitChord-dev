@@ -1293,6 +1293,7 @@
     <string name="explicit_song_blocked_message">“%1$s” ถูกทำเครื่องหมายว่าไม่เหมาะสมและตัวกรองของคุณกำลังบล็อกอยู่</string>
     <string name="allow_this_song">อนุญาตเพลงนี้</string>
     <string name="turn_off_blocking">ปิดการบล็อก</string>
+    <string name="turn_off_lyrics_check">ปิดการตรวจเนื้อเพลง</string>
     <string name="tap_again_to_confirm">แตะอีกครั้งเพื่อยืนยัน</string>
     <string name="allow_explicit_song">อนุญาตเพลงนี้</string>
     <string name="block_explicit_song">บล็อกเพลงนี้อีกครั้ง</string>

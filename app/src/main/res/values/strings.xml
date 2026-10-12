@@ -375,6 +375,7 @@
     <string name="explicit_song_blocked_message">“%1$s” is marked explicit and your filter is blocking it.</string>
     <string name="allow_this_song">Allow this song</string>
     <string name="turn_off_blocking">Turn off blocking</string>
+    <string name="turn_off_lyrics_check">Turn off lyrics check</string>
     <string name="tap_again_to_confirm">Tap again to confirm</string>
     <string name="allow_explicit_song">Allow this explicit song</string>
     <string name="block_explicit_song">Block this explicit song again</string>

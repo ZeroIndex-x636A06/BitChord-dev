@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Utwór dla dorosłych</string>
     <string name="d_explicit_song_blocked_message">„%1$s” jest oznaczony jako dla dorosłych i Twój filtr go blokuje.</string>
     <string name="d_turn_off_blocking">Wyłącz blokowanie</string>
+    <string name="d_turn_off_lyrics_check">Wyłącz sprawdzanie tekstów</string>
     <string name="d_allow_this_song">Zezwól na ten utwór</string>
     <string name="d_allowed_explicit_songs">Dozwolone utwory dla dorosłych</string>
     <string name="d_allowed_explicit_songs_empty">Brak dozwolonych utworów. Dotknij wyszarzonego utworu i wybierz Zezwól lub użyj opcji „Zezwól na ten utwór dla dorosłych” w jego menu.</string>

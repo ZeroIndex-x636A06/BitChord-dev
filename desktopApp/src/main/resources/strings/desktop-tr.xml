@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Müstehcen şarkı</string>
     <string name="d_explicit_song_blocked_message">“%1$s” müstehcen olarak işaretli ve filtreniz onu engelliyor.</string>
     <string name="d_turn_off_blocking">Engellemeyi kapat</string>
+    <string name="d_turn_off_lyrics_check">Şarkı sözü kontrolünü kapat</string>
     <string name="d_allow_this_song">Bu şarkıya izin ver</string>
     <string name="d_allowed_explicit_songs">İzin verilen müstehcen şarkılar</string>
     <string name="d_allowed_explicit_songs_empty">Henüz izin verilen şarkı yok. Gri görünen bir şarkıya dokunup İzin ver\'i seçin veya menüsündeki “Bu müstehcen şarkıya izin ver” seçeneğini kullanın.</string>

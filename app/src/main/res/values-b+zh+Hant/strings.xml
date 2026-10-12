@@ -1290,6 +1290,7 @@
     <string name="explicit_song_blocked_message">「%1$s」被標記為露骨，你的過濾器正在封鎖它。</string>
     <string name="allow_this_song">允許這首歌曲</string>
     <string name="turn_off_blocking">關閉封鎖</string>
+    <string name="turn_off_lyrics_check">關閉歌詞檢查</string>
     <string name="tap_again_to_confirm">再次輕觸以確認</string>
     <string name="allow_explicit_song">允許這首露骨歌曲</string>
     <string name="block_explicit_song">重新封鎖這首露骨歌曲</string>

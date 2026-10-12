@@ -1287,6 +1287,7 @@
     <string name="explicit_song_blocked_message">“%1$s” ditandai eksplisit dan diblokir oleh filter Anda.</string>
     <string name="allow_this_song">Izinkan lagu ini</string>
     <string name="turn_off_blocking">Matikan pemblokiran</string>
+    <string name="turn_off_lyrics_check">Matikan pemeriksaan lirik</string>
     <string name="tap_again_to_confirm">Ketuk lagi untuk mengonfirmasi</string>
     <string name="allow_explicit_song">Izinkan lagu eksplisit ini</string>
     <string name="block_explicit_song">Blokir lagu eksplisit ini lagi</string>

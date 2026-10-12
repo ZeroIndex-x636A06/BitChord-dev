@@ -3618,6 +3618,11 @@ fun BitChordDesktopApp() {
                                         DesktopExplicit.setMode(ExplicitFilterMode.SUGGESTIONS)
                                         proceed()
                                     }
+                                    // Caught by its lyrics alone: only that check goes.
+                                    DesktopExplicitChoice.TURN_OFF_LYRICS_CHECK -> {
+                                        DesktopExplicit.setLyricsCheck(false)
+                                        proceed()
+                                    }
                                     DesktopExplicitChoice.CANCEL -> Unit
                                 }
                             }

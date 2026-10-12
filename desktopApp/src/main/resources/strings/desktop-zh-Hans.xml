@@ -92,6 +92,7 @@
     <string name="d_explicit_song">露骨歌曲</string>
     <string name="d_explicit_song_blocked_message">“%1$s”被标记为露骨，你的过滤器正在屏蔽它。</string>
     <string name="d_turn_off_blocking">关闭屏蔽</string>
+    <string name="d_turn_off_lyrics_check">关闭歌词检查</string>
     <string name="d_allow_this_song">允许这首歌曲</string>
     <string name="d_allowed_explicit_songs">已允许的露骨歌曲</string>
     <string name="d_allowed_explicit_songs_empty">还没有允许任何歌曲。点按灰显的歌曲并选择“允许”，或在歌曲菜单中使用“允许这首露骨歌曲”。</string>

@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Expliziter Song</string>
     <string name="d_explicit_song_blocked_message">„%1$s“ ist als explizit markiert und wird von deinem Filter gesperrt.</string>
     <string name="d_turn_off_blocking">Sperre ausschalten</string>
+    <string name="d_turn_off_lyrics_check">Songtext-Prüfung ausschalten</string>
     <string name="d_allow_this_song">Diesen Song erlauben</string>
     <string name="d_allowed_explicit_songs">Erlaubte explizite Songs</string>
     <string name="d_allowed_explicit_songs_empty">Noch keine Songs erlaubt. Tippe auf einen ausgegrauten Song und wähle Erlauben, oder nutze „Diesen expliziten Song erlauben“ in seinem Menü.</string>

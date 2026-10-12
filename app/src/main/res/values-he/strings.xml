@@ -1317,6 +1317,7 @@
     <string name="explicit_song_blocked_message">״%1$s״ מסומן כבוטה והסינון שלכם חוסם אותו.</string>
     <string name="allow_this_song">לאפשר את השיר הזה</string>
     <string name="turn_off_blocking">כיבוי החסימה</string>
+    <string name="turn_off_lyrics_check">כבה את בדיקת המילים</string>
     <string name="tap_again_to_confirm">הקישו שוב לאישור</string>
     <string name="allow_explicit_song">לאפשר את השיר הבוטה הזה</string>
     <string name="block_explicit_song">לחסום שוב את השיר הבוטה הזה</string>

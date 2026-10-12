@@ -45,11 +45,13 @@ private const val ENTER_MS = 220
 private const val EXIT_MS = 160
 
 /** What the listener chose when an explicit song was blocked. */
-enum class ExplicitBlockedChoice { ALLOW_SONG, TURN_OFF_BLOCKING, CANCEL }
+enum class ExplicitBlockedChoice { ALLOW_SONG, TURN_OFF_BLOCKING, TURN_OFF_LYRICS_CHECK, CANCEL }
 
 /**
  * Asks what to do about a song the explicit filter is blocking: allow this song
- * from now on, turn blocking off, or leave it.
+ * from now on, turn blocking off, or leave it. For a song only its lyrics
+ * caught, the middle choice turns off the lyrics check rather than blocking
+ * as a whole — that is the check that stopped it.
  *
  * The same frosted card as the app's other alerts, but animated in and out —
  * the scrim fades and the card settles from slightly larger, the way a system
@@ -158,10 +160,15 @@ fun ExplicitBlockedAlert(
                     onClick = { choose(ExplicitBlockedChoice.ALLOW_SONG) },
                 )
                 AlertRule()
+                val byLyrics = song.isExplicit != true
                 AlertAction(
-                    label = stringResource(R.string.turn_off_blocking),
+                    label = stringResource(if (byLyrics) R.string.turn_off_lyrics_check else R.string.turn_off_blocking),
                     emphasised = false,
-                    onClick = { choose(ExplicitBlockedChoice.TURN_OFF_BLOCKING) },
+                    onClick = {
+                        choose(
+                            if (byLyrics) ExplicitBlockedChoice.TURN_OFF_LYRICS_CHECK else ExplicitBlockedChoice.TURN_OFF_BLOCKING,
+                        )
+                    },
                 )
                 AlertRule()
                 AlertAction(

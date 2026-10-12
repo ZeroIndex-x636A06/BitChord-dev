@@ -56,7 +56,7 @@ private const val ENTER_MS = 200
 private const val EXIT_MS = 150
 
 /** What the listener chose when an explicit song was blocked. */
-internal enum class DesktopExplicitChoice { ALLOW_SONG, TURN_OFF_BLOCKING, CANCEL }
+internal enum class DesktopExplicitChoice { ALLOW_SONG, TURN_OFF_BLOCKING, TURN_OFF_LYRICS_CHECK, CANCEL }
 
 /**
  * Asks what to do about a song the explicit filter is blocking: allow it from
@@ -146,8 +146,15 @@ internal fun DesktopExplicitBlockedDialog(
                     TextButton(onClick = { choose(DesktopExplicitChoice.CANCEL) }) {
                         Text(DesktopStrings["cancel", "Cancel"], color = DesktopSecondary)
                     }
-                    TextButton(onClick = { choose(DesktopExplicitChoice.TURN_OFF_BLOCKING) }) {
-                        Text(DesktopStrings["d_turn_off_blocking", "Turn off blocking"], color = DesktopSecondary)
+                    // A song only its lyrics caught offers to turn off that check, not blocking as a whole.
+                    if (song.isExplicit == true) {
+                        TextButton(onClick = { choose(DesktopExplicitChoice.TURN_OFF_BLOCKING) }) {
+                            Text(DesktopStrings["d_turn_off_blocking", "Turn off blocking"], color = DesktopSecondary)
+                        }
+                    } else {
+                        TextButton(onClick = { choose(DesktopExplicitChoice.TURN_OFF_LYRICS_CHECK) }) {
+                            Text(DesktopStrings["d_turn_off_lyrics_check", "Turn off lyrics check"], color = DesktopSecondary)
+                        }
                     }
                     TextButton(onClick = { choose(DesktopExplicitChoice.ALLOW_SONG) }) {
                         Text(DesktopStrings["d_allow_this_song", "Allow this song"], color = DesktopAccent)

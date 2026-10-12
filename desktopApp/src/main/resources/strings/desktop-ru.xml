@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Откровенная песня</string>
     <string name="d_explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
     <string name="d_turn_off_blocking">Отключить блокировку</string>
+    <string name="d_turn_off_lyrics_check">Отключить проверку текстов</string>
     <string name="d_allow_this_song">Разрешить эту песню</string>
     <string name="d_allowed_explicit_songs">Разрешённые откровенные песни</string>
     <string name="d_allowed_explicit_songs_empty">Пока нет разрешённых песен. Нажмите на затемнённую песню и выберите «Разрешить» или используйте «Разрешить эту откровенную песню» в её меню.</string>

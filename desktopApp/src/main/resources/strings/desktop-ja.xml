@@ -92,6 +92,7 @@
     <string name="d_explicit_song">露骨な表現を含む曲</string>
     <string name="d_explicit_song_blocked_message">「%1$s」は露骨な表現を含む曲として指定されており、フィルターでブロックされています。</string>
     <string name="d_turn_off_blocking">ブロックをオフにする</string>
+    <string name="d_turn_off_lyrics_check">歌詞チェックをオフにする</string>
     <string name="d_allow_this_song">この曲を許可</string>
     <string name="d_allowed_explicit_songs">許可した露骨な表現を含む曲</string>
     <string name="d_allowed_explicit_songs_empty">許可した曲はまだありません。グレー表示の曲をタップして「許可」を選ぶか、曲のメニューで「この曲を許可」を使ってください。</string>

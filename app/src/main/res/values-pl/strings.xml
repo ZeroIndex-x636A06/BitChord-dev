@@ -1356,6 +1356,7 @@
     <string name="explicit_song_blocked_message">„%1$s” jest oznaczony jako dla dorosłych i Twój filtr go blokuje.</string>
     <string name="allow_this_song">Zezwól na ten utwór</string>
     <string name="turn_off_blocking">Wyłącz blokowanie</string>
+    <string name="turn_off_lyrics_check">Wyłącz sprawdzanie tekstów</string>
     <string name="tap_again_to_confirm">Dotknij ponownie, aby potwierdzić</string>
     <string name="allow_explicit_song">Zezwól na ten utwór dla dorosłych</string>
     <string name="block_explicit_song">Ponownie blokuj ten utwór dla dorosłych</string>

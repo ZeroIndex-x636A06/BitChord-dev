@@ -1313,6 +1313,7 @@
     <string name="explicit_song_blocked_message">« %1$s » est marqué explicite et votre filtre le bloque.</string>
     <string name="allow_this_song">Autoriser ce titre</string>
     <string name="turn_off_blocking">Désactiver le blocage</string>
+    <string name="turn_off_lyrics_check">Désactiver la vérification des paroles</string>
     <string name="tap_again_to_confirm">Touchez à nouveau pour confirmer</string>
     <string name="allow_explicit_song">Autoriser ce titre explicite</string>
     <string name="block_explicit_song">Bloquer à nouveau ce titre explicite</string>

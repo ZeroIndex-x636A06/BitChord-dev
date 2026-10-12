@@ -5400,6 +5400,12 @@ private fun BitChordApp(
                                 AppSettings.setExplicitFilter(ExplicitFilterMode.SUGGESTIONS)
                                 proceed()
                             }
+                            // Caught by its lyrics alone: only that check goes,
+                            // and songs marked explicit stay blocked.
+                            ExplicitBlockedChoice.TURN_OFF_LYRICS_CHECK -> {
+                                AppSettings.setExplicitLyricsCheck(false)
+                                proceed()
+                            }
                             ExplicitBlockedChoice.CANCEL -> Unit
                         }
                     },

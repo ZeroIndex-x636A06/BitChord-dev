@@ -1312,6 +1312,7 @@
     <string name="explicit_song_blocked_message">„%1$s“ ist als explizit markiert und wird von deinem Filter gesperrt.</string>
     <string name="allow_this_song">Diesen Song erlauben</string>
     <string name="turn_off_blocking">Sperre ausschalten</string>
+    <string name="turn_off_lyrics_check">Songtext-Prüfung ausschalten</string>
     <string name="tap_again_to_confirm">Zum Bestätigen erneut tippen</string>
     <string name="allow_explicit_song">Diesen expliziten Song erlauben</string>
     <string name="block_explicit_song">Diesen expliziten Song wieder sperren</string>

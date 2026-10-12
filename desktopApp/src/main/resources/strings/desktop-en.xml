@@ -94,6 +94,7 @@
     <string name="d_explicit_song">Explicit song</string>
     <string name="d_explicit_song_blocked_message">“%1$s” is marked explicit and your filter is blocking it.</string>
     <string name="d_turn_off_blocking">Turn off blocking</string>
+    <string name="d_turn_off_lyrics_check">Turn off lyrics check</string>
     <string name="d_allow_this_song">Allow this song</string>
     <string name="d_allowed_explicit_songs">Allowed explicit songs</string>
     <string name="d_allowed_explicit_songs_empty">No songs allowed yet. Click a greyed-out song and choose Allow, or use “Allow this explicit song” in its menu.</string>
