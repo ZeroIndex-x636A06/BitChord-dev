@@ -1267,8 +1267,6 @@
     <string name="spotify_library_subtitle">你的 Spotify 播放列表</string>
     <string name="spotify_sign_in">使用 Spotify 登入</string>
     <string name="spotify_track_unavailable">在 YouTube Music 上找不到該歌曲</string>
-    <string name="lyrics_original_title">用原標題搜歌詞</string>
-    <string name="lyrics_original_title_desc">先還原 YouTube 原標題再搜歌詞，翻譯過的標題也能找到</string>
     <!-- Explicit content filter (#720) -->
     <string name="filter_explicit_content">過濾露骨內容</string>
     <string name="filter_explicit_content_subtitle">自動播放和電台不會加入標記為露骨的歌曲</string>
@@ -1290,12 +1288,15 @@
     <string name="explicit_song_blocked_message">「%1$s」被標記為露骨，你的過濾器正在封鎖它。</string>
     <string name="allow_this_song">允許這首歌曲</string>
     <string name="turn_off_blocking">關閉封鎖</string>
+    <string name="turn_off_lyrics_check">關閉歌詞檢查</string>
     <string name="tap_again_to_confirm">再次輕觸以確認</string>
     <string name="allow_explicit_song">允許這首露骨歌曲</string>
     <string name="block_explicit_song">重新封鎖這首露骨歌曲</string>
     <string name="explicit_songs_skipped">過濾器已略過露骨歌曲</string>
     <string name="check_lyrics_explicit">檢查歌詞中的露骨內容</string>
+    <string name="checking_lyrics">正在檢查歌詞…</string>
     <string name="check_lyrics_explicit_subtitle">即使 YouTube Music 未標記為露骨，歌詞中含多個髒話的歌曲也會被封鎖</string>
+    <string name="check_lyrics_explicit_needs_lyrics">開啟歌詞後才能使用</string>
     <string name="explicit_lyrics_blocked_message">「%1$s」的歌詞含露骨內容，已被你的過濾器封鎖。</string>
     <string name="play_clean_versions">改為播放乾淨版</string>
     <string name="play_clean_versions_subtitle">被封鎖的歌曲若有乾淨版，則改為播放乾淨版</string>

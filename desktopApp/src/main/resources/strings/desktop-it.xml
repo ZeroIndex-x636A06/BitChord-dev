@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Brano esplicito</string>
     <string name="d_explicit_song_blocked_message">«%1$s» è contrassegnato come esplicito e il tuo filtro lo blocca.</string>
     <string name="d_turn_off_blocking">Disattiva il blocco</string>
+    <string name="d_turn_off_lyrics_check">Disattiva il controllo dei testi</string>
     <string name="d_allow_this_song">Consenti questo brano</string>
     <string name="d_allowed_explicit_songs">Brani espliciti consentiti</string>
     <string name="d_allowed_explicit_songs_empty">Nessun brano consentito. Tocca un brano in grigio e scegli Consenti, oppure usa «Consenti questo brano esplicito» nel suo menu.</string>
@@ -109,7 +110,9 @@
     <string name="d_one_song_allowed">1 brano consentito nonostante il filtro</string>
     <string name="d_songs_allowed">%1$d brani consentiti nonostante il filtro</string>
     <string name="d_check_lyrics_explicit">Controlla i testi espliciti</string>
+    <string name="d_checking_lyrics">Controllo del testo…</string>
     <string name="d_check_lyrics_explicit_subtitle">Blocca anche i brani con diverse parolacce nel testo, anche se YouTube Music non li segna come espliciti</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Attiva i testi per usare questa opzione</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s” ha un testo esplicito ed è bloccato dal tuo filtro.</string>
     <string name="d_play_clean_versions">Riproduci invece le versioni clean</string>
     <string name="d_play_clean_versions_subtitle">Se un brano bloccato ha una versione clean, viene riprodotta quella</string>

@@ -11,12 +11,19 @@ import com.music.bitchord.playback.ExplicitFilter
 import com.music.bitchord.playback.ExplicitLyrics
 import com.music.bitchord.playback.ExplicitLyricsChecker
 import com.music.bitchord.playback.ExplicitLyricsStore
-import kotlinx.coroutines.withTimeoutOrNull
 import com.music.bitchord.playback.ExplicitFilterMode
 import com.music.bitchord.playback.ExplicitPolicy
+import com.music.bitchord.playback.StandardExplicitLyrics
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 /**
  * The desktop app's explicit-filter settings (issue #720), kept in its own
@@ -54,16 +61,43 @@ internal object DesktopExplicit {
         .also { it.load(persistence.string(KEY_LYRICS_VERDICTS).ifBlank { null }) }
 
     /**
-     * Reads lyrics the way the lyrics panel does: the sources ticked in Settings, in their order.
-     * "Lyrics unavailable" is an answer (no words to count); any other failure is no verdict.
+     * Reads YouTube Music's own lyrics and the lyrics sources ticked in Settings — see
+     * [ExplicitLyricsChecker] for which words count. A source left unticked is never contacted.
      */
-    val lyricsChecker = ExplicitLyricsChecker(lyricsStore) { song ->
-        val found = withTimeoutOrNull(LYRICS_LOOKUP_MS) { DesktopLyricsClient.lookup(song) }
-            ?: error("lyrics lookup timed out")
-        found.fold(
-            onSuccess = { lyrics -> lyrics.lines.map { it.text } },
-            onFailure = { if (it.message == "Lyrics unavailable") emptyList() else throw it },
-        )
+    // The lyrics sources ticked in Settings — none with lyrics switched off, which the setting's
+    // row says.
+    val lyricsChecker = ExplicitLyricsChecker(
+        lyricsStore,
+        StandardExplicitLyrics {
+            val settings = DesktopPersistence()
+            if (!settings.boolean(DesktopLyricsClient.KEY_SYNCED_LYRICS, true)) {
+                emptySet()
+            } else {
+                DesktopLyricsClient.enabledSources(settings.lyricsSourceOrder(), settings.lyricsEnabledSources())
+                    .mapNotNull(::lyricsSourceNamed)
+                    .toSet()
+            }
+        },
+        log = { _, message -> DesktopTrackLog.log(message) },
+    )
+
+    /** Checks outlive whatever started them: a click stops waiting, the check doesn't. */
+    private val lyricsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * The verdict for a song about to play, read in full if it hasn't been — the click waits for
+     * it, at most [ExplicitLyricsChecker.BUDGET_MS]. Run where leaving the page can't cut it short;
+     * null when it couldn't be read.
+     */
+    suspend fun checkLyricsBeforePlaying(song: Song): Boolean? = lyricsScope.async { lyricsChecker.check(song) }.await()
+
+    /** Prechecks running together, so a scrolled list doesn't fire off a burst. */
+    private val prechecks = Semaphore(PRECHECKS_AT_ONCE)
+
+    /** [ExplicitLyricsChecker.precheck] for a song on screen, a couple at a time. */
+    fun precheckLyrics(song: Song) {
+        if (!needsLyricsCheck(song)) return
+        lyricsScope.launch { prechecks.withPermit { lyricsChecker.precheck(song) } }
     }
 
     /** Whether [song]'s lyrics still have to be read before the filter can judge it. */
@@ -134,9 +168,9 @@ internal object DesktopExplicit {
     private const val KEY_ALLOWED = "explicit_allowed_songs"
     private const val KEY_LYRICS_CHECK = "explicit_lyrics_check"
     private const val KEY_LYRICS_VERDICTS = "explicit_lyrics_verdicts"
-    private const val LYRICS_LOOKUP_MS = 6_000L
     private const val KEY_SWAP_CLEAN = "explicit_swap_clean"
     private const val KEY_CLEAN_VERSIONS = "explicit_clean_versions"
+    private const val PRECHECKS_AT_ONCE = 2
 }
 
 /** [ExplicitFilter.permits] against the desktop app's current settings. */

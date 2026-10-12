@@ -1289,12 +1289,15 @@
     <string name="explicit_song_blocked_message">“%1$s”被标记为露骨，你的过滤器正在屏蔽它。</string>
     <string name="allow_this_song">允许这首歌曲</string>
     <string name="turn_off_blocking">关闭屏蔽</string>
+    <string name="turn_off_lyrics_check">关闭歌词检查</string>
     <string name="tap_again_to_confirm">再次点按以确认</string>
     <string name="allow_explicit_song">允许这首露骨歌曲</string>
     <string name="block_explicit_song">重新屏蔽这首露骨歌曲</string>
     <string name="explicit_songs_skipped">过滤器已跳过露骨歌曲</string>
     <string name="check_lyrics_explicit">检查歌词中的露骨内容</string>
+    <string name="checking_lyrics">正在检查歌词…</string>
     <string name="check_lyrics_explicit_subtitle">即使 YouTube Music 未标记为露骨，歌词中含多个脏话的歌曲也会被屏蔽</string>
+    <string name="check_lyrics_explicit_needs_lyrics">开启歌词后才能使用</string>
     <string name="explicit_lyrics_blocked_message">“%1$s”的歌词含露骨内容，已被你的过滤器屏蔽。</string>
     <string name="play_clean_versions">改为播放净化版</string>
     <string name="play_clean_versions_subtitle">被屏蔽的歌曲若有净化版，则改为播放净化版</string>

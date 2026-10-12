@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Utwór dla dorosłych</string>
     <string name="d_explicit_song_blocked_message">„%1$s” jest oznaczony jako dla dorosłych i Twój filtr go blokuje.</string>
     <string name="d_turn_off_blocking">Wyłącz blokowanie</string>
+    <string name="d_turn_off_lyrics_check">Wyłącz sprawdzanie tekstów</string>
     <string name="d_allow_this_song">Zezwól na ten utwór</string>
     <string name="d_allowed_explicit_songs">Dozwolone utwory dla dorosłych</string>
     <string name="d_allowed_explicit_songs_empty">Brak dozwolonych utworów. Dotknij wyszarzonego utworu i wybierz Zezwól lub użyj opcji „Zezwól na ten utwór dla dorosłych” w jego menu.</string>
@@ -109,7 +110,9 @@
     <string name="d_one_song_allowed">1 utwór dozwolony mimo filtra</string>
     <string name="d_songs_allowed">%1$d utworów dozwolonych mimo filtra</string>
     <string name="d_check_lyrics_explicit">Sprawdzaj teksty pod kątem wulgaryzmów</string>
+    <string name="d_checking_lyrics">Sprawdzanie tekstu…</string>
     <string name="d_check_lyrics_explicit_subtitle">Blokuj też utwory z kilkoma wulgaryzmami w tekście, nawet jeśli YouTube Music nie oznacza ich jako explicit</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Włącz teksty, aby z tego korzystać</string>
     <string name="d_explicit_lyrics_blocked_message">„%1$s” ma wulgarny tekst i jest blokowany przez filtr.</string>
     <string name="d_play_clean_versions">Odtwarzaj zamiast tego czyste wersje</string>
     <string name="d_play_clean_versions_subtitle">Jeśli zablokowany utwór ma czystą wersję, zostanie odtworzona ona</string>

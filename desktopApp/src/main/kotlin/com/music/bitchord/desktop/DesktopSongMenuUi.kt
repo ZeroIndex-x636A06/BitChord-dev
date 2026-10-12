@@ -281,10 +281,11 @@ internal fun DesktopSongMenu(
         DesktopMenuRow(Icons.AutoMirrored.Rounded.PlaylistPlay, DesktopStrings["play_next", "Play next"], onClick = onPlayNext)
         DesktopMenuRow(Icons.AutoMirrored.Rounded.QueueMusic, DesktopStrings["add_to_queue", "Add to queue"], onClick = onAddToQueue)
         // The per-song way past the explicit filter, and back (issue #720). Only for an explicit
-        // track while the filter is on; the menu stays open so the row flips in place.
-        val explicitMode by DesktopExplicit.mode.collectAsState()
+        // track — marked by the catalogue or by its lyrics — while the filter is on; the menu stays
+        // open so the row flips in place.
+        val explicitPolicy = rememberDesktopExplicitPolicy()
         val explicitAllowedKeys by DesktopExplicit.allowList.keys.collectAsState()
-        if (song.isExplicit == true && explicitMode != ExplicitFilterMode.OFF) {
+        if (ExplicitFilter.isExplicit(song, explicitPolicy) && explicitPolicy.mode != ExplicitFilterMode.OFF) {
             val allowed = ExplicitFilter.isAllowedBySong(song, explicitAllowedKeys)
             DesktopMenuRow(
                 icon = if (allowed) Icons.Rounded.Block else Icons.Rounded.Explicit,

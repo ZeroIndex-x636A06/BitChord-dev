@@ -10,6 +10,7 @@ import com.music.bitchord.playback.CleanVersions
 import com.music.bitchord.playback.cleanStandIn
 import com.music.bitchord.ui.components.LocalExplicitBlocked
 import com.music.bitchord.ui.components.LocalExplicitByLyrics
+import com.music.bitchord.ui.components.LocalLyricsPrecheck
 import com.music.bitchord.ui.components.showsExplicit
 import com.music.bitchord.playback.ExplicitFilter
 import com.music.bitchord.playback.ExplicitFilterMode
@@ -650,6 +651,10 @@ fun BitChordDesktopApp() {
     var autoplay by remember { mutableStateOf(persistence.boolean("autoplay", true)) }
     // An explicit song the filter stopped, and what to do once it's allowed (issue #720).
     var explicitPrompt by remember { mutableStateOf<DesktopExplicitPrompt?>(null) }
+    // The song most recently asked for: a lyric verdict for any earlier one is let go.
+    var lastAskedFor by remember { mutableStateOf<String?>(null) }
+    // The song whose lyrics a click is waiting on, for the "Checking lyrics…" pill.
+    var lyricsCheckPending by remember { mutableStateOf<String?>(null) }
     var dontRepeatSuggestions by remember {
         mutableStateOf(persistence.boolean(KEY_DONT_REPEAT_SUGGESTIONS, false))
     }
@@ -833,9 +838,38 @@ fun BitChordDesktopApp() {
         persistence.saveString("queue_index", liveQueue.index.toString())
     }
 
-    /** Opens whatever the queue is currently pointing at. */
-    fun playCurrent(startPlaying: Boolean = true) {
+    /**
+     * Opens whatever the queue is currently pointing at.
+     *
+     * "Check lyrics for explicit content": a track nobody has read yet — skipped to faster than
+     * the read-ahead could read it, or the first of a restored queue — is held until its verdict
+     * is in, with the "Checking lyrics…" pill up, and only then opened; one that turned out
+     * explicit is left for the explicit filter's queue pass to skip. A track is never heard and
+     * then dropped.
+     */
+    fun playCurrent(startPlaying: Boolean = true, lyricsRead: Boolean = false) {
         val song = liveQueue.current ?: return
+        if (startPlaying && !lyricsRead && !DesktopListenTogether.state.value.inParty &&
+            DesktopExplicit.needsLyricsCheck(song)
+        ) {
+            playbackEngine.pause()
+            lyricsCheckPending = song.videoId
+            scope.launch {
+                try {
+                    DesktopExplicit.checkLyricsBeforePlaying(song)
+                } finally {
+                    if (lyricsCheckPending == song.videoId) lyricsCheckPending = null
+                }
+                if (liveQueue.current?.videoId != song.videoId) return@launch
+                val allowed = ExplicitFilter.permits(
+                    song,
+                    DesktopExplicit.policy(),
+                    suggestion = song.queueTier == QueueTier.AUTOPLAY,
+                )
+                if (allowed) playCurrent(startPlaying, lyricsRead = true)
+            }
+            return
+        }
         selectedSong = song
         history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
         saveQueue()
@@ -935,6 +969,23 @@ fun BitChordDesktopApp() {
     }
 
     /**
+     * Reads [song]'s lyrics in full, with the "Checking lyrics…" pill up, then runs [then] — unless
+     * something else was asked for meanwhile, which takes over.
+     */
+    fun readLyricsThen(song: Song, then: () -> Unit) {
+        if (lyricsCheckPending == song.videoId) return
+        lyricsCheckPending = song.videoId
+        scope.launch {
+            try {
+                DesktopExplicit.checkLyricsBeforePlaying(song)
+            } finally {
+                if (lyricsCheckPending == song.videoId) lyricsCheckPending = null
+            }
+            if (lastAskedFor == song.videoId) then()
+        }
+    }
+
+    /**
      * Runs [proceed] unless [song] is one the explicit filter blocks outright; then asks first,
      * and a yes allows that song from then on. Every "play this" and "queue this" passes through
      * here; what AutoPlay and radio pick is filtered in [DesktopAutoplay.tracksFor] instead.
@@ -946,16 +997,15 @@ fun BitChordDesktopApp() {
         lyricsRead: Boolean = false,
         proceed: () -> Unit,
     ) {
+        lastAskedFor = song?.videoId
         // "Check lyrics for explicit content": a song nobody has read yet is read before it plays,
-        // then judged with the verdict in (or without one, if the lyrics couldn't be read). What
-        // plays after it is read as it comes up.
+        // and never starts before its verdict is in. Most songs on screen have been read already
+        // (see [DesktopExplicit.precheckLyrics]). What plays after it is read as it comes up.
         if (!lyricsRead && song != null && DesktopExplicit.needsLyricsCheck(song)) {
-            scope.launch {
-                DesktopExplicit.lyricsChecker.check(song)
-                gateExplicit(song, sourceId, playClean, lyricsRead = true, proceed = proceed)
-            }
+            readLyricsThen(song) { gateExplicit(song, sourceId, playClean, lyricsRead = true, proceed = proceed) }
             return
         }
+        lyricsCheckPending = null
         val from = sourceId ?: song?.playbackSourceId
         if (song == null || !song.desktopExplicitBlocked(sourceId = from)) {
             proceed()
@@ -970,6 +1020,8 @@ fun BitChordDesktopApp() {
             }
             scope.launch {
                 val clean = CleanVersions.find(song)
+                // Another song was asked for while this one was looked up.
+                if (lastAskedFor != song.videoId) return@launch
                 if (clean != null) {
                     playClean(song.cleanStandIn(clean))
                 } else {
@@ -996,13 +1048,12 @@ fun BitChordDesktopApp() {
         // The picked row is the one worth asking about; the rest of the list is held to the
         // explicit filter quietly, below.
         val picked = songs.getOrNull(startIndex)
+        lastAskedFor = picked?.videoId
         if (!lyricsRead && picked != null && DesktopExplicit.needsLyricsCheck(picked)) {
-            scope.launch {
-                DesktopExplicit.lyricsChecker.check(picked)
-                playSongs(songs, startIndex, source, lyricsRead = true)
-            }
+            readLyricsThen(picked) { playSongs(songs, startIndex, source, lyricsRead = true) }
             return
         }
+        lyricsCheckPending = null
         if (picked != null && picked.desktopExplicitBlocked(sourceId = source?.id ?: picked.playbackSourceId)) {
             gateExplicit(
                 picked,
@@ -1965,6 +2016,19 @@ fun BitChordDesktopApp() {
         val next = selectedSong
             ?.takeIf { repeatMode != DesktopRepeatMode.ONE }
             ?.let { liveQueue.followingFor(it.videoId, repeatAll = repeatMode == DesktopRepeatMode.ALL) }
+        // Not lined up to blend in before its lyrics are read, when the lyric check is on: a
+        // crossfade would have it heard before the explicit filter could judge it. One that turns
+        // out explicit is dropped from the queue, which runs this again with the one after it.
+        if (next != null && !inParty && DesktopExplicit.needsLyricsCheck(next)) {
+            playbackEngine.prepareNext(null)
+            DesktopExplicit.checkLyricsBeforePlaying(next)
+            val allowed = ExplicitFilter.permits(
+                next,
+                DesktopExplicit.policy(),
+                suggestion = next.queueTier == QueueTier.AUTOPLAY,
+            )
+            if (!allowed) return@LaunchedEffect
+        }
         playbackEngine.prepareNext(next)
     }
     // Topped up on every track change, the way Android does it, rather than only once the queue has
@@ -3222,6 +3286,7 @@ fun BitChordDesktopApp() {
             LocalExplicitByLyrics provides rememberDesktopExplicitByLyrics(explicitPolicy),
             LocalExplicitSwapped provides rememberDesktopRowSwapped(explicitPolicy),
             LocalCleanVersionLookup provides rememberDesktopCleanVersionLookup(explicitPolicy),
+            LocalLyricsPrecheck provides DesktopExplicit::precheckLyrics,
         ) {
             DesktopFrame(
                 // The phone's page is black, not the near-black of its cards.
@@ -3703,6 +3768,7 @@ fun BitChordDesktopApp() {
                             onDismiss = ::closePlaylistDialogs,
                         )
                     }
+                    DesktopLyricsCheckPill(visible = lyricsCheckPending != null)
                     explicitPrompt?.let { prompt ->
                         val (song, proceed) = prompt
                         // Keyed on the song so a second blocked click starts a fresh card rather
@@ -3743,6 +3809,11 @@ fun BitChordDesktopApp() {
                                     // Back to filtering only what the app picks.
                                     DesktopExplicitChoice.TURN_OFF_BLOCKING -> {
                                         DesktopExplicit.setMode(ExplicitFilterMode.SUGGESTIONS)
+                                        proceed()
+                                    }
+                                    // Caught by its lyrics alone: only that check goes.
+                                    DesktopExplicitChoice.TURN_OFF_LYRICS_CHECK -> {
+                                        DesktopExplicit.setLyricsCheck(false)
                                         proceed()
                                     }
                                     DesktopExplicitChoice.CANCEL -> Unit
@@ -7849,6 +7920,7 @@ private fun DesktopExplicitSettings(onOpenAllowedExplicit: () -> Unit) {
     val allowOwn by DesktopExplicit.allowOwnPlaylists.collectAsState()
     val lyricsCheck by DesktopExplicit.lyricsCheck.collectAsState()
     val swapClean by DesktopExplicit.swapClean.collectAsState()
+    val lyricsOn by DesktopPlayerSettings.syncedLyrics.collectAsState()
     val allowed by DesktopExplicit.allowList.songs.collectAsState()
     SettingsToggle(
         DesktopStrings["d_filter_explicit_content", "Filter explicit content"],
@@ -7877,10 +7949,15 @@ private fun DesktopExplicitSettings(onOpenAllowedExplicit: () -> Unit) {
     if (mode != ExplicitFilterMode.OFF) {
         SettingsToggle(
             DesktopStrings["d_check_lyrics_explicit", "Check lyrics for explicit content"],
-            DesktopStrings[
-                "d_check_lyrics_explicit_subtitle",
-                "Also block songs whose lyrics have several swear words, even if YouTube Music doesn\u2019t mark them explicit",
-            ],
+            // It reads lyrics, so with lyrics off it can't do anything — say so.
+            if (lyricsOn) {
+                DesktopStrings[
+                    "d_check_lyrics_explicit_subtitle",
+                    "Also block songs whose lyrics have several swear words, even if YouTube Music doesn\u2019t mark them explicit",
+                ]
+            } else {
+                DesktopStrings["d_check_lyrics_explicit_needs_lyrics", "Turn on lyrics to use this"]
+            },
             lyricsCheck,
             DesktopExplicit::setLyricsCheck,
         )

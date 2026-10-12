@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Titre explicite</string>
     <string name="d_explicit_song_blocked_message">« %1$s » est marqué explicite et votre filtre le bloque.</string>
     <string name="d_turn_off_blocking">Désactiver le blocage</string>
+    <string name="d_turn_off_lyrics_check">Désactiver la vérification des paroles</string>
     <string name="d_allow_this_song">Autoriser ce titre</string>
     <string name="d_allowed_explicit_songs">Titres explicites autorisés</string>
     <string name="d_allowed_explicit_songs_empty">Aucun titre autorisé pour l\'instant. Touchez un titre grisé et choisissez Autoriser, ou utilisez « Autoriser ce titre explicite » dans son menu.</string>
@@ -109,7 +110,9 @@
     <string name="d_one_song_allowed">1 titre autorisé malgré le filtre</string>
     <string name="d_songs_allowed">%1$d titres autorisés malgré le filtre</string>
     <string name="d_check_lyrics_explicit">Vérifier les paroles explicites</string>
+    <string name="d_checking_lyrics">Vérification des paroles…</string>
     <string name="d_check_lyrics_explicit_subtitle">Bloque aussi les titres dont les paroles contiennent plusieurs grossièretés, même si YouTube Music ne les marque pas comme explicites</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Activez les paroles pour utiliser ceci</string>
     <string name="d_explicit_lyrics_blocked_message">« %1$s » a des paroles explicites et votre filtre le bloque.</string>
     <string name="d_play_clean_versions">Lire plutôt les versions non explicites</string>
     <string name="d_play_clean_versions_subtitle">Si un titre bloqué a une version non explicite, elle est lue à la place</string>

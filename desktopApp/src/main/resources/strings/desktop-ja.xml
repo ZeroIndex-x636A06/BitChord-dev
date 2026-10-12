@@ -92,6 +92,7 @@
     <string name="d_explicit_song">露骨な表現を含む曲</string>
     <string name="d_explicit_song_blocked_message">「%1$s」は露骨な表現を含む曲として指定されており、フィルターでブロックされています。</string>
     <string name="d_turn_off_blocking">ブロックをオフにする</string>
+    <string name="d_turn_off_lyrics_check">歌詞チェックをオフにする</string>
     <string name="d_allow_this_song">この曲を許可</string>
     <string name="d_allowed_explicit_songs">許可した露骨な表現を含む曲</string>
     <string name="d_allowed_explicit_songs_empty">許可した曲はまだありません。グレー表示の曲をタップして「許可」を選ぶか、曲のメニューで「この曲を許可」を使ってください。</string>
@@ -109,7 +110,9 @@
     <string name="d_one_song_allowed">1曲をフィルターの対象外にしています</string>
     <string name="d_songs_allowed">%1$d曲をフィルターの対象外にしています</string>
     <string name="d_check_lyrics_explicit">歌詞の露骨な表現をチェック</string>
+    <string name="d_checking_lyrics">歌詞を確認中…</string>
     <string name="d_check_lyrics_explicit_subtitle">YouTube Music で露骨と表示されていなくても、歌詞に汚い言葉が複数ある曲もブロックします</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">使用するには歌詞をオンにしてください</string>
     <string name="d_explicit_lyrics_blocked_message">「%1$s」の歌詞には露骨な表現が含まれるため、フィルターでブロックされています。</string>
     <string name="d_play_clean_versions">代わりにクリーン版を再生</string>
     <string name="d_play_clean_versions_subtitle">ブロックされた曲にクリーン版がある場合は、そちらを再生します</string>

@@ -1287,12 +1287,15 @@
     <string name="explicit_song_blocked_message">“%1$s” ditandai eksplisit dan diblokir oleh filter Anda.</string>
     <string name="allow_this_song">Izinkan lagu ini</string>
     <string name="turn_off_blocking">Matikan pemblokiran</string>
+    <string name="turn_off_lyrics_check">Matikan pemeriksaan lirik</string>
     <string name="tap_again_to_confirm">Ketuk lagi untuk mengonfirmasi</string>
     <string name="allow_explicit_song">Izinkan lagu eksplisit ini</string>
     <string name="block_explicit_song">Blokir lagu eksplisit ini lagi</string>
     <string name="explicit_songs_skipped">Lagu eksplisit dilewati oleh filter Anda</string>
     <string name="check_lyrics_explicit">Periksa lirik eksplisit</string>
+    <string name="checking_lyrics">Memeriksa lirik…</string>
     <string name="check_lyrics_explicit_subtitle">Blokir juga lagu yang liriknya berisi beberapa kata kasar, meski YouTube Music tidak menandainya eksplisit</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Aktifkan lirik untuk menggunakan ini</string>
     <string name="explicit_lyrics_blocked_message">“%1$s” memiliki lirik eksplisit dan diblokir oleh filter Anda.</string>
     <string name="play_clean_versions">Putar versi bersih sebagai gantinya</string>
     <string name="play_clean_versions_subtitle">Jika lagu yang diblokir punya versi bersih, versi itu yang diputar</string>

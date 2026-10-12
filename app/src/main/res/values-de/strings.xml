@@ -1312,12 +1312,15 @@
     <string name="explicit_song_blocked_message">„%1$s“ ist als explizit markiert und wird von deinem Filter gesperrt.</string>
     <string name="allow_this_song">Diesen Song erlauben</string>
     <string name="turn_off_blocking">Sperre ausschalten</string>
+    <string name="turn_off_lyrics_check">Songtext-Prüfung ausschalten</string>
     <string name="tap_again_to_confirm">Zum Bestätigen erneut tippen</string>
     <string name="allow_explicit_song">Diesen expliziten Song erlauben</string>
     <string name="block_explicit_song">Diesen expliziten Song wieder sperren</string>
     <string name="explicit_songs_skipped">Explizite Songs wurden von deinem Filter übersprungen</string>
     <string name="check_lyrics_explicit">Songtexte auf explizite Inhalte prüfen</string>
+    <string name="checking_lyrics">Songtext wird geprüft…</string>
     <string name="check_lyrics_explicit_subtitle">Sperrt auch Songs, deren Texte mehrere Schimpfwörter enthalten, selbst wenn YouTube Music sie nicht als explizit markiert</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Aktiviere Songtexte, um dies zu nutzen</string>
     <string name="explicit_lyrics_blocked_message">„%1$s“ hat einen expliziten Text und wird von deinem Filter gesperrt.</string>
     <string name="play_clean_versions">Stattdessen Clean-Versionen abspielen</string>
     <string name="play_clean_versions_subtitle">Hat ein gesperrter Song eine Clean-Version, wird stattdessen diese abgespielt</string>

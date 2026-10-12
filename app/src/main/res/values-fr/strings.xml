@@ -1313,12 +1313,15 @@
     <string name="explicit_song_blocked_message">« %1$s » est marqué explicite et votre filtre le bloque.</string>
     <string name="allow_this_song">Autoriser ce titre</string>
     <string name="turn_off_blocking">Désactiver le blocage</string>
+    <string name="turn_off_lyrics_check">Désactiver la vérification des paroles</string>
     <string name="tap_again_to_confirm">Touchez à nouveau pour confirmer</string>
     <string name="allow_explicit_song">Autoriser ce titre explicite</string>
     <string name="block_explicit_song">Bloquer à nouveau ce titre explicite</string>
     <string name="explicit_songs_skipped">Titres explicites ignorés par votre filtre</string>
     <string name="check_lyrics_explicit">Vérifier les paroles explicites</string>
+    <string name="checking_lyrics">Vérification des paroles…</string>
     <string name="check_lyrics_explicit_subtitle">Bloque aussi les titres dont les paroles contiennent plusieurs grossièretés, même si YouTube Music ne les marque pas comme explicites</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Activez les paroles pour utiliser ceci</string>
     <string name="explicit_lyrics_blocked_message">« %1$s » a des paroles explicites et votre filtre le bloque.</string>
     <string name="play_clean_versions">Lire plutôt les versions non explicites</string>
     <string name="play_clean_versions_subtitle">Si un titre bloqué a une version non explicite, elle est lue à la place</string>

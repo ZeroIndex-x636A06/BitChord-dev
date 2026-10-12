@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Canción explícita</string>
     <string name="d_explicit_song_blocked_message">«%1$s» está marcada como explícita y tu filtro la bloquea.</string>
     <string name="d_turn_off_blocking">Desactivar el bloqueo</string>
+    <string name="d_turn_off_lyrics_check">Desactivar revisión de letras</string>
     <string name="d_allow_this_song">Permitir esta canción</string>
     <string name="d_allowed_explicit_songs">Canciones explícitas permitidas</string>
     <string name="d_allowed_explicit_songs_empty">Aún no hay canciones permitidas. Toca una canción atenuada y elige Permitir, o usa «Permitir esta canción explícita» en su menú.</string>
@@ -109,7 +110,9 @@
     <string name="d_one_song_allowed">1 canción permitida por el filtro</string>
     <string name="d_songs_allowed">%1$d canciones permitidas por el filtro</string>
     <string name="d_check_lyrics_explicit">Revisar letras con contenido explícito</string>
+    <string name="d_checking_lyrics">Revisando la letra…</string>
     <string name="d_check_lyrics_explicit_subtitle">También bloquea canciones cuya letra tiene varias groserías, aunque YouTube Music no las marque como explícitas</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Activa las letras para usar esto</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s” tiene letra explícita y tu filtro la está bloqueando.</string>
     <string name="d_play_clean_versions">Reproducir versiones limpias en su lugar</string>
     <string name="d_play_clean_versions_subtitle">Si una canción bloqueada tiene versión limpia, se reproduce esa</string>

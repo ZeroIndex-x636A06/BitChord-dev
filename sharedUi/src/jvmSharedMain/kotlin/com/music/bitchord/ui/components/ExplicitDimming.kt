@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import com.music.bitchord.data.model.ShelfItem
 import com.music.bitchord.data.model.Song
+import kotlinx.coroutines.delay
 
 /**
  * Whether a song row should be drawn greyed out because the explicit filter
@@ -30,15 +31,49 @@ val LocalExplicitBlocked = compositionLocalOf<(Song) -> Boolean> { { false } }
  */
 val LocalExplicitByLyrics = compositionLocalOf<(Song) -> Boolean> { { false } }
 
-/** Whether a row should wear the "E": badged by the catalogue, or by its lyrics. */
+/**
+ * Starts the quick part of the lyric check for a song a list is showing, so a
+ * tap on it has its verdict ready — see the app's lyric check. Provided by the
+ * app, which only does anything while "Check lyrics for explicit content" is
+ * on. Default: nothing.
+ */
+val LocalLyricsPrecheck = compositionLocalOf<(Song) -> Unit> { {} }
+
+/**
+ * Asks for [song]'s [LocalLyricsPrecheck] once it has stayed on screen for
+ * [PRECHECK_AFTER_MS] — long enough that a list flung past isn't looked up
+ * row by row.
+ */
 @Composable
-fun Song.showsExplicit(): Boolean = isExplicit == true || LocalExplicitByLyrics.current(this)
+fun RequestLyricsPrecheck(song: Song) {
+    if (song.isExplicit == true) return
+    val precheck = LocalLyricsPrecheck.current
+    LaunchedEffect(song.videoId, precheck) {
+        delay(PRECHECK_AFTER_MS)
+        precheck(song)
+    }
+}
+
+private const val PRECHECK_AFTER_MS = 400L
+
+/**
+ * Whether a row should wear the "E": badged by the catalogue, or by its
+ * lyrics. Every row that might show one asks this, which is why it is also
+ * where a row on screen asks for its [RequestLyricsPrecheck].
+ */
+@Composable
+fun Song.showsExplicit(): Boolean {
+    RequestLyricsPrecheck(this)
+    return isExplicit == true || LocalExplicitByLyrics.current(this)
+}
 
 /** [showsExplicit] for a feed card. */
 @Composable
 fun ShelfItem.showsExplicit(): Boolean {
     val id = videoId ?: return false
-    return isExplicit == true || LocalExplicitByLyrics.current(asCardSong(id))
+    val song = asCardSong(id)
+    RequestLyricsPrecheck(song)
+    return isExplicit == true || LocalExplicitByLyrics.current(song)
 }
 
 private fun ShelfItem.asCardSong(id: String) =

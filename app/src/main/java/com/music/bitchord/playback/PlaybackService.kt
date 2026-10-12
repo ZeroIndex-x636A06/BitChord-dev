@@ -79,6 +79,8 @@ import com.music.bitchord.playback.audio.DspChain
 import com.music.bitchord.playback.cast.CastController
 import com.music.bitchord.playback.cast.CastPlayback
 import com.music.bitchord.playback.cast.CastSink
+import com.music.bitchord.playback.cast.RemoteSpeaker
+import com.music.bitchord.playback.cast.Speakers
 import com.music.bitchord.playback.cast.CastStream
 import com.music.bitchord.playback.audio.PrecisionAudioSink
 import com.music.bitchord.playback.dsd.DsdExtractorsFactory
@@ -112,6 +114,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicLong
 import com.music.bitchord.data.Http
+import com.music.bitchord.auth.SignedIn
 import com.music.bitchord.data.LikeState
 import com.music.bitchord.data.NerdStats
 import com.music.bitchord.data.TrackLog
@@ -138,6 +141,7 @@ import com.music.bitchord.playback.smart.AutomixAnalysisSource
 import com.music.bitchord.playback.smart.VersionAudioAligner
 import com.music.bitchord.widget.MediaWidget
 import com.music.bitchord.widget.MediaWidgetSnapshot
+import com.music.bitchord.wear.WearBridge
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -181,6 +185,9 @@ const val ACTION_SWAP_VERSION = "com.music.bitchord.action.SWAP_VERSION"
 const val EXTRA_SWAP_MEDIA_ITEM = "bitchord.swap.media_item"
 
 /** Session command used by the media notification's and the 4×1 widget's Favorite button. */
+/** How long the service may stay in the foreground, paused, while the watch plays. */
+private const val WATCH_SESSION_FOREGROUND_MS = 6 * 60 * 60 * 1000L
+
 const val ACTION_TOGGLE_FAVORITE = "com.music.bitchord.action.TOGGLE_FAVORITE"
 
 /** Session command used by the media notification's and the 4×1 widget's Shuffle button. */
@@ -716,6 +723,18 @@ class PlaybackService : MediaLibraryService() {
     )
 
     /**
+     * The BitChord watch app as the speaker — the same model as Cast: the phone
+     * keeps the queue paused, the watch plays it and owns the clock. See
+     * [WearBridge.createSpeaker].
+     */
+    private val watchSpeaker by lazy {
+        WearBridge.createSpeaker(this, scope, localPlayer = { player }, onChanged = { publishWidgetState() })
+    }
+
+    /** Every remote speaker, as the one the session player reports. */
+    private val speakers by lazy { Speakers(listOf(castPlayback, watchSpeaker)) }
+
+    /**
      * Binds playback to a Listen Together party, when there is one.
      *
      * Here rather than in the UI because a party has to outlive the app
@@ -899,7 +918,7 @@ class PlaybackService : MediaLibraryService() {
             // speaker — an internal path, since the session player's door
             // already sends a listener's play to the receiver. The phone goes
             // quiet again and the receiver is asked instead.
-            if (playWhenReady) player?.let(castPlayback::onLocalStartedPlaying)
+            if (playWhenReady) player?.let(speakers::onLocalStartedPlaying)
             publishWidgetState(playing = playWhenReady)
             // The only place the *reason* can be read. A party has to tell a
             // pause the listener asked for from one another app imposed, and
@@ -923,6 +942,9 @@ class PlaybackService : MediaLibraryService() {
             if (reason == Player.DISCONTINUITY_REASON_SEEK) {
                 if (exoPlayer.isPlaying) pushDiscordPresence(exoPlayer)
                 updateLyricSubtitle()
+                // The watch extrapolates its progress ring from the last
+                // position it was given, the same way Discord does.
+                WearBridge.republish(this@PlaybackService, exoPlayer)
             }
         }
 
@@ -944,13 +966,17 @@ class PlaybackService : MediaLibraryService() {
                 mediaItem.mediaId == swappingMediaId
             ) {
                 swappingMediaId = null
+                // Not a new play — but for the explicit filter it may well be
+                // a new recording: a video swapped for its song, whose lyrics
+                // are not the video's.
+                explicitCheckCurrent()
                 return
             }
 
             // A receiver, if it is the speaker, is put on whatever became
             // current — or it is the one that moved, and this is the phone
             // catching up, which [CastPlayback] tells apart by track.
-            castPlayback.onLocalTransition(mediaItem, reason)
+            speakers.onLocalTransition(mediaItem, reason)
 
             // No crossfade case to allow for here any more. A blended advance
             // never reaches this callback — the incoming track starts as the
@@ -981,8 +1007,7 @@ class PlaybackService : MediaLibraryService() {
             // Catches queues that never passed through the app's own play
             // actions — one restored from the last session, a deep link, a
             // car head unit — before the blocked track reaches the front.
-            dropBlockedExplicitFromQueue()
-            checkLyricsAhead()
+            explicitCheckCurrent()
             loadAutoplayForCurrentTrack()
             loadLyricsForCurrentTrack()
             if (exoPlayer.isPlaying) startLyricsTicker()
@@ -1042,7 +1067,8 @@ class PlaybackService : MediaLibraryService() {
         override fun onRepeatModeChanged(repeatMode: Int) {
             val previous = lastRepeatMode
             lastRepeatMode = repeatMode
-            castPlayback.onLocalRepeatChanged(repeatMode)
+            speakers.onLocalRepeatChanged(repeatMode)
+            player?.let { WearBridge.republish(this@PlaybackService, it) }
             // Repeat-one makes the "next" track this one again.
             player?.let { activeLoudness().nextMediaId = nextMediaIdOf(it) }
             // Repeat-all loops the queue as it stands; AutoPlay's tracks are the
@@ -1080,7 +1106,7 @@ class PlaybackService : MediaLibraryService() {
             // stage switches to that track on its own at the boundary.
             activeLoudness().nextMediaId = nextMediaIdOf(exoPlayer)
             if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
-                castPlayback.onLocalQueueChanged()
+                speakers.onLocalQueueChanged()
                 saveQueueSnapshot(exoPlayer)
                 refreshCustomLayouts()
                 // Queue edits can remove AutoPlay's whole tail while leaving
@@ -1255,6 +1281,26 @@ class PlaybackService : MediaLibraryService() {
         // edit once that single service-side transaction has completed.
         scope.launch {
             QueueShuffle.enabled
+                .collectLatest {
+                    refreshCustomLayouts()
+                    publishWidgetState()
+                }
+        }
+        // While the watch is the speaker this process serves its audio, and a
+        // paused service drops out of the foreground after ten minutes — after
+        // which Android may freeze the process mid-stream. Held up for the
+        // length of the session instead.
+        scope.launch {
+            WearBridge.watchSession.collect { onWatch ->
+                setForegroundServiceTimeoutMs(
+                    if (onWatch) WATCH_SESSION_FOREGROUND_MS else DEFAULT_FOREGROUND_SERVICE_TIMEOUT_MS,
+                )
+            }
+        }
+        // Signing in or out adds or removes Like everywhere at once.
+        scope.launch {
+            SignedIn.state(this@PlaybackService)
+                .drop(1)
                 .collectLatest {
                     refreshCustomLayouts()
                     publishWidgetState()
@@ -1590,6 +1636,8 @@ class PlaybackService : MediaLibraryService() {
             DsdExtractorsFactory(),
         )
             .setLoadErrorHandlingPolicy(PermanentAwareLoadErrorPolicy())
+        // The watch, when it is the speaker, reads tracks through this same chain.
+        WearBridge.attachStreams(AudioCache.playbackFactory(defaultDataSourceFactory))
 
         configuredFloatOutput = shouldEnableFloatOutput()
         val exoPlayer = buildPlayer(
@@ -1702,7 +1750,7 @@ class PlaybackService : MediaLibraryService() {
         onUserIntent = { partySync?.onLocalIntent() },
         deferPlayToParty = { partySync?.shouldDeferPlay() == true },
         lockedTransport = { playing -> partySync?.onLockedTransport(playing) == true },
-        cast = castPlayback,
+        cast = speakers,
     ) { lastPublishedSubtitle }
 
     /**
@@ -1775,9 +1823,17 @@ class PlaybackService : MediaLibraryService() {
             versionSwapActive = { versionSwapJob?.isActive == true },
         )
 
+    /**
+     * Whether Like is offered for [item] — the player's own rule, so no surface
+     * shows a heart the player doesn't: there has to be an account to record it
+     * against, and a local file or a download has no YouTube identity to rate.
+     */
+    private fun canLike(item: MediaItem?): Boolean =
+        item != null && SignedIn.state(this).value && item.toSong().localUri == null
+
     /** Favorite and Shuffle: the only actions shown on the phone notification. */
     private fun notificationButtons(): List<CommandButton> {
-        val favorite = CommandButton.Builder(
+        val favorite = if (!canLike(player?.currentMediaItem)) null else CommandButton.Builder(
             if (LikeState.overrides.value[player?.currentMediaItem?.mediaId] == LikeStatus.LIKE) {
                 CommandButton.ICON_HEART_FILLED
             } else {
@@ -1798,7 +1854,7 @@ class PlaybackService : MediaLibraryService() {
             .setSessionCommand(shuffleCommand)
             .setDisplayName(if (shuffleEnabled) "Shuffle off" else "Shuffle on")
             .build()
-        return listOf(favorite, shuffle)
+        return listOfNotNull(favorite, shuffle)
     }
 
     /** Adds Radio/Revert for controllers with room for them, e.g. Android Auto. */
@@ -2316,6 +2372,8 @@ class PlaybackService : MediaLibraryService() {
             reason = Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED,
             alreadyAudible = true,
         )
+        // The other version is another recording to the explicit filter.
+        explicitCheckCurrent()
     }
 
     /** Reopens the current song through YouTube and remembers that choice. */
@@ -2701,6 +2759,62 @@ class PlaybackService : MediaLibraryService() {
      * [dropBlockedExplicitFromQueue] — which drops a song that turned out
      * explicit, or skips it if it is already playing.
      */
+    /**
+     * The explicit filter's look at whatever has just become the current
+     * track — an item transition, a blended Automix advance, or a swap to
+     * another version of the song (the video for its audio, say, which is
+     * another recording with other lyrics). Every one of those paths calls
+     * this; before, only the plain item transition did, so a song reached by
+     * a swap or a blend played unjudged until something else noticed it.
+     */
+    private fun explicitCheckCurrent() {
+        dropBlockedExplicitFromQueue()
+        holdForLyricVerdict()
+        checkLyricsAhead()
+    }
+
+    private var lyricHoldJob: Job? = null
+
+    /**
+     * "Check lyrics for explicit content" for whatever the queue moves on to:
+     * a track nobody has read yet — skipped to faster than [checkLyricsAhead]
+     * could read it, or reached from a queue restored at launch — is held at
+     * its start until its verdict is in, then played, or skipped if it turned
+     * out explicit. A track is never heard and then dropped. While it waits,
+     * [ExplicitLyricsCheck.holding] has the app say "Checking lyrics…".
+     * Nothing to hold when the player wasn't going to play anyway.
+     */
+    private fun holdForLyricVerdict() {
+        lyricHoldJob?.cancel()
+        lyricHoldJob = null
+        ExplicitLyricsCheck.holding.value = null
+        if (AppSettings.explicitFilter.value == ExplicitFilterMode.OFF) return
+        if (!AppSettings.explicitLyricsCheck.value) return
+        if (ListenTogether.state.value.inParty) return
+        val exoPlayer = player ?: return
+        val item = exoPlayer.currentMediaItem ?: return
+        val song = item.queuedSong()
+        if (!exoPlayer.playWhenReady || !ExplicitLyricsCheck.checker.needsCheck(song)) return
+        exoPlayer.pause()
+        ExplicitLyricsCheck.holding.value = item.mediaId
+        TrackLog.d("BitChord", "explicit filter: holding the track until its lyrics are read", item.mediaId)
+        lyricHoldJob = scope.launch {
+            try {
+                ExplicitLyricsCheck.checkBeforePlaying(song)
+            } finally {
+                if (ExplicitLyricsCheck.holding.value == item.mediaId) ExplicitLyricsCheck.holding.value = null
+            }
+            val current = player ?: return@launch
+            if (current.currentMediaItem?.mediaId != item.mediaId) return@launch
+            if (item.queuedSong().explicitBlocked(suggestion = item.fromAutoplay)) {
+                // Skips it (or pauses at its start, with nothing allowed after it).
+                dropBlockedExplicitFromQueue()
+            } else {
+                current.play()
+            }
+        }
+    }
+
     private fun checkLyricsAhead() {
         if (AppSettings.explicitFilter.value == ExplicitFilterMode.OFF) return
         if (!AppSettings.explicitLyricsCheck.value) return
@@ -2924,6 +3038,9 @@ class PlaybackService : MediaLibraryService() {
         autoplayLoadJob?.cancel()
         autoplayLoadJob = null
         autoplaySeed = null
+        // Same for the explicit filter: a blended advance is still the queue
+        // moving on to a track it has to judge.
+        explicitCheckCurrent()
         loadAutoplayForCurrentTrack()
     }
 
@@ -3389,12 +3506,6 @@ class PlaybackService : MediaLibraryService() {
         ) {
             return
         }
-        // An addon/JioSaavn stream gets one chance. If it fails after selection,
-        // retrying the ordinary item only lets the same deterministic lookup win
-        // again. Rebuild it as an explicit YouTube request instead. This also
-        // clears a DASH/HLS MIME left on an upgraded item, which otherwise makes
-        // Media3 parse YouTube's WebM bytes as a manifest forever.
-        if (fallbackFailedAlternativeToYouTube(item, uri, position)) return
         // A manifest read as audio is not a broken stream, and everything below
         // this line would treat it as one. Ahead of the verdict and the attempt
         // budget for the same reason as the local-file case above: this is not
@@ -3405,6 +3516,12 @@ class PlaybackService : MediaLibraryService() {
         ) {
             return
         }
+        // An addon/JioSaavn stream gets one chance. If it fails after selection,
+        // retrying the ordinary item only lets the same deterministic lookup win
+        // again. Rebuild it as an explicit YouTube request instead. This also
+        // clears a DASH/HLS MIME left on an upgraded item, which otherwise makes
+        // Media3 parse YouTube's WebM bytes as a manifest forever.
+        if (fallbackFailedAlternativeToYouTube(item, uri, position)) return
         // Giving up on the *retry*, not on everything below it.
         //
         // A track that has exhausted its attempts is not finished with.
@@ -3550,6 +3667,10 @@ class PlaybackService : MediaLibraryService() {
         position: Long,
     ): Boolean {
         val playbackUri = uri ?: return false
+        // A track the listener picked from an addon is that addon's or nothing:
+        // a YouTube Opus copy under it is a different, lesser recording they
+        // did not ask for. Let the ordinary retry/skip path deal with it.
+        if (playbackUri.authority == "source") return false
         val videoId = playbackUri.getQueryParameter("v")
         val substituted = videoId?.let(StreamChoice::isSubstitute) == true
         if (!PlaybackFallback.isAlternative(playbackUri.toString(), substituted)) return false
@@ -5427,22 +5548,26 @@ class PlaybackService : MediaLibraryService() {
         val liked = LikeState.overrides.value[song.videoId]?.let { it == LikeStatus.LIKE }
             ?: MediaWidgetSnapshot.load(this).takeIf { it.mediaId == song.videoId }?.isLiked
             ?: false
-        MediaWidgetSnapshot.save(
-            this,
-            MediaWidgetSnapshot(
-                mediaId = song.videoId,
-                title = song.title,
-                artist = song.artist,
-                artworkUrl = song.thumbnailUrl,
-                // playWhenReady, not isPlaying — see MediaWidgetSnapshot.isPlaying.
-                isPlaying = playing ?: exoPlayer.playWhenReady,
-                hasPrevious = exoPlayer.hasPreviousMediaItem(),
-                hasNext = exoPlayer.hasNextMediaItem(),
-                isLiked = liked,
-                shuffleEnabled = QueueShuffle.enabled.value,
-            ),
+        val reported: Player = mediaSession?.player ?: exoPlayer
+        val snapshot = MediaWidgetSnapshot(
+            mediaId = song.videoId,
+            title = song.title,
+            artist = song.artist,
+            artworkUrl = song.thumbnailUrl,
+            // playWhenReady, not isPlaying — see MediaWidgetSnapshot.isPlaying.
+            // Through the session player, which answers for Cast or the watch
+            // while one of them is the speaker.
+            isPlaying = playing ?: reported.playWhenReady,
+            hasPrevious = exoPlayer.hasPreviousMediaItem(),
+            hasNext = exoPlayer.hasNextMediaItem(),
+            isLiked = liked,
+            canLike = canLike(exoPlayer.currentMediaItem),
+            shuffleEnabled = QueueShuffle.enabled.value,
         )
+        MediaWidgetSnapshot.save(this, snapshot)
         MediaWidget.refresh(this)
+        // The watch app follows the widget — same moments, same snapshot.
+        WearBridge.publish(this, snapshot, reported, playing)
     }
 
     private var foreignCachePurgeJob: Job? = null
@@ -6704,6 +6829,8 @@ class PlaybackService : MediaLibraryService() {
 
 
     override fun onDestroy() {
+        WearBridge.attachStreams(null)
+        WearBridge.releaseSpeaker()
         // Let go of the receiver's player but leave its session alone: a
         // service that idles out while casting is not the listener choosing to
         // stop, and the next one picks the session up where it was.
@@ -6934,8 +7061,8 @@ class PlaybackService : MediaLibraryService() {
         private val deferPlayToParty: () -> Boolean,
         /** @see PartySync.onLockedTransport */
         private val lockedTransport: (Boolean) -> Boolean,
-        /** What plays on a Cast receiver, whose clock this reports while it is the speaker. */
-        private val cast: CastPlayback,
+        /** Cast or the watch, whichever is the speaker — its clock is what this reports. */
+        private val cast: RemoteSpeaker,
         private val getSubtitle: () -> String?,
     ) : ForwardingPlayer(player), CastSink {
 
@@ -7006,12 +7133,12 @@ class PlaybackService : MediaLibraryService() {
         override fun isDeviceMuted(): Boolean = if (cast.active) false else super.isDeviceMuted()
 
         override fun setDeviceVolume(volume: Int, flags: Int) {
-            if (cast.active) CastController.setVolume(volume / 100f) else super.setDeviceVolume(volume, flags)
+            if (cast.active) cast.setVolume(volume / 100f) else super.setDeviceVolume(volume, flags)
         }
 
         @Suppress("DEPRECATION")
         override fun setDeviceVolume(volume: Int) {
-            if (cast.active) CastController.setVolume(volume / 100f) else super.setDeviceVolume(volume)
+            if (cast.active) cast.setVolume(volume / 100f) else super.setDeviceVolume(volume)
         }
 
         override fun increaseDeviceVolume(flags: Int) {
@@ -7042,7 +7169,7 @@ class PlaybackService : MediaLibraryService() {
         }
 
         private fun nudgeReceiverVolume(delta: Float) =
-            CastController.setVolume(CastController.volume.value + delta)
+            cast.setVolume(cast.deviceVolume / 100f + delta)
 
         override fun onRemotePlaybackChanged() {
             val flags = FlagSet.Builder()
@@ -7469,9 +7596,12 @@ class PlaybackService : MediaLibraryService() {
                         partySync?.endQueueDrag()
                     }
                 }
-                ACTION_TOGGLE_FAVORITE -> session.player.currentMediaItem?.mediaId?.let {
-                    toggleFavoriteFromNotification(it)
-                }
+                // A widget or watch drawn before the track changed can still
+                // send this for one the player offers no Like on.
+                ACTION_TOGGLE_FAVORITE -> session.player.currentMediaItem
+                    ?.takeIf(::canLike)
+                    ?.mediaId
+                    ?.let { toggleFavoriteFromNotification(it) }
                 else -> return Futures.immediateFuture(
                     SessionResult(SessionError.ERROR_NOT_SUPPORTED),
                 )

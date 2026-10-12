@@ -92,6 +92,7 @@
     <string name="d_explicit_song">Откровенная песня</string>
     <string name="d_explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
     <string name="d_turn_off_blocking">Отключить блокировку</string>
+    <string name="d_turn_off_lyrics_check">Отключить проверку текстов</string>
     <string name="d_allow_this_song">Разрешить эту песню</string>
     <string name="d_allowed_explicit_songs">Разрешённые откровенные песни</string>
     <string name="d_allowed_explicit_songs_empty">Пока нет разрешённых песен. Нажмите на затемнённую песню и выберите «Разрешить» или используйте «Разрешить эту откровенную песню» в её меню.</string>
@@ -109,7 +110,9 @@
     <string name="d_one_song_allowed">1 песня разрешена в обход фильтра</string>
     <string name="d_songs_allowed">%1$d песен разрешено в обход фильтра</string>
     <string name="d_check_lyrics_explicit">Проверять тексты на откровенный контент</string>
+    <string name="d_checking_lyrics">Проверка текста…</string>
     <string name="d_check_lyrics_explicit_subtitle">Блокировать и песни с несколькими ругательствами в тексте, даже если YouTube Music не отмечает их как откровенные</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Включите тексты песен, чтобы использовать это</string>
     <string name="d_explicit_lyrics_blocked_message">В тексте «%1$s» есть откровенный контент, и фильтр его блокирует.</string>
     <string name="d_play_clean_versions">Включать чистые версии вместо них</string>
     <string name="d_play_clean_versions_subtitle">Если у заблокированной песни есть чистая версия, будет играть она</string>

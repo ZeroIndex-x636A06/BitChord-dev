@@ -92,6 +92,7 @@
     <string name="d_explicit_song">שיר בוטה</string>
     <string name="d_explicit_song_blocked_message">״%1$s״ מסומן כבוטה והסינון שלכם חוסם אותו.</string>
     <string name="d_turn_off_blocking">כיבוי החסימה</string>
+    <string name="d_turn_off_lyrics_check">כבה את בדיקת המילים</string>
     <string name="d_allow_this_song">לאפשר את השיר הזה</string>
     <string name="d_allowed_explicit_songs">שירים בוטים מאושרים</string>
     <string name="d_allowed_explicit_songs_empty">עדיין אין שירים מאושרים. הקישו על שיר באפור ובחרו ״לאפשר״, או השתמשו ב״לאפשר את השיר הבוטה הזה״ בתפריט שלו.</string>
@@ -109,7 +110,9 @@
     <string name="d_one_song_allowed">שיר 1 אושר לעקוף את הסינון</string>
     <string name="d_songs_allowed">%1$d שירים אושרו לעקוף את הסינון</string>
     <string name="d_check_lyrics_explicit">בדוק מילים לתוכן בוטה</string>
+    <string name="d_checking_lyrics">בודק מילים…</string>
     <string name="d_check_lyrics_explicit_subtitle">חסום גם שירים שהמילים שלהם כוללות כמה קללות, גם אם YouTube Music לא סימן אותם כבוטים</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">הפעל מילים כדי להשתמש בזה</string>
     <string name="d_explicit_lyrics_blocked_message">למילים של ”%1$s“ יש תוכן בוטה והמסנן שלך חוסם אותו.</string>
     <string name="d_play_clean_versions">נגן גרסאות נקיות במקום</string>
     <string name="d_play_clean_versions_subtitle">אם לשיר חסום יש גרסה נקייה, היא תנוגן במקומו</string>
