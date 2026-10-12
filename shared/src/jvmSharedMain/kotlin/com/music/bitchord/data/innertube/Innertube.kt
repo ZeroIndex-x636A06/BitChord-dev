@@ -602,6 +602,23 @@ object Innertube {
         put("isAudioOnly", true)
     }
 
+    /**
+     * A playlist as a watch queue — the list YouTube Music's player gets for it.
+     * Unlike the playlist page, each official music video on it comes wrapped
+     * with its song counterpart (the player's Song/Video switch), so a whole
+     * page of videos is matched to songs in one request. [continuation]
+     * fetches the next part.
+     */
+    suspend fun nextOfPlaylist(playlistId: String, continuation: String? = null): JsonObject = postMusic("next") {
+        if (continuation != null) {
+            put("continuation", continuation)
+        } else {
+            put("playlistId", playlistId)
+        }
+        put("enablePersistentPlaylistPanel", true)
+        put("isAudioOnly", true)
+    }
+
     /** Timed caption transcript used as a last-resort lyrics source. */
     suspend fun transcript(videoId: String): JsonObject = postMusic("get_transcript") {
         // get_transcript expects a tiny protobuf: field 1, length, video id.
