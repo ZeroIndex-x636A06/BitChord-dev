@@ -112,5 +112,6 @@
     <string name="d_check_lyrics_explicit">Revisar letras con contenido explícito</string>
     <string name="d_checking_lyrics">Revisando la letra…</string>
     <string name="d_check_lyrics_explicit_subtitle">También bloquea canciones cuya letra tiene varias groserías, aunque YouTube Music no las marque como explícitas</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Activa las letras para usar esto</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s” tiene letra explícita y tu filtro la está bloqueando.</string>
 </resources>

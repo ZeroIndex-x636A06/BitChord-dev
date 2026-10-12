@@ -1364,5 +1364,6 @@
     <string name="check_lyrics_explicit">Sprawdzaj teksty pod kątem wulgaryzmów</string>
     <string name="checking_lyrics">Sprawdzanie tekstu…</string>
     <string name="check_lyrics_explicit_subtitle">Blokuj też utwory z kilkoma wulgaryzmami w tekście, nawet jeśli YouTube Music nie oznacza ich jako explicit</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Włącz teksty, aby z tego korzystać</string>
     <string name="explicit_lyrics_blocked_message">„%1$s” ma wulgarny tekst i jest blokowany przez filtr.</string>
 </resources>

@@ -34,11 +34,13 @@ object ExplicitLyricsCheck {
         if (this::prefs.isInitialized) prefs.edit().putString(KEY_VERDICTS, encoded).apply()
     }
 
-    // The lyrics sources ticked in Settings, whether or not lyrics are shown
-    // on screen: turning the lyrics panel off is not turning this check off.
+    // The lyrics sources ticked in Settings — none with lyrics switched off,
+    // which the setting's row says.
     val checker = ExplicitLyricsChecker(
         store,
-        StandardExplicitLyrics { AppSettings.lyricsSources.value },
+        StandardExplicitLyrics {
+            if (AppSettings.syncedLyrics.value) AppSettings.lyricsSources.value else emptySet()
+        },
         log = { videoId, message -> TrackLog.d("BitChord", message, videoId) },
     )
 

@@ -112,5 +112,6 @@
     <string name="d_check_lyrics_explicit">Şarkı sözlerini müstehcen içerik için kontrol et</string>
     <string name="d_checking_lyrics">Şarkı sözleri kontrol ediliyor…</string>
     <string name="d_check_lyrics_explicit_subtitle">YouTube Music müstehcen olarak işaretlemese bile sözlerinde birkaç küfür olan şarkıları da engeller</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Bunu kullanmak için şarkı sözlerini açın</string>
     <string name="d_explicit_lyrics_blocked_message">“%1$s” müstehcen sözler içeriyor ve filtren onu engelliyor.</string>
 </resources>

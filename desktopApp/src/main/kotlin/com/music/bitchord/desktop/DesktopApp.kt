@@ -7787,6 +7787,7 @@ private fun DesktopExplicitSettings(onOpenAllowedExplicit: () -> Unit) {
     val mode by DesktopExplicit.mode.collectAsState()
     val allowOwn by DesktopExplicit.allowOwnPlaylists.collectAsState()
     val lyricsCheck by DesktopExplicit.lyricsCheck.collectAsState()
+    val lyricsOn by DesktopPlayerSettings.syncedLyrics.collectAsState()
     val allowed by DesktopExplicit.allowList.songs.collectAsState()
     SettingsToggle(
         DesktopStrings["d_filter_explicit_content", "Filter explicit content"],
@@ -7815,10 +7816,15 @@ private fun DesktopExplicitSettings(onOpenAllowedExplicit: () -> Unit) {
     if (mode != ExplicitFilterMode.OFF) {
         SettingsToggle(
             DesktopStrings["d_check_lyrics_explicit", "Check lyrics for explicit content"],
-            DesktopStrings[
-                "d_check_lyrics_explicit_subtitle",
-                "Also block songs whose lyrics have several swear words, even if YouTube Music doesn\u2019t mark them explicit",
-            ],
+            // It reads lyrics, so with lyrics off it can't do anything — say so.
+            if (lyricsOn) {
+                DesktopStrings[
+                    "d_check_lyrics_explicit_subtitle",
+                    "Also block songs whose lyrics have several swear words, even if YouTube Music doesn\u2019t mark them explicit",
+                ]
+            } else {
+                DesktopStrings["d_check_lyrics_explicit_needs_lyrics", "Turn on lyrics to use this"]
+            },
             lyricsCheck,
             DesktopExplicit::setLyricsCheck,
         )

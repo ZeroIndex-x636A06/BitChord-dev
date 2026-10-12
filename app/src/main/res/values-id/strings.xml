@@ -1295,5 +1295,6 @@
     <string name="check_lyrics_explicit">Periksa lirik eksplisit</string>
     <string name="checking_lyrics">Memeriksa lirik…</string>
     <string name="check_lyrics_explicit_subtitle">Blokir juga lagu yang liriknya berisi beberapa kata kasar, meski YouTube Music tidak menandainya eksplisit</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Aktifkan lirik untuk menggunakan ini</string>
     <string name="explicit_lyrics_blocked_message">“%1$s” memiliki lirik eksplisit dan diblokir oleh filter Anda.</string>
 </resources>

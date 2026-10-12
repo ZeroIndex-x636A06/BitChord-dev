@@ -256,6 +256,24 @@ class ExplicitLyricsTest {
     }
 
     @Test
+    fun `the lyrics settings are respected`() = runBlocking {
+        // YouTube Music's lyrics switched off: never asked; the rest decide.
+        val noYtm = object : ExplicitLyricsSource by Words(exact = clean, others = listOf(swearing)) {
+            override fun hasExact() = false
+        }
+        assertEquals(true, ExplicitLyricsChecker(ExplicitLyricsStore { }, noYtm).check(song("a")))
+        // Lyrics switched off: nothing read, nothing recorded, nothing waited on.
+        val store = ExplicitLyricsStore { }
+        val off = object : ExplicitLyricsSource by Words(exact = swearing) {
+            override fun canRead() = false
+        }
+        val checker = ExplicitLyricsChecker(store, off)
+        assertFalse(checker.needsCheck(song("b")))
+        assertNull(checker.check(song("b")))
+        assertFalse(store.knows("b"))
+    }
+
+    @Test
     fun `being offline is not remembered`() = runBlocking {
         val store = ExplicitLyricsStore { }
         val checker = checker(Words(offline = true), store)

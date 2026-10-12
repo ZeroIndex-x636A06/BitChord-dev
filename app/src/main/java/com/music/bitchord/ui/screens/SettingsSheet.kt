@@ -1372,7 +1372,10 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.AutoMirrored.Rounded.Notes,
                     title = lyricsCheckTitle,
-                    subtitle = stringResource(R.string.check_lyrics_explicit_subtitle),
+                    // It reads lyrics, so with lyrics off it can't do anything — say so.
+                    subtitle = stringResource(
+                        if (syncedLyrics) R.string.check_lyrics_explicit_subtitle else R.string.check_lyrics_explicit_needs_lyrics,
+                    ),
                     enabled = available,
                     trailing = {
                         Switch(

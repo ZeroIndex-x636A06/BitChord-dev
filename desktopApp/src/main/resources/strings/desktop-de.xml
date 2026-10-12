@@ -112,5 +112,6 @@
     <string name="d_check_lyrics_explicit">Songtexte auf explizite Inhalte prüfen</string>
     <string name="d_checking_lyrics">Songtext wird geprüft…</string>
     <string name="d_check_lyrics_explicit_subtitle">Sperrt auch Songs, deren Texte mehrere Schimpfwörter enthalten, selbst wenn YouTube Music sie nicht als explizit markiert</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Aktiviere Songtexte, um dies zu nutzen</string>
     <string name="d_explicit_lyrics_blocked_message">„%1$s“ hat einen expliziten Text und wird von deinem Filter gesperrt.</string>
 </resources>

@@ -112,5 +112,6 @@
     <string name="d_check_lyrics_explicit">Проверять тексты на откровенный контент</string>
     <string name="d_checking_lyrics">Проверка текста…</string>
     <string name="d_check_lyrics_explicit_subtitle">Блокировать и песни с несколькими ругательствами в тексте, даже если YouTube Music не отмечает их как откровенные</string>
+    <string name="d_check_lyrics_explicit_needs_lyrics">Включите тексты песен, чтобы использовать это</string>
     <string name="d_explicit_lyrics_blocked_message">В тексте «%1$s» есть откровенный контент, и фильтр его блокирует.</string>
 </resources>

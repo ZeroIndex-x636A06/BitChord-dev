@@ -207,6 +207,12 @@ class ExplicitLyricsStore(private val save: (String) -> Unit) {
  * apps use; tests hand in their own.
  */
 interface ExplicitLyricsSource {
+    /** Whether any lyrics can be read at all — false with lyrics switched off. */
+    fun canRead(): Boolean = true
+
+    /** Whether [exact] may be asked — false with YouTube Music's lyrics switched off. */
+    fun hasExact(): Boolean = true
+
     /**
      * YouTube Music's own lyrics for this very video, or null when it has none.
      * Throws when YouTube Music couldn't be asked at all — offline is not "no
@@ -222,12 +228,16 @@ interface ExplicitLyricsSource {
 }
 
 /**
- * The lyric check's words, from the same places the lyrics panel reads:
- * YouTube Music for [exact] — the service the app already plays from, so it is
- * asked whatever the lyrics settings say — and the lyrics sources switched on
- * in Settings for the rest. A source switched off is never contacted.
+ * The lyric check's words, from the lyrics sources switched on in Settings:
+ * YouTube Music's for [exact], the rest for [others]. A source switched off is
+ * never contacted, and with lyrics switched off altogether [sources] is empty
+ * and nothing is read.
  */
 class StandardExplicitLyrics(private val sources: () -> Set<LyricsSource>) : ExplicitLyricsSource {
+
+    override fun canRead(): Boolean = sources().isNotEmpty()
+
+    override fun hasExact(): Boolean = LyricsSource.YOUTUBE_MUSIC in sources()
 
     override suspend fun exact(song: Song): List<String>? =
         YouTubeMusicLyrics.lyricsOrThrow(song.videoId)
@@ -318,13 +328,15 @@ class ExplicitLyricsChecker(
      * same failure would only double the wait.
      */
     fun needsCheck(song: Song): Boolean =
-        song.isExplicit != true && song.localUri == null && song.localPath == null &&
+        lyrics.canRead() && song.isExplicit != true && song.localUri == null && song.localPath == null &&
             !store.knows(song.videoId) &&
             (failedAt[song.videoId]?.let { now() - it >= RETRY_AFTER_MS } ?: true)
 
     /** The verdict for [song] — read now if it hasn't been — or null when it couldn't be read. */
     suspend fun check(song: Song): Boolean? {
         if (song.isExplicit == true) return true
+        // Nothing to read with: no verdict, and none recorded for later.
+        if (!lyrics.canRead() && !store.knows(song.videoId)) return null
         if (store.knows(song.videoId)) return song.videoId in store.flagged.value
         val mine = CompletableDeferred<Boolean?>()
         inFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }
@@ -368,7 +380,7 @@ class ExplicitLyricsChecker(
 
     /** [ExplicitLyricsSource.exact], asked once per song however many want it at the same time. */
     private suspend fun ownWords(song: Song): List<String>? {
-        if (song.videoId in noOwnWords) return null
+        if (!lyrics.hasExact() || song.videoId in noOwnWords) return null
         val mine = CompletableDeferred<List<String>?>()
         ownInFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }
         try {
