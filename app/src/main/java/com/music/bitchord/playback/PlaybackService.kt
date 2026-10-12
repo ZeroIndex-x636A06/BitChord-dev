@@ -980,6 +980,7 @@ class PlaybackService : MediaLibraryService() {
             // actions — one restored from the last session, a deep link, a
             // car head unit — before the blocked track reaches the front.
             dropBlockedExplicitFromQueue()
+            holdForLyricVerdict()
             checkLyricsAhead()
             loadAutoplayForCurrentTrack()
             loadLyricsForCurrentTrack()
@@ -2680,6 +2681,48 @@ class PlaybackService : MediaLibraryService() {
      * [dropBlockedExplicitFromQueue] — which drops a song that turned out
      * explicit, or skips it if it is already playing.
      */
+    private var lyricHoldJob: Job? = null
+
+    /**
+     * "Check lyrics for explicit content" for whatever the queue moves on to:
+     * a track nobody has read yet — skipped to faster than [checkLyricsAhead]
+     * could read it, or reached from a queue restored at launch — is held at
+     * its start until its verdict is in, then played, or skipped if it turned
+     * out explicit. A track is never heard and then dropped. While it waits,
+     * [ExplicitLyricsCheck.holding] has the app say "Checking lyrics…".
+     * Nothing to hold when the player wasn't going to play anyway.
+     */
+    private fun holdForLyricVerdict() {
+        lyricHoldJob?.cancel()
+        lyricHoldJob = null
+        ExplicitLyricsCheck.holding.value = null
+        if (AppSettings.explicitFilter.value == ExplicitFilterMode.OFF) return
+        if (!AppSettings.explicitLyricsCheck.value) return
+        if (ListenTogether.state.value.inParty) return
+        val exoPlayer = player ?: return
+        val item = exoPlayer.currentMediaItem ?: return
+        val song = item.queuedSong()
+        if (!exoPlayer.playWhenReady || !ExplicitLyricsCheck.checker.needsCheck(song)) return
+        exoPlayer.pause()
+        ExplicitLyricsCheck.holding.value = item.mediaId
+        TrackLog.d("BitChord", "explicit filter: holding the track until its lyrics are read", item.mediaId)
+        lyricHoldJob = scope.launch {
+            try {
+                ExplicitLyricsCheck.checkBeforePlaying(song)
+            } finally {
+                if (ExplicitLyricsCheck.holding.value == item.mediaId) ExplicitLyricsCheck.holding.value = null
+            }
+            val current = player ?: return@launch
+            if (current.currentMediaItem?.mediaId != item.mediaId) return@launch
+            if (item.queuedSong().explicitBlocked(suggestion = item.fromAutoplay)) {
+                // Skips it (or pauses at its start, with nothing allowed after it).
+                dropBlockedExplicitFromQueue()
+            } else {
+                current.play()
+            }
+        }
+    }
+
     private fun checkLyricsAhead() {
         if (AppSettings.explicitFilter.value == ExplicitFilterMode.OFF) return
         if (!AppSettings.explicitLyricsCheck.value) return

@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -43,6 +44,13 @@ object ExplicitLyricsCheck {
         prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         store.load(prefs.getString(KEY_VERDICTS, null))
     }
+
+    /**
+     * The song the player is holding at its start while its lyrics are read —
+     * see the player's lyric hold. The app shows "Checking lyrics…" for it
+     * the same as for a tap.
+     */
+    val holding = MutableStateFlow<String?>(null)
 
     /** Prechecks running together, so a scrolled list doesn't fire off a burst. */
     private val prechecks = Semaphore(PRECHECKS_AT_ONCE)

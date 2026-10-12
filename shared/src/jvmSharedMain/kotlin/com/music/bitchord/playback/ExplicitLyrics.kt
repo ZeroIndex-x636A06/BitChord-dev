@@ -304,9 +304,19 @@ class ExplicitLyricsChecker(
     /** Songs YouTube Music has no lyrics for, so a tap after a [precheck] doesn't ask again. */
     private val noOwnWords: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
-    /** Whether [song] still has to be read before the filter can judge it. */
+    /** When a check last came back without a verdict, by video id — see [needsCheck]. */
+    private val failedAt = ConcurrentHashMap<String, Long>()
+
+    /**
+     * Whether [song] still has to be read before the filter can judge it. Not
+     * for [RETRY_AFTER_MS] after a check that couldn't be finished (offline,
+     * out of time): playback waits on this, and waiting a second time on the
+     * same failure would only double the wait.
+     */
     fun needsCheck(song: Song): Boolean =
-        song.isExplicit != true && song.localUri == null && song.localPath == null && !store.knows(song.videoId)
+        song.isExplicit != true && song.localUri == null && song.localPath == null &&
+            !store.knows(song.videoId) &&
+            (failedAt[song.videoId]?.let { now() - it >= RETRY_AFTER_MS } ?: true)
 
     /** The verdict for [song] — read now if it hasn't been — or null when it couldn't be read. */
     suspend fun check(song: Song): Boolean? {
@@ -316,13 +326,14 @@ class ExplicitLyricsChecker(
         inFlight.putIfAbsent(song.videoId, mine)?.let { return it.await() }
         try {
             val explicit = withTimeoutOrNull(BUDGET_MS) { judge(song) }
-            if (explicit != null) store.record(song.videoId, explicit)
+            if (explicit != null) store.record(song.videoId, explicit) else failedAt[song.videoId] = now()
             mine.complete(explicit)
             return explicit
         } catch (e: CancellationException) {
             mine.complete(null)
             throw e
         } catch (e: Exception) {
+            failedAt[song.videoId] = now()
             mine.complete(null)
             return null
         } finally {
@@ -412,6 +423,11 @@ class ExplicitLyricsChecker(
 
         /** Longest the other sources are waited on. */
         const val OTHERS_MS = 6_000L
+
+        /** How long a song whose check couldn't finish is left unread before it is tried again. */
+        const val RETRY_AFTER_MS = 5 * 60_000L
+
+        private fun now() = System.currentTimeMillis()
 
         /** Videos remembered as having no YouTube Music lyrics, before the list starts over. */
         private const val MAX_REMEMBERED_MISSES = 2_000

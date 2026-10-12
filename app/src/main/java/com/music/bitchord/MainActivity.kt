@@ -1371,10 +1371,13 @@ private fun BitChordApp(
             gateExplicitNow(song, sourceId, proceed)
         }
     }
-    // The wait made visible, on the strip above the mini player. Not for a
-    // check that answers at once, so a quick one doesn't flicker.
-    LaunchedEffect(lyricsCheckPending) {
-        if (lyricsCheckPending == null) {
+    // The wait made visible, on the strip above the mini player — for a tap,
+    // or for the player holding a queued track at its start. Not for a check
+    // that answers at once, so a quick one doesn't flicker.
+    val playerHoldingForLyrics by ExplicitLyricsCheck.holding.collectAsStateWithLifecycle()
+    val waitingOnLyrics = lyricsCheckPending ?: playerHoldingForLyrics
+    LaunchedEffect(waitingOnLyrics) {
+        if (waitingOnLyrics == null) {
             if (queueNotice?.busy == true) queueNotice = null
             return@LaunchedEffect
         }

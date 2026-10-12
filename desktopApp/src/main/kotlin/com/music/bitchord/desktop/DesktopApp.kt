@@ -833,9 +833,38 @@ fun BitChordDesktopApp() {
         persistence.saveString("queue_index", liveQueue.index.toString())
     }
 
-    /** Opens whatever the queue is currently pointing at. */
-    fun playCurrent(startPlaying: Boolean = true) {
+    /**
+     * Opens whatever the queue is currently pointing at.
+     *
+     * "Check lyrics for explicit content": a track nobody has read yet — skipped to faster than
+     * the read-ahead could read it, or the first of a restored queue — is held until its verdict
+     * is in, with the "Checking lyrics…" pill up, and only then opened; one that turned out
+     * explicit is left for the explicit filter's queue pass to skip. A track is never heard and
+     * then dropped.
+     */
+    fun playCurrent(startPlaying: Boolean = true, lyricsRead: Boolean = false) {
         val song = liveQueue.current ?: return
+        if (startPlaying && !lyricsRead && !DesktopListenTogether.state.value.inParty &&
+            DesktopExplicit.needsLyricsCheck(song)
+        ) {
+            playbackEngine.pause()
+            lyricsCheckPending = song.videoId
+            scope.launch {
+                try {
+                    DesktopExplicit.checkLyricsBeforePlaying(song)
+                } finally {
+                    if (lyricsCheckPending == song.videoId) lyricsCheckPending = null
+                }
+                if (liveQueue.current?.videoId != song.videoId) return@launch
+                val allowed = ExplicitFilter.permits(
+                    song,
+                    DesktopExplicit.policy(),
+                    suggestion = song.queueTier == QueueTier.AUTOPLAY,
+                )
+                if (allowed) playCurrent(startPlaying, lyricsRead = true)
+            }
+            return
+        }
         selectedSong = song
         history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
         saveQueue()
@@ -1886,6 +1915,19 @@ fun BitChordDesktopApp() {
         val next = selectedSong
             ?.takeIf { repeatMode != DesktopRepeatMode.ONE }
             ?.let { liveQueue.followingFor(it.videoId, repeatAll = repeatMode == DesktopRepeatMode.ALL) }
+        // Not lined up to blend in before its lyrics are read, when the lyric check is on: a
+        // crossfade would have it heard before the explicit filter could judge it. One that turns
+        // out explicit is dropped from the queue, which runs this again with the one after it.
+        if (next != null && !inParty && DesktopExplicit.needsLyricsCheck(next)) {
+            playbackEngine.prepareNext(null)
+            DesktopExplicit.checkLyricsBeforePlaying(next)
+            val allowed = ExplicitFilter.permits(
+                next,
+                DesktopExplicit.policy(),
+                suggestion = next.queueTier == QueueTier.AUTOPLAY,
+            )
+            if (!allowed) return@LaunchedEffect
+        }
         playbackEngine.prepareNext(next)
     }
     // Topped up on every track change, the way Android does it, rather than only once the queue has

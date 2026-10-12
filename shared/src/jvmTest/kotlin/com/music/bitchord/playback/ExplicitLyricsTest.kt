@@ -243,8 +243,11 @@ class ExplicitLyricsTest {
     @Test
     fun `being offline is not remembered`() = runBlocking {
         val store = ExplicitLyricsStore { }
-        assertNull(checker(Words(offline = true), store).check(song("offline")))
+        val checker = checker(Words(offline = true), store)
+        assertNull(checker.check(song("offline")))
         assertFalse(store.knows("offline"))
+        // Nor waited on again straight away.
+        assertFalse(checker.needsCheck(song("offline")))
     }
 
     @Test
