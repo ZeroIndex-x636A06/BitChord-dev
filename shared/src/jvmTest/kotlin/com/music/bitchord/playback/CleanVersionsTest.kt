@@ -2,6 +2,9 @@ package com.music.bitchord.playback
 
 import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.Song
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.runBlocking
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -309,7 +312,15 @@ class CleanVersionsTest {
         CleanVersions.search = { _, _ -> listOf(song("clean")) }
         val clean = CleanVersions.find(explicit)!!
         var read = 0
-        val checker = ExplicitLyricsChecker(ExplicitLyricsStore { }) { read++; listOf("fuck", "shit") }
+        val swearing = object : ExplicitLyricsSource {
+            override suspend fun exact(song: Song): List<String> {
+                read++
+                return listOf("fuck", "shit")
+            }
+            override fun others(song: Song): Flow<List<String>> = flowOf(listOf("fuck", "shit")).onStart { read++ }
+            override suspend fun sameTitle(song: Song): List<List<String>> = emptyList()
+        }
+        val checker = ExplicitLyricsChecker(ExplicitLyricsStore { }, swearing)
         assertFalse(checker.needsCheck(clean))
         assertEquals(false, checker.check(clean))
         assertEquals(0, read)
