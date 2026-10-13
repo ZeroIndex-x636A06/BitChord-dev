@@ -1,0 +1,42 @@
+package com.music.bitchord.desktop
+
+import com.music.bitchord.data.model.Song
+import com.music.bitchord.playback.ExplicitFilter
+import com.music.bitchord.ui.components.ExplicitPrompt
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/** The desktop app's "Block explicit songs" settings (#720). The rule itself is the shared [ExplicitFilter]. */
+internal object DesktopExplicit {
+    private val persistence = DesktopPersistence()
+
+    private val _enabled = MutableStateFlow(persistence.boolean(KEY_ENABLED, false))
+    val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
+
+    /** Video ids of explicit songs let through anyway, from the song menu. */
+    private val _allowed = MutableStateFlow(
+        persistence.string(KEY_ALLOWED).split('\n').filter(String::isNotBlank).toSet(),
+    )
+    val allowed: StateFlow<Set<String>> = _allowed.asStateFlow()
+
+    /** The tapped blocked explicit song the app's dialog is asking about. */
+    val prompt = MutableStateFlow<ExplicitPrompt?>(null)
+
+    fun setEnabled(value: Boolean) {
+        _enabled.value = value
+        persistence.saveBoolean(KEY_ENABLED, value)
+    }
+
+    fun setAllowed(videoId: String, allowed: Boolean) {
+        _allowed.value = if (allowed) _allowed.value + videoId else _allowed.value - videoId
+        persistence.saveString(KEY_ALLOWED, _allowed.value.joinToString("\n"))
+    }
+
+    fun blocks(song: Song): Boolean = ExplicitFilter.blocks(song, _enabled.value, _allowed.value)
+
+    fun filter(songs: List<Song>): List<Song> = ExplicitFilter.filter(songs, _enabled.value, _allowed.value)
+
+    private const val KEY_ENABLED = "block_explicit"
+    private const val KEY_ALLOWED = "explicit_allowed"
+}

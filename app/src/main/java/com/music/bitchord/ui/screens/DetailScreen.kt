@@ -1,5 +1,8 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.ui.components.rememberExplicitBlocked
+import com.music.bitchord.ui.components.explicitGatedClick
+import com.music.bitchord.ui.components.BLOCKED_ROW_ALPHA
 import android.os.Build
 import com.music.bitchord.R
 
@@ -1628,11 +1631,13 @@ private fun CompactSongRow(
     downloadedTint: Color? = null,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    explicitBlocked: Boolean = rememberExplicitBlocked(song),
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
+            .longPressMenuClickable(onClick = explicitGatedClick(song, explicitBlocked, onClick), onLongClick = onLongPress)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1687,11 +1692,13 @@ private fun SuggestedSongRow(
     downloadedTint: Color? = null,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    explicitBlocked: Boolean = rememberExplicitBlocked(song),
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
+            .longPressMenuClickable(onClick = explicitGatedClick(song, explicitBlocked, onClick), onLongClick = onLongPress)
             .padding(horizontal = PAGE_GUTTER, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
