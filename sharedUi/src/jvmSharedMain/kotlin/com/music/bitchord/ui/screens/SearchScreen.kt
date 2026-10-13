@@ -1,5 +1,7 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.ui.components.LocalHideExplicitEditions
+import com.music.bitchord.playback.CleanEditions
 import com.music.bitchord.ui.components.contextClick
 import androidx.compose.ui.unit.Dp
 import com.music.bitchord.sharedui.resources.*
@@ -70,9 +72,15 @@ import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.artworkAt
 import com.music.bitchord.data.model.SearchResult
 import com.music.bitchord.data.model.Song
-import com.music.bitchord.data.model.isSameTrackAs
+import com.music.bitchord.data.model.nowPlayingMatcher
 import com.music.bitchord.data.model.UiState
 import com.music.bitchord.data.model.SearchHistoryEntity
+import com.music.bitchord.ui.components.showsExplicit
+import com.music.bitchord.ui.components.explicitDimmed
+import com.music.bitchord.ui.components.RequestCleanVersion
+import com.music.bitchord.ui.components.LocalExplicitSwapped
+import com.music.bitchord.ui.components.ExplicitMark
+import com.music.bitchord.ui.components.LocalExplicitBlocked
 import com.music.bitchord.data.model.EntityType
 import com.music.bitchord.ui.components.MessageState
 import com.music.bitchord.ui.components.PAGE_GUTTER
@@ -142,6 +150,15 @@ fun SearchScreen(
      * YouTube. The phone's top bar flips this; the desktop never does.
      */
     searchingLibrary: Boolean = false,
+    /** Whether the page is showing the enabled addons' combined results; see [addonResults]. */
+    searchingAddons: Boolean = false,
+    /** The Addons source's tracks for the submitted query; null until one is submitted. */
+    addonResults: UiState<List<Song>>? = null,
+    /** Words searched in the Addons tab before, newest first; shown while the field is empty. */
+    addonHistory: List<String> = emptyList(),
+    onAddonHistoryClick: (String) -> Unit = {},
+    onAddonHistoryRemove: (String) -> Unit = {},
+    onAddonHistoryClear: () -> Unit = {},
     /** The Library source's tracks for [query]; null while nothing is typed. */
     libraryResults: UiState<List<Song>>? = null,
     /** Files on the device are a running order to play through, not a station seed. */
@@ -155,6 +172,7 @@ fun SearchScreen(
 ) {
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    val hideExplicitEditions = LocalHideExplicitEditions.current
     val keyboardController = LocalSoftwareKeyboardController.current
     // Tapping the search tab from the nav bar sets focusRequested;
     // respond by focusing the field and opening the keyboard.
@@ -175,14 +193,14 @@ fun SearchScreen(
     // MainViewModel.suggestions. Nothing below it is worth showing while it is
     // up: the results are for whatever was searched before this edit began,
     // and so are the filter tabs above them.
-    val suggesting = suggestions.isNotEmpty() && !searchingLibrary
+    val suggesting = suggestions.isNotEmpty() && !searchingLibrary && !searchingAddons
     // Live media results arrive from the parallel typeahead pipeline; show
     // them only while the user is still typing (suggestions visible), so they
     // appear as a dropdown beneath the text completions rather than floating
     // after the search has committed.
     val showTypeahead = typeaheadResults.isNotEmpty() && suggesting
-    LaunchedEffect(listState, results, loadingMore, searchingLibrary) {
-        if (results !is UiState.Success || searchingLibrary) return@LaunchedEffect
+    LaunchedEffect(listState, results, loadingMore, searchingLibrary, searchingAddons) {
+        if (results !is UiState.Success || searchingLibrary || searchingAddons) return@LaunchedEffect
         snapshotFlow {
             val layout = listState.layoutInfo
             (layout.visibleItemsInfo.lastOrNull()?.index ?: -1) to layout.totalItemsCount
@@ -206,6 +224,8 @@ fun SearchScreen(
                     focusRequester = focusRequester,
                     placeholder = if (searchingLibrary) {
                         stringResource(Res.string.search_library_hint)
+                    } else if (searchingAddons) {
+                        stringResource(Res.string.search_addons_hint)
                     } else {
                         stringResource(Res.string.search_hint)
                     },
@@ -227,7 +247,7 @@ fun SearchScreen(
             // they stay up for an empty or failed search too, or picking a filter
             // that finds nothing would take away the control needed to leave it.
             // They are YouTube's categories, so the Library source has none.
-            if (results != null && !suggesting && !searchingLibrary) {
+            if (results != null && !suggesting && !searchingLibrary && !searchingAddons) {
                 SearchFilterTabs(filter = filter, onFilterChange = onFilterChange)
             }
         }
@@ -238,9 +258,14 @@ fun SearchScreen(
             contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
         ) {
             when {
-                searchingLibrary -> librarySearchResults(
+                searchingLibrary || searchingAddons -> librarySearchResults(
                     query = query.trim(),
-                    results = libraryResults,
+                    results = if (searchingAddons) addonResults else libraryResults,
+                    addons = searchingAddons,
+                    addonHistory = addonHistory,
+                    onAddonHistoryClick = onAddonHistoryClick,
+                    onAddonHistoryRemove = onAddonHistoryRemove,
+                    onAddonHistoryClear = onAddonHistoryClear,
                     currentSong = currentSong,
                     isPlaying = isPlaying,
                     onSongClick = onLibrarySongClick,
@@ -293,6 +318,10 @@ fun SearchScreen(
                             is SearchResult.Browse -> null
                             else -> null
                         } }
+                    // Two same-named recordings (Michael Jackson's two "Chicago"s)
+                    // carry no length here, so only the exact playing id lights up
+                    // when the page holds it.
+                    val nowPlaying = tracks.nowPlayingMatcher(currentSong)
                     val topResult = results.data.filterIsInstance<SearchResult.TopTrack>().firstOrNull()
                     if (filter == SearchFilter.ALL && topResult != null) {
                         item(key = "search:top-result:${topResult.song.videoId}") {
@@ -304,7 +333,8 @@ fun SearchScreen(
                             )
                         }
                     }
-                    searchSections(results.data, filter).forEach { section ->
+                    val rows = if (hideExplicitEditions) CleanEditions.searchRows(results.data) else results.data
+                    searchSections(rows, filter).forEach { section ->
                         section.title?.let { title ->
                             item(key = "search-section:$title") {
                                 Text(
@@ -339,8 +369,8 @@ fun SearchScreen(
                                     },
                                     onLongPress = { onSongLongPress(row.song) },
                                     onSwipeToQueue = { onSongSwipe(row.song) },
-                                    isCurrent = row.song.isSameTrackAs(currentSong),
-                                    isPlaying = isPlaying && row.song.isSameTrackAs(currentSong),
+                                    isCurrent = nowPlaying(row.song),
+                                    isPlaying = isPlaying && nowPlaying(row.song),
                                     searchPlayingStyle = true,
                                     activeTint = PlayingAccent,
                                 )
@@ -394,6 +424,11 @@ private fun searchSections(rows: List<SearchResult>, filter: SearchFilter): List
 private fun LazyListScope.librarySearchResults(
     query: String,
     results: UiState<List<Song>>?,
+    addons: Boolean,
+    addonHistory: List<String>,
+    onAddonHistoryClick: (String) -> Unit,
+    onAddonHistoryRemove: (String) -> Unit,
+    onAddonHistoryClear: () -> Unit,
     currentSong: Song?,
     isPlaying: Boolean,
     onSongClick: (List<Song>, Int) -> Unit,
@@ -401,25 +436,36 @@ private fun LazyListScope.librarySearchResults(
     onSongSwipe: (Song) -> Unit,
 ) {
     when (results) {
-        null -> item(key = "library:empty") {
-            MessageState(stringResource(Res.string.search_library_empty))
+        null -> if (addons && query.isEmpty() && addonHistory.isNotEmpty()) {
+            recentAddonSearches(addonHistory, onAddonHistoryClick, onAddonHistoryRemove, onAddonHistoryClear)
+        } else item(key = "library:empty") {
+            MessageState(
+                stringResource(if (addons) Res.string.search_addons_empty else Res.string.search_library_empty),
+            )
         }
         UiState.Loading -> songListSkeleton(keyPrefix = "skeleton:search:library")
         is UiState.Error -> item(key = "library:error") { MessageState(results.message) }
         is UiState.Success -> if (results.data.isEmpty()) {
             item(key = "library:no-match") {
-                MessageState(stringResource(Res.string.search_library_no_results, query))
+                MessageState(
+                    if (addons) {
+                        stringResource(Res.string.search_addons_no_results, query)
+                    } else {
+                        stringResource(Res.string.search_library_no_results, query)
+                    },
+                )
             }
         } else {
             val tracks = results.data
-            itemsIndexed(tracks, key = { index, song -> "library_${song.videoId}_$index" }) { index, song ->
+            val nowPlaying = tracks.nowPlayingMatcher(currentSong)
+            itemsIndexed(tracks, key = { index, song -> "${if (addons) "addon" else "library"}_${song.videoId}_$index" }) { index, song ->
                 SongRow(
                     song = song,
                     onClick = { onSongClick(tracks, index) },
                     onLongPress = { onSongLongPress(song) },
                     onSwipeToQueue = { onSongSwipe(song) },
-                    isCurrent = song.isSameTrackAs(currentSong),
-                    isPlaying = isPlaying && song.isSameTrackAs(currentSong),
+                    isCurrent = nowPlaying(song),
+                    isPlaying = isPlaying && nowPlaying(song),
                     searchPlayingStyle = true,
                     activeTint = PlayingAccent,
                 )
@@ -620,6 +666,9 @@ private fun LazyListScope.searchTypeaheadDropdown(
     currentSong: Song?,
     isPlaying: Boolean,
 ) {
+    val nowPlaying = typeaheadResults
+        .mapNotNull { (it as? SearchResult.Track)?.song ?: (it as? SearchResult.TopTrack)?.song }
+        .nowPlayingMatcher(currentSong)
     item(key = "typeahead:divider") {
         HorizontalDivider(
             modifier = Modifier.padding(start = PAGE_GUTTER, end = PAGE_GUTTER),
@@ -639,8 +688,8 @@ private fun LazyListScope.searchTypeaheadDropdown(
                 song = result.song,
                 onClick = { onSongClick(result.song) },
                 onLongPress = onSongLongPress?.let { { it(result.song) } },
-                isCurrent = result.song.isSameTrackAs(currentSong),
-                isPlaying = isPlaying && result.song.isSameTrackAs(currentSong),
+                isCurrent = nowPlaying(result.song),
+                isPlaying = isPlaying && nowPlaying(result.song),
             )
             is SearchResult.Browse -> BrowseRow(
                 item = result.item,
@@ -651,8 +700,8 @@ private fun LazyListScope.searchTypeaheadDropdown(
                 song = result.song,
                 onClick = { onSongClick(result.song) },
                 onLongPress = onSongLongPress?.let { { it(result.song) } },
-                isCurrent = result.song.isSameTrackAs(currentSong),
-                isPlaying = isPlaying && result.song.isSameTrackAs(currentSong),
+                isCurrent = nowPlaying(result.song),
+                isPlaying = isPlaying && nowPlaying(result.song),
             )
         }
     }
@@ -759,6 +808,78 @@ private fun LazyListScope.recentSearches(
     }
 }
 
+/** The Addons tab's recents: just the words that were searched, no song behind them. */
+private fun LazyListScope.recentAddonSearches(
+    history: List<String>,
+    onClick: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    item(key = "addon-recent:header") {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PAGE_GUTTER, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.recent_searches),
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = stringResource(Res.string.clear),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(percent = 50))
+                    .clickable(onClick = onClear)
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+    }
+    items(history, key = { "addon-recent:$it" }) { term ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onClick(term) }
+                .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Rounded.History,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                text = term,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable { onRemove(term) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = stringResource(Res.string.recent_search_remove, term),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
 /**
  * Spotify-style entity row: square thumbnail, bold title, subtitle with type,
  * and a removal button. Tapping navigates to the entity or plays it directly.
@@ -771,10 +892,17 @@ private fun RecentSearchEntityRow(
     onClick: () -> Unit,
     onRemove: () -> Unit,
 ) {
+    // A recent track meets the explicit filter like a result row does: greyed
+    // when blocked, with its E — or its C when it will play clean. The tap is
+    // where the filter asks.
+    val track = entity.takeIf { it.entityType == EntityType.TRACK && !it.id.startsWith("q:") }?.asSong()
+    val explicitBlocked = track != null && LocalExplicitBlocked.current(track)
+    val explicit = track?.showsExplicit() == true
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .explicitDimmed(explicitBlocked)
             .padding(start = PAGE_GUTTER, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -794,13 +922,23 @@ private fun RecentSearchEntityRow(
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = entity.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val titleColor = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (explicit && track != null) {
+                    // Looked up like any result row, so a recent search shows
+                    // its "C" without being searched again.
+                    RequestCleanVersion(track)
+                    ExplicitMark(LocalExplicitSwapped.current(track), titleColor)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = entity.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Spacer(Modifier.height(2.dp))
             Text(
                 text = entity.subtitle.ifBlank { entity.entityType.name.lowercase(Locale.ROOT).replaceFirstChar { it.uppercase(Locale.ROOT) } },

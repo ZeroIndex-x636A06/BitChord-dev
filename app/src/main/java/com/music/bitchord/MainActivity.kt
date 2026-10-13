@@ -1,5 +1,6 @@
 package com.music.bitchord
 
+import com.music.bitchord.ui.components.LocalHideExplicitEditions
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -72,6 +73,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material.icons.rounded.Upgrade
@@ -91,11 +93,13 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.key
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -156,6 +160,7 @@ import com.music.bitchord.data.settings.LibrarySort
 import com.music.bitchord.data.settings.ThemeMode
 import com.music.bitchord.ui.components.AccountProfileSelector
 import com.music.bitchord.ui.components.SpotifyImportAlert
+import com.music.bitchord.ui.screens.WearOsScreen
 import com.music.bitchord.ui.screens.AccountAndScrobblingScreen
 import com.music.bitchord.ui.screens.DiscordDialog
 import com.music.bitchord.ui.screens.DiscordDialogHost
@@ -193,6 +198,31 @@ import com.music.bitchord.playback.beginRadioQueue
 import com.music.bitchord.playback.commitRadioQueue
 import com.music.bitchord.playback.fromAutoplay
 import com.music.bitchord.playback.hasYouTubeOriginal
+import com.music.bitchord.playback.ExplicitFilterMode
+import com.music.bitchord.playback.ExplicitFilter
+import com.music.bitchord.ui.screens.AllowedExplicitSongsScreen
+import com.music.bitchord.ui.components.ExplicitBlockedAlert
+import com.music.bitchord.ui.components.ExplicitBlockedChoice
+import com.music.bitchord.ui.components.LocalExplicitBlocked
+import com.music.bitchord.ui.components.rememberExplicitPolicy
+import com.music.bitchord.ui.components.rememberExplicitRowBlocked
+import com.music.bitchord.ui.components.rememberExplicitByLyrics
+import com.music.bitchord.ui.components.LocalExplicitByLyrics
+import com.music.bitchord.ui.components.LocalLyricsPrecheck
+import com.music.bitchord.data.settings.ExplicitLyricsCheck
+import com.music.bitchord.data.settings.SearchHistory
+import com.music.bitchord.ui.components.rememberExplicitRowSwapped
+import com.music.bitchord.ui.components.LocalExplicitSwapped
+import com.music.bitchord.ui.components.LocalCleanVersionLookup
+import com.music.bitchord.ui.components.rememberCleanVersionLookup
+import com.music.bitchord.ui.components.CleanVersionOffer
+import com.music.bitchord.playback.CleanVersions
+import com.music.bitchord.playback.cleanStandIn
+import com.music.bitchord.playback.explicitSkipped
+import com.music.bitchord.playback.explicitSwapsToClean
+import com.music.bitchord.playback.explicitBlocked
+import com.music.bitchord.playback.firstPlayableIndex
+import com.music.bitchord.playback.randomPlayableIndex
 import com.music.bitchord.playback.loadAutoplayTracks
 import com.music.bitchord.playback.playSongs
 import com.music.bitchord.playback.toMediaItem
@@ -202,6 +232,8 @@ import com.music.bitchord.playback.toggleAutoplay
 import com.music.bitchord.playback.toggleShuffle
 import com.music.bitchord.playback.upgradeQuality
 import com.music.bitchord.playback.revertToOriginal
+import com.music.bitchord.playback.restyleCurrent
+import com.music.bitchord.playback.versionToKeep
 import com.music.bitchord.playback.swapToVersion
 import com.music.bitchord.playback.smart.VersionAudioAligner
 import com.music.bitchord.download.DownloadSession
@@ -254,6 +286,7 @@ import com.music.bitchord.ui.screens.SegmentedControl
 import com.music.bitchord.ui.components.SearchField
 import com.music.bitchord.sharedui.resources.Res as SharedRes
 import com.music.bitchord.sharedui.resources.search_hint
+import com.music.bitchord.sharedui.resources.search_addons_hint
 import com.music.bitchord.sharedui.resources.search_library_hint
 import com.music.bitchord.ui.components.TopBarDownloadButton
 import com.music.bitchord.ui.components.optimizedHazeEffect
@@ -291,6 +324,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import com.music.bitchord.ui.player.LocalPlayerDock
 import com.music.bitchord.ui.player.PlayerDock
 import com.music.bitchord.ui.screens.DetailScreen
+import com.music.bitchord.ui.screens.sortedForDetail
 import com.music.bitchord.ui.screens.ExploreScreen
 import com.music.bitchord.ui.screens.LocalMusicScreen
 import com.music.bitchord.ui.screens.HomeScreen
@@ -330,6 +364,9 @@ private const val TOP_FADE_START = 0.55f
 private const val TOP_FADE_RAMP = 0.3f
 
 private const val INITIAL_RADIO_TRACKS = 24
+
+/** How long a lyric check runs before "Checking lyrics…" goes up — so a quick one doesn't flicker. */
+private const val LYRICS_NOTICE_AFTER_MS = 300L
 
 internal fun shouldSkipAfterDislike(
     previousStatus: LikeStatus,
@@ -381,10 +418,21 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 val appBackdrop = rememberLayerBackdrop(onDraw = paintBackdrop)
+                val rootExplicitPolicy = rememberExplicitPolicy()
+                val explicitRowBlocked = rememberExplicitRowBlocked(rootExplicitPolicy)
+                val explicitByLyrics = rememberExplicitByLyrics(rootExplicitPolicy)
+                val explicitRowSwapped = rememberExplicitRowSwapped(rootExplicitPolicy)
                 CompositionLocalProvider(
                     LocalOverscrollFactory provides iosOverscrollFactory,
                     LocalLiquidGlassEnabled provides liquidGlassEnabled,
                     LocalAppBackdrop provides appBackdrop,
+                    LocalExplicitBlocked provides explicitRowBlocked,
+                    LocalExplicitByLyrics provides explicitByLyrics,
+                    LocalExplicitSwapped provides explicitRowSwapped,
+                    LocalHideExplicitEditions provides
+                        (rootExplicitPolicy.swapToClean && rootExplicitPolicy.mode != ExplicitFilterMode.OFF),
+                    LocalCleanVersionLookup provides rememberCleanVersionLookup(rootExplicitPolicy),
+                    LocalLyricsPrecheck provides ExplicitLyricsCheck::precheck,
                 ) {
                 // The window's width, measured rather than asked for.
                 //
@@ -559,7 +607,9 @@ private fun BitChordApp(
     var showAccountScrobbling by rememberSaveable { mutableStateOf(false) }
     var showSources by rememberSaveable { mutableStateOf(false) }
     var showListenTogether by rememberSaveable { mutableStateOf(false) }
+    var showWearOs by rememberSaveable { mutableStateOf(false) }
     var showEqualizer by rememberSaveable { mutableStateOf(false) }
+    var showAllowedExplicit by rememberSaveable { mutableStateOf(false) }
     var showSpotifyCanvasAuth by remember { mutableStateOf(false) }
 
     // Hosted here rather than inside SourcesScreen so its frosted card has
@@ -569,6 +619,11 @@ private fun BitChordApp(
     // and the mini player, like every other alert in the app.
     var editingSource by remember { mutableStateOf<SourceConfig?>(null) }
     var confirmJioSaavn by remember { mutableStateOf(false) }
+    /** An explicit song the filter stopped, and what to do once it's allowed. */
+    var explicitPrompt by remember { mutableStateOf<ExplicitPrompt?>(null) }
+    // Read as state so the track menu recomposes when a song is allowed or
+    // blocked again, and pages re-dim their rows when a setting changes.
+    val explicitPolicy = rememberExplicitPolicy()
     var editingPartyServer by remember { mutableStateOf(false) }
     var showHistory by remember { mutableStateOf(false) }
     // A Library shelf's "Show all" — the shelf it was opened from, so its own
@@ -728,6 +783,7 @@ private fun BitChordApp(
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val searchSource by viewModel.searchSource.collectAsStateWithLifecycle()
     val libraryResults by viewModel.libraryResults.collectAsStateWithLifecycle()
+    val addonResults by viewModel.addonResults.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val incomingJamInvite by JamInviteLink.pending.collectAsStateWithLifecycle()
     var activeJamInviteCode by rememberSaveable { mutableStateOf<String?>(null) }
@@ -747,6 +803,7 @@ private fun BitChordApp(
         showAccountScrobbling = false
         showSources = false
         showEqualizer = false
+        showAllowedExplicit = false
         showHistory = false
         showDiscord = false
         showSpotify = false
@@ -774,6 +831,19 @@ private fun BitChordApp(
     val lyricsChecked by viewModel.lyricsChecked.collectAsStateWithLifecycle()
     val lyricsProviderStates by viewModel.lyricsProviderStates.collectAsStateWithLifecycle()
     val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
+    // Recent searches recorded before they kept a track's explicit badge are
+    // looked up once the filter is on, so they grey out like everything else.
+    val explicitFilterOn = explicitPolicy.mode != ExplicitFilterMode.OFF
+    LaunchedEffect(explicitFilterOn, searchHistory.count { it.isExplicit == null }) {
+        if (!explicitFilterOn) return@LaunchedEffect
+        searchHistory
+            .filter { it.entityType == EntityType.TRACK && it.isExplicit == null && !it.id.startsWith("q:") }
+            .forEach { entity ->
+                YtMusicRepository.trackLinks(entity.id).getOrNull()?.let {
+                    SearchHistory.noteExplicit(entity.id, it.isExplicit == true)
+                }
+            }
+    }
     val searchSuggestions by viewModel.suggestions.collectAsStateWithLifecycle()
     val searchLoadingMore by viewModel.searchLoadingMore.collectAsStateWithLifecycle()
     val searchScrollReset by viewModel.searchScrollReset.collectAsStateWithLifecycle()
@@ -790,6 +860,9 @@ private fun BitChordApp(
     // has a cover and a track list, so it takes the bar every other release page
     // takes. Hence the folder question rather than the prefix.
     val isLocalDetail = detail?.browseId.isDeviceFolder()
+    // An album or playlist page: the one whose top bar carries its search,
+    // sort and overflow controls.
+    val isReleaseDetail = detail != null && !isLocalDetail && detail.type != BrowseType.ARTIST
     // Not keyed on the browse id and not remembered here: each page's choice
     // lives in AppSettings keyed by that page — Spotify-style, one playlist's
     // order never imposes itself on another, and every page keeps its own
@@ -797,7 +870,15 @@ private fun BitChordApp(
     val detailSongSorts by AppSettings.detailSongSorts.collectAsStateWithLifecycle()
     val songSort = detail?.browseId?.let { detailSongSorts[it] } ?: SongSort.DEFAULT
     var songSortMenuOpen by remember { mutableStateOf(false) }
+    // Whether the open release page's filter box is up. Held out here with the
+    // sort control because the button that opens it sits in the top bar beside
+    // it, and reset with the page so a filter never follows you to the next one.
+    var detailSearching by rememberSaveable(detail?.browseId) { mutableStateOf(false) }
     val likeStatuses by viewModel.likeStatuses.collectAsStateWithLifecycle()
+    // Kept in AppSettings for the explicit filter's own-playlist exception,
+    // which the playback service has to apply without a view model to ask.
+    val playlistOwnership by viewModel.playlistOwned.collectAsStateWithLifecycle()
+    LaunchedEffect(playlistOwnership) { AppSettings.noteOwnPlaylists(playlistOwnership) }
     // Which tracks are being held on YouTube's own upload, so the player's menu
     // offers the way back out of a revert rather than the revert again.
     val pinnedToOriginal by OriginalVersion.pinned.collectAsStateWithLifecycle()
@@ -909,6 +990,8 @@ private fun BitChordApp(
     }
     LaunchedEffect(queueNotice?.id) {
         val shown = queueNotice ?: return@LaunchedEffect
+        // A busy notice stays until whatever it is waiting on clears it.
+        if (shown.busy) return@LaunchedEffect
         delay(3_000)
         if (queueNotice?.id == shown.id) queueNotice = null
     }
@@ -1154,6 +1237,13 @@ private fun BitChordApp(
             c.currentMediaItem?.mediaId != song.videoId ||
             switchingAudioVersion
         ) return
+        // An uploaded clean edit: its audio version is itself, shown as the
+        // song — the catalogue's song would be the explicit original.
+        CleanVersions.asAudio(song)?.let { audio ->
+            TrackLog.d("Player", "clean upload shown as '${audio.title}'", song.videoId)
+            c.restyleCurrent(audio)
+            return
+        }
 
         val resumeAfterResolution = pauseWhileResolving && c.playWhenReady
         switchingAudioVersion = true
@@ -1169,6 +1259,13 @@ private fun BitChordApp(
 
             // The original MediaItem was never removed, so failure only needs
             // to release the loading state and resume it immediately.
+            // A clean edit uploaded as a video became its own clean audio
+            // version just now — see [YtMusicRepository.resolveAudio].
+            if (audio != null && audio.videoId == song.videoId && !audio.isVideo && stillCurrent) {
+                c.restyleCurrent(audio)
+                if (resumeAfterResolution) c.play()
+                return
+            }
             if (audio == null || audio.videoId == song.videoId) {
                 TrackLog.w("Player", "audio switch found no distinct official song", song.videoId)
                 if (stillCurrent && resumeAfterResolution) c.play()
@@ -1264,6 +1361,11 @@ private fun BitChordApp(
             ) {
                 optimisticVersionSong = target
             }
+            // Asked for by name, so "Prefer music-only version" must not take
+            // it straight back: without this the automatic switch below saw
+            // the video arrive as a fresh item and converted it to audio again
+            // before a frame of it had played.
+            keepVideoId = target.videoId
             // Released before the handover for the same reason as the
             // music-only path above: the service owns the flag from here, and
             // the finally only exists for the paths that never send.
@@ -1275,12 +1377,110 @@ private fun BitChordApp(
         }
     }
 
-    val playFrom: (List<Song>, Int, QueueSource) -> Unit = playFrom@{ allSongs, allIndex, source ->
+    // The song most recently asked for: a verdict, or a clean-version lookup,
+    // for any earlier one is let go.
+    var lastAskedFor by remember { mutableStateOf<String?>(null) }
+    /**
+     * Runs [proceed] unless [song] is an explicit track the explicit filter
+     * blocks outright — then it asks first, and a yes allows that song from
+     * then on (issue #720's per-song bypass). Every "play this" and "queue
+     * this" action below passes through here; what AutoPlay and radio pick is
+     * filtered in [loadAutoplayTracks] instead, where nobody is there to ask.
+     */
+    fun gateExplicitNow(
+        song: Song?,
+        sourceId: String?,
+        playClean: ((Song) -> Unit)? = null,
+        proceed: () -> Unit,
+    ) {
+        val from = sourceId ?: song?.playbackSourceId
+        if (song == null || !song.explicitBlocked(sourceId = from)) {
+            proceed()
+            return
+        }
+        // "Play clean versions instead": no question unless there turns out
+        // to be no clean version — then the usual one, saying so.
+        if (playClean != null && song.explicitSwapsToClean(sourceId = from)) {
+            CleanVersions.cached(song)?.let { clean ->
+                playClean(song.cleanStandIn(clean))
+                return
+            }
+            scope.launch {
+                val clean = CleanVersions.find(song)
+                if (lastAskedFor != song.videoId) return@launch
+                if (clean != null) {
+                    playClean(song.cleanStandIn(clean))
+                } else {
+                    explicitPrompt = ExplicitPrompt(song, proceed, playClean = null, noCleanVersion = true)
+                }
+            }
+            return
+        }
+        explicitPrompt = ExplicitPrompt(song, proceed, playClean)
+    }
+    // "Check lyrics for explicit content": a song nobody has read yet is read
+    // before it plays, so the first play of Jump Around is the blocked one,
+    // and it never starts before its verdict is in. Most songs on screen have
+    // been read already (see [ExplicitLyricsCheck.precheck]); for the rest a
+    // "Checking lyrics…" notice says what the wait is. Only the song asked
+    // for — what plays after it is read by the player as it comes up. A
+    // second tap on the same song while it is being read is dropped; a tap on
+    // another song takes over from it.
+    var lyricsCheckPending by remember { mutableStateOf<String?>(null) }
+    fun gateExplicit(
+        song: Song?,
+        sourceId: String?,
+        playClean: ((Song) -> Unit)? = null,
+        proceed: () -> Unit,
+    ) {
+        lastAskedFor = song?.videoId
+        if (song == null || !AppSettings.explicitNeedsLyricsCheck(song)) {
+            lyricsCheckPending = null
+            gateExplicitNow(song, sourceId, playClean, proceed)
+            return
+        }
+        if (lyricsCheckPending == song.videoId) return
+        lyricsCheckPending = song.videoId
+        scope.launch {
+            try {
+                ExplicitLyricsCheck.checkBeforePlaying(song)
+            } finally {
+                if (lyricsCheckPending == song.videoId) lyricsCheckPending = null
+            }
+            if (lastAskedFor != song.videoId) return@launch
+            gateExplicitNow(song, sourceId, playClean, proceed)
+        }
+    }
+    // The wait made visible, on the strip above the mini player — for a tap,
+    // or for the player holding a queued track at its start. Not for a check
+    // that answers at once, so a quick one doesn't flicker.
+    val playerHoldingForLyrics by ExplicitLyricsCheck.holding.collectAsStateWithLifecycle()
+    val waitingOnLyrics = lyricsCheckPending ?: playerHoldingForLyrics
+    LaunchedEffect(waitingOnLyrics) {
+        if (waitingOnLyrics == null) {
+            if (queueNotice?.busy == true) queueNotice = null
+            return@LaunchedEffect
+        }
+        delay(LYRICS_NOTICE_AFTER_MS)
+        queueNoticeId += 1
+        queueNotice = QueueActionNotice(queueNoticeId, context.getString(R.string.checking_lyrics), busy = true)
+    }
+
+    val playFromUnchecked: (List<Song>, Int, QueueSource) -> Unit = playFrom@{ allSongs, allIndex, source ->
         // A Spotify page lists songs it has not found on YouTube Music yet (or
         // never will); those can't be queued, so play the rest in their order.
         if (allSongs.getOrNull(allIndex)?.isUnresolvedSpotify == true) return@playFrom
-        val songs = allSongs.filterNot { it.isUnresolvedSpotify }
-        val index = songs.indexOf(allSongs.getOrNull(allIndex)).coerceAtLeast(0)
+        // The rest of the list is held to the explicit filter quietly. Only
+        // the tapped song is worth asking about, and by here it has been
+        // allowed — see [gateExplicit].
+        val tapped = allSongs.getOrNull(allIndex)
+        val songs = allSongs.filter {
+            !it.isUnresolvedSpotify &&
+                // Ones that will be swapped for their clean release stay; the
+                // service swaps them as they come up.
+                (it == tapped || !it.explicitSkipped(sourceId = source.id ?: it.playbackSourceId))
+        }
+        val index = songs.indexOf(tapped).coerceAtLeast(0)
         playRequestGeneration++
         activeRadioSeed = null
         scope.launch {
@@ -1318,6 +1518,19 @@ private fun BitChordApp(
             }
             // Start playback in the mini-player; the user opens the full view by tapping it.
         }
+    }
+    val playFrom: (List<Song>, Int, QueueSource) -> Unit = { allSongs, allIndex, source ->
+        gateExplicit(
+            allSongs.getOrNull(allIndex),
+            source.id,
+            playClean = { clean ->
+                playFromUnchecked(
+                    allSongs.mapIndexed { i, song -> if (i == allIndex) clean else song },
+                    allIndex,
+                    source,
+                )
+            },
+        ) { playFromUnchecked(allSongs, allIndex, source) }
     }
     // Kept for entry points whose rows already carry their origin (notably a
     // collection action fetched before this callback). The explicit wrappers
@@ -1379,6 +1592,11 @@ private fun BitChordApp(
             hasAlternateVersion = true
             return@LaunchedEffect
         }
+        // An uploaded clean edit always has its other form — see [CleanVersions.asAudio].
+        if (CleanVersions.isCleanUpload(song)) {
+            hasAlternateVersion = true
+            return@LaunchedEffect
+        }
         hasAlternateVersion = false
         val exists = withContext(Dispatchers.IO) {
             if (song.isVideo) {
@@ -1404,7 +1622,7 @@ private fun BitChordApp(
      * remixes of the same song. Album, artist and playlist pages keep [play],
      * where the surrounding list *is* the thing the user asked for.
      */
-    val playRadio: (Song, QueueSource) -> Unit = { song, source ->
+    val playRadioUnchecked: (Song, QueueSource) -> Unit = { song, source ->
         playRequestGeneration++
         activeRadioSeed = null
         scope.launch {
@@ -1424,6 +1642,12 @@ private fun BitChordApp(
         }
     }
 
+    val playRadio: (Song, QueueSource) -> Unit = { song, source ->
+        gateExplicit(song, source.id, playClean = { playRadioUnchecked(it, source) }) {
+            playRadioUnchecked(song, source)
+        }
+    }
+
     /**
      * Starts the explicit station offered by every song overflow menu.
      *
@@ -1432,7 +1656,7 @@ private fun BitChordApp(
      * destroy the queue already playing. Once ready, the whole old queue is
      * replaced in one Media3 operation.
      */
-    val startRadio: (Song) -> Unit = { song ->
+    val startRadioUnchecked: (Song) -> Unit = { song ->
         val originalController = controller
         if (originalController != null && !refusedByHost()) {
             val request = ++playRequestGeneration
@@ -1504,7 +1728,10 @@ private fun BitChordApp(
             }
         }
     }
-    val addToQueue: (Song) -> Unit = { song ->
+    val startRadio: (Song) -> Unit = { song ->
+        gateExplicit(song, null, playClean = startRadioUnchecked) { startRadioUnchecked(song) }
+    }
+    val addToQueueUnchecked: (Song) -> Unit = { song ->
         scope.launch {
             if (refusedByHost()) return@launch
             // The end of what the user queued, not the end of the queue: a song
@@ -1536,7 +1763,10 @@ private fun BitChordApp(
             }
         }
     }
-    val playNext: (Song) -> Unit = { song ->
+    val addToQueue: (Song) -> Unit = { song ->
+        gateExplicit(song, null, playClean = addToQueueUnchecked) { addToQueueUnchecked(song) }
+    }
+    val playNextUnchecked: (Song) -> Unit = { song ->
         scope.launch {
             if (refusedByHost()) return@launch
             controller?.let {
@@ -1565,6 +1795,9 @@ private fun BitChordApp(
                 showQueueNotice(context.getString(R.string.song_will_play_next))
             }
         }
+    }
+    val playNext: (Song) -> Unit = { song ->
+        gateExplicit(song, null, playClean = playNextUnchecked) { playNextUnchecked(song) }
     }
     val onSongSwipe: (Song) -> Unit = { song ->
         if (AppSettings.swipeToPlayNext.value) playNext(song) else addToQueue(song)
@@ -1643,7 +1876,13 @@ private fun BitChordApp(
      * shut, the current track carries on — so the count is said out loud, the
      * same way a batch download is.
      */
-    val queueSongs: (List<Song>, Boolean) -> Unit = { songs, next ->
+    val queueSongs: (List<Song>, Boolean) -> Unit = { requested, next ->
+        // Adding a whole release is not asking for each track by name, so the
+        // explicit filter drops what it blocks instead of asking about each.
+        val songs = requested.filterNot { it.explicitSkipped() }
+        if (songs.isEmpty() && requested.isNotEmpty()) {
+            showQueueNotice(context.getString(R.string.explicit_songs_skipped))
+        }
         if (songs.isNotEmpty()) {
             scope.launch {
                 if (refusedByHost()) return@launch
@@ -1807,6 +2046,7 @@ private fun BitChordApp(
                 title = item.title,
                 artist = InnertubeParser.artistFromSubtitle(item.subtitle),
                 thumbnailUrl = item.thumbnailUrl,
+                isExplicit = item.isExplicit,
             )
         }
     }
@@ -2382,7 +2622,9 @@ private fun BitChordApp(
                 showAccountScrobbling = false
                 showSources = false
                 showListenTogether = false
+                showWearOs = false
                 showEqualizer = false
+                showAllowedExplicit = false
                 showReplay = false
                 settingsSubScreen = null
                 showHistory = false
@@ -2469,8 +2711,8 @@ private fun BitChordApp(
             }
         }
         BackHandler(
-            enabled = detail != null && !showSettings && !showAccountScrobbling && !showSources && !showListenTogether &&
-                !showEqualizer && !showReplay,
+            enabled = detail != null && !showSettings && !showAccountScrobbling && !showSources && !showListenTogether && !showWearOs &&
+                !showEqualizer && !showAllowedExplicit && !showReplay,
         ) { viewModel.closeDetail() }
         BackHandler(enabled = selectedMoodGenre != null && detail == null && !showSettings && !showReplay) {
             viewModel.closeMoodGenre()
@@ -2493,14 +2735,22 @@ private fun BitChordApp(
             showListenTogether = false
             if (settingsSubScreen == "listen_together") settingsSubScreen = null
         }
+        BackHandler(enabled = showWearOs) {
+            showWearOs = false
+            if (settingsSubScreen == "wear_os") settingsSubScreen = null
+        }
         BackHandler(enabled = showEqualizer) {
             showEqualizer = false
             if (settingsSubScreen == "equalizer") settingsSubScreen = null
         }
+        BackHandler(enabled = showAllowedExplicit) {
+            showAllowedExplicit = false
+            if (settingsSubScreen == "allowed_explicit") settingsSubScreen = null
+        }
         // One back step out of Settings, or out of any tab but Home, lands on
         // Home rather than exiting — only Home itself hands back to the system,
         // which is what actually closes/minimizes the app.
-        BackHandler(enabled = showSettings && !showSpotify && !showAccountScrobbling && !showSources && !showListenTogether && !showEqualizer && !showReplay) {
+        BackHandler(enabled = showSettings && !showSpotify && !showAccountScrobbling && !showSources && !showListenTogether && !showWearOs && !showEqualizer && !showAllowedExplicit && !showReplay) {
             showSettings = false
             // Only when Settings was the whole of what was on screen. Opened
             // over Replay or over a release page, closing it reveals that again
@@ -2509,7 +2759,7 @@ private fun BitChordApp(
         }
         BackHandler(
             enabled = detail == null && !showSettings && !showAccountScrobbling && !showSpotify &&
-                !showSources && !showListenTogether && !showEqualizer && !showReplay && selectedMoodGenre == null &&
+                !showSources && !showListenTogether && !showWearOs && !showEqualizer && !showAllowedExplicit && !showReplay && selectedMoodGenre == null &&
                 selectedTab != TAB_HOME,
         ) {
             selectedTab = TAB_HOME
@@ -2553,7 +2803,9 @@ private fun BitChordApp(
                         showAccountScrobbling -> "account_scrobbling"
                         showSources -> "sources"
                         showListenTogether -> "listen_together"
+                        showWearOs -> "wear_os"
                         showEqualizer -> "equalizer"
+                        showAllowedExplicit -> "allowed_explicit"
                         // Above Replay, not below it. The top bar's account
                         // button sets `showSettings` from every page including
                         // this one, so with Replay winning the tie the button
@@ -2757,6 +3009,8 @@ private fun BitChordApp(
                             onEditSmb = { showSmbEditor = true },
                             onConfirmJioSaavn = { confirmJioSaavn = true },
                         )
+                    } else if (key == "wear_os") {
+                        WearOsScreen(contentPadding = listPadding)
                     } else if (key == "listen_together") {
                         ListenTogetherScreen(
                             signedIn = signedIn,
@@ -2774,6 +3028,8 @@ private fun BitChordApp(
                             contentPadding = listPadding,
                             onEditServer = { editingPartyServer = true },
                         )
+                    } else if (key == "allowed_explicit") {
+                        AllowedExplicitSongsScreen(contentPadding = listPadding)
                     } else if (key == "equalizer") {
                         EqualizerScreen(contentPadding = listPadding)
                     } else if (key == "settings") {
@@ -2809,8 +3065,16 @@ private fun BitChordApp(
                                 settingsSubScreen = "listen_together"
                                 showListenTogether = true
                             },
+                            onWearOs = {
+                                settingsSubScreen = "wear_os"
+                                showWearOs = true
+                            },
                             onSpotifyCanvasAuth = { showSpotifyCanvasAuth = true },
                             onAppLanguage = { showAppLanguage = true },
+                            onAllowedExplicitSongs = {
+                                settingsSubScreen = "allowed_explicit"
+                                showAllowedExplicit = true
+                            },
                             contentPadding = listPadding,
                         )
                     } else if (page != null && page.browseId.isDeviceFolder()) {
@@ -2868,7 +3132,7 @@ private fun BitChordApp(
                                 QueueShuffle.enableForNextQueue()
                                 playFrom(
                                     songs,
-                                    songs.indices.random(),
+                                    songs.randomPlayableIndex(page.browseId),
                                     QueueSource(page.title, PlaybackSourceType.BROWSE, page.browseId),
                                 )
                             },
@@ -2914,94 +3178,88 @@ private fun BitChordApp(
                                 song
                             }
                         }
-                        DetailScreen(
-                            page = page,
-                            currentSong = player.song,
-                            isPlaying = player.isPlaying,
-                            listState = pageDetailListState,
-                            activeShelf = detailActiveShelf,
-                            onActiveShelfChange = { detailActiveShelf = it },
-                            onSongClick = { songs, index ->
-                                playFrom(
-                                    songs,
-                                    index,
-                                    QueueSource(page.title, PlaybackSourceType.BROWSE, page.browseId),
-                                )
-                            },
-                            onSongLongPress = { openSongMenu(withAlbum(it)) },
-                            onSongSwipe = onSongSwipe,
-                            onShuffle = { songs ->
-                                // Shuffle goes on first so the queue is built shuffled
-                                // as it is set — the random pick here only decides
-                                // which track leads it.
-                                QueueShuffle.enableForNextQueue()
-                                playFrom(
-                                    songs,
-                                    songs.indices.random(),
-                                    QueueSource(page.title, PlaybackSourceType.BROWSE, page.browseId),
-                                )
-                            },
-                            onSectionItemClick = { item ->
-                                item.browseId?.let { id ->
-                                    viewModel.openDetail(
-                                        browseId = id,
-                                        title = item.title,
-                                        subtitle = item.subtitle,
-                                        thumbnailUrl = item.thumbnailUrl,
-                                        type = BrowseType.ALBUM,
+                        // Rows here play from this page, so the own-playlist exception (when
+                        // it's on) is judged against the page rather than each row.
+                        val pageExplicitBlocked = rememberExplicitRowBlocked(explicitPolicy, page.browseId)
+                        val pageExplicitSwapped = rememberExplicitRowSwapped(explicitPolicy, page.browseId)
+                        CompositionLocalProvider(
+                            LocalExplicitBlocked provides pageExplicitBlocked,
+                            LocalExplicitSwapped provides pageExplicitSwapped,
+                        ) {
+                            DetailScreen(
+                                page = page,
+                                currentSong = player.song,
+                                isPlaying = player.isPlaying,
+                                listState = pageDetailListState,
+                                activeShelf = detailActiveShelf,
+                                onActiveShelfChange = { detailActiveShelf = it },
+                                onSongClick = { songs, index ->
+                                    playFrom(
+                                        songs,
+                                        index,
+                                        QueueSource(page.title, PlaybackSourceType.BROWSE, page.browseId),
                                     )
-                                }
-                            },
-                            onSectionItemLongPress = onBrowseLongPress,
-                            // The page's own tracks, so the sheet has them already and
-                            // Play, Shuffle and Open are the buttons beside the one that
-                            // opened it rather than rows on it. Download is the other
-                            // way round: the header no longer carries it, so the sheet
-                            // is where a whole release is asked for — and the tracks
-                            // arrive stamped with the album they came off, which is what
-                            // the download record groups them under.
-                            onMore = { songs ->
-                                browseActions = BrowseTarget(
-                                    browseId = page.browseId,
-                                    title = page.title,
-                                    subtitle = page.subtitle,
-                                    thumbnailUrl = page.thumbnailUrl,
-                                    type = page.type,
-                                    songs = songs.map(withAlbum),
-                                    fromCard = false,
-                                    downloadId = downloadIdFor(page.browseId),
-                                )
-                            },
-                            onArtistClick = { id, name ->
-                                viewModel.openDetail(id, name, "Artist", null, BrowseType.ARTIST)
-                            },
-                            onAddSuggested = { song -> viewModel.addSuggestedSong(page.browseId, song) },
-                            // Saving is an account action, so it isn't offered to a
-                            // guest at all — same as the like and add-to-playlist rows
-                            // in the track menu.
-                            onToggleLibrary = if (signedIn) {
-                                { viewModel.toggleLibrary(page.browseId) }
-                            } else {
-                                null
-                            },
-                            // Same rule for the artist page's subscribe circle:
-                            // a channel subscription is the account's, so a
-                            // guest is never shown the button.
-                            onToggleSubscription = if (signedIn) {
-                                { viewModel.toggleSubscription(page.browseId) }
-                            } else {
-                                null
-                            },
-                            releaseLibrary = releaseLibrary,
-                            onLoadReleaseLibrary = viewModel::loadReleaseLibrary,
-                            onToggleReleaseLibrary = if (signedIn) {
-                                viewModel::toggleReleaseLibrary
-                            } else {
-                                null
-                            },
-                            songSort = songSort,
-                            contentPadding = listPadding,
-                        )
+                                },
+                                onSongLongPress = { openSongMenu(withAlbum(it)) },
+                                onSongSwipe = onSongSwipe,
+                                onShuffle = { songs ->
+                                    // Shuffle goes on first so the queue is built shuffled
+                                    // as it is set — the random pick here only decides
+                                    // which track leads it.
+                                    QueueShuffle.enableForNextQueue()
+                                    playFrom(
+                                        songs,
+                                        songs.randomPlayableIndex(page.browseId),
+                                        QueueSource(page.title, PlaybackSourceType.BROWSE, page.browseId),
+                                    )
+                                },
+                                onSectionItemClick = { item ->
+                                    item.browseId?.let { id ->
+                                        viewModel.openDetail(
+                                            browseId = id,
+                                            title = item.title,
+                                            subtitle = item.subtitle,
+                                            thumbnailUrl = item.thumbnailUrl,
+                                            type = BrowseType.ALBUM,
+                                        )
+                                    }
+                                },
+                                onSectionItemLongPress = onBrowseLongPress,
+                                // Only the page on its way in answers to the bar's
+                                // search button; one fading out keeps its list whole.
+                                searching = detailSearching && page.browseId == detail?.browseId,
+                                onSearchingChange = { detailSearching = it },
+                                onArtistClick = { id, name ->
+                                    viewModel.openDetail(id, name, "Artist", null, BrowseType.ARTIST)
+                                },
+                                onAddSuggested = { song -> viewModel.addSuggestedSong(page.browseId, song) },
+                                // Saving is an account action, so it isn't offered to a
+                                // guest at all — same as the like and add-to-playlist rows
+                                // in the track menu.
+                                onToggleLibrary = if (signedIn) {
+                                    { viewModel.toggleLibrary(page.browseId) }
+                                } else {
+                                    null
+                                },
+                                // Same rule for the artist page's subscribe circle:
+                                // a channel subscription is the account's, so a
+                                // guest is never shown the button.
+                                onToggleSubscription = if (signedIn) {
+                                    { viewModel.toggleSubscription(page.browseId) }
+                                } else {
+                                    null
+                                },
+                                releaseLibrary = releaseLibrary,
+                                onLoadReleaseLibrary = viewModel::loadReleaseLibrary,
+                                onToggleReleaseLibrary = if (signedIn) {
+                                    viewModel::toggleReleaseLibrary
+                                } else {
+                                    null
+                                },
+                                songSort = songSort,
+                                contentPadding = listPadding,
+                            )
+                        }
                     } else when (key.removePrefix(TAB_KEY).toIntOrNull() ?: selectedTab) {
                         TAB_HOME -> HomeScreen(
                             state = homeState,
@@ -3053,6 +3311,7 @@ private fun BitChordApp(
                                                 title = item.title,
                                                 artist = InnertubeParser.artistFromSubtitle(item.subtitle),
                                                 thumbnailUrl = item.thumbnailUrl,
+                                                isExplicit = item.isExplicit,
                                             ),
                                             QueueSource(
                                                 category.title,
@@ -3100,12 +3359,19 @@ private fun BitChordApp(
                             // order — play the one tapped and build a station from it.
                             onSongClick = { songs, index ->
                                 songs.getOrNull(index)?.let { song ->
+                                    // A hit picked off the Videos tab is the video on
+                                    // purpose; the music-only preference is for videos
+                                    // that turn up anywhere else.
+                                    if (filter == SearchFilter.VIDEOS && song.isVideo) {
+                                        keepVideoId = song.videoId
+                                    }
                                     viewModel.recordEntity(SearchHistoryEntity(
                                         id = song.videoId,
                                         title = song.title,
                                         subtitle = song.artist.ifEmpty { "" },
                                         artworkUrl = song.thumbnailUrl,
                                         entityType = EntityType.TRACK,
+                                        isExplicit = song.isExplicit,
                                     ))
                                     playRadio(song, QueueSource(searchLabel, PlaybackSourceType.SEARCH))
                                 }
@@ -3119,6 +3385,7 @@ private fun BitChordApp(
                                     subtitle = song.artist.ifEmpty { "" },
                                     artworkUrl = song.thumbnailUrl,
                                     entityType = EntityType.TRACK,
+                                    isExplicit = song.isExplicit,
                                 ))
                                 playRadio(song, QueueSource(searchLabel, PlaybackSourceType.SEARCH))
                             },
@@ -3129,9 +3396,10 @@ private fun BitChordApp(
                                     subtitle = song.artist.ifEmpty { "" },
                                     artworkUrl = song.thumbnailUrl,
                                     entityType = EntityType.TRACK,
+                                    isExplicit = song.isExplicit,
                                 ))
                                 viewModel.loadPlaylists()
-                                playlistTarget = song
+                                playlistTarget = song.versionToKeep()
                             },
                             onBrowseClick = { item ->
                                 viewModel.recordEntity(SearchHistoryEntity(
@@ -3183,16 +3451,23 @@ private fun BitChordApp(
                                 // must not update its timestamp and push it to the top.
                                 when (entity.entityType) {
                                     EntityType.TRACK -> {
-                                        // Play the track by its video id
-                                        playRadio(
-                                            com.music.bitchord.data.model.Song(
-                                                videoId = entity.id,
-                                                title = entity.title,
-                                                artist = entity.subtitle,
-                                                thumbnailUrl = entity.artworkUrl,
-                                            ),
-                                            QueueSource(entity.title, PlaybackSourceType.SEARCH),
-                                        )
+                                        // Play the track by its video id, held to the explicit
+                                        // filter like a result row. Entries recorded before the
+                                        // badge was kept don't know it, so it's looked up first.
+                                        val source = QueueSource(entity.title, PlaybackSourceType.SEARCH)
+                                        val song = entity.asSong()
+                                        if (song.isExplicit == null &&
+                                            AppSettings.explicitFilter.value != ExplicitFilterMode.OFF
+                                        ) {
+                                            scope.launch {
+                                                val explicit = YtMusicRepository.trackLinks(entity.id).getOrNull()
+                                                    ?.let { it.isExplicit == true }
+                                                explicit?.let { SearchHistory.noteExplicit(entity.id, it) }
+                                                playRadio(song.copy(isExplicit = explicit), source)
+                                            }
+                                        } else {
+                                            playRadio(song, source)
+                                        }
                                     }
                                     EntityType.ALBUM, EntityType.ARTIST, EntityType.PLAYLIST -> {
                                         viewModel.openDetail(
@@ -3218,6 +3493,7 @@ private fun BitChordApp(
                                     options = listOf(
                                         stringResource(R.string.search_source_youtube),
                                         stringResource(R.string.library),
+                                        stringResource(R.string.search_source_addons),
                                     ),
                                     selectedIndex = searchSource.ordinal,
                                     onSelect = { index -> onSearchSourceChange(SearchSource.entries[index]) },
@@ -3225,17 +3501,34 @@ private fun BitChordApp(
                             },
                             searchingLibrary = searchSource == SearchSource.LIBRARY,
                             libraryResults = libraryResults,
+                            searchingAddons = searchSource == SearchSource.ADDONS,
+                            addonResults = addonResults,
+                            addonHistory = viewModel.addonSearchHistory.collectAsStateWithLifecycle().value,
+                            onAddonHistoryClick = { term ->
+                                viewModel.onQueryChange(term)
+                                viewModel.submitSearch()
+                            },
+                            onAddonHistoryRemove = viewModel::removeAddonSearch,
+                            onAddonHistoryClear = viewModel::clearAddonSearchHistory,
                             // The same queue opening the Local Music folder and
                             // tapping the row there would give.
                             onLibrarySongClick = { songs, index ->
                                 playFrom(
                                     songs,
                                     index,
-                                    QueueSource(
-                                        context.getString(R.string.local_music),
-                                        PlaybackSourceType.BROWSE,
-                                        "local:all",
-                                    ),
+                                    if (searchSource == SearchSource.ADDONS) {
+                                        QueueSource(
+                                            context.getString(R.string.search_source_addons),
+                                            PlaybackSourceType.BROWSE,
+                                            "addons:search",
+                                        )
+                                    } else {
+                                        QueueSource(
+                                            context.getString(R.string.local_music),
+                                            PlaybackSourceType.BROWSE,
+                                            "local:all",
+                                        )
+                                    },
                                 )
                             },
                         )
@@ -3330,6 +3623,14 @@ private fun BitChordApp(
                             )
                         }
                     }
+                    "wear_os" -> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background,
+                        ) {
+                            WearOsScreen(contentPadding = listPadding)
+                        }
+                    }
                     "listen_together" -> {
                         Surface(
                             modifier = Modifier.fillMaxSize(),
@@ -3359,6 +3660,14 @@ private fun BitChordApp(
                             color = MaterialTheme.colorScheme.background,
                         ) {
                             EqualizerScreen(contentPadding = listPadding)
+                        }
+                    }
+                    "allowed_explicit" -> {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background,
+                        ) {
+                            AllowedExplicitSongsScreen(contentPadding = listPadding)
                         }
                     }
                     "replay" -> {
@@ -3406,7 +3715,7 @@ private fun BitChordApp(
                         detail.type == BrowseType.PLAYLIST ||
                         detail.type == BrowseType.ARTIST) &&
                     !isLocalDetail && !showDiscord && !showHistory && !showSettings &&
-                    !showAccountScrobbling && !showSources && !showListenTogether && !showEqualizer && !showReplay
+                    !showAccountScrobbling && !showSources && !showListenTogether && !showWearOs && !showEqualizer && !showAllowedExplicit && !showReplay
                 val chromePageColor = if (isDetailVisible) {
                     detailPalette.background
                 } else {
@@ -3451,7 +3760,9 @@ private fun BitChordApp(
                         showAccountScrobbling -> stringResource(R.string.account_scrobbling)
                         showSources -> stringResource(R.string.sources)
                         showListenTogether -> stringResource(R.string.listen_together)
+                        showWearOs -> stringResource(R.string.wear_os_page_title)
                         showEqualizer -> stringResource(R.string.equalizer)
+                        showAllowedExplicit -> stringResource(R.string.allowed_explicit_songs)
                         showSettings -> stringResource(R.string.settings)
                         showReplay -> stringResource(R.string.replay)
                         detail != null && detailActiveShelf != null -> detailActiveShelf?.title.orEmpty()
@@ -3470,8 +3781,8 @@ private fun BitChordApp(
                     // Search has no large in-list header to hand the title back to —
                     // the field takes that space — so its bar title is always up.
                     scrolled = when {
-                        showSettings || showAccountScrobbling || showSources || showListenTogether ||
-                            showEqualizer ||
+                        showSettings || showAccountScrobbling || showSources || showListenTogether || showWearOs ||
+                            showEqualizer || showAllowedExplicit ||
                             showDiscord || showHistory ||
                             (libraryShowAll != null && detail == null) ||
                             (detail != null && detailActiveShelf != null) ||
@@ -3489,10 +3800,30 @@ private fun BitChordApp(
                         showDiscord -> ({ showDiscord = false })
                         showHistory -> ({ showHistory = false })
                         libraryShowAll != null && detail == null -> ({ libraryShowAll = null })
-                        showAccountScrobbling -> ({ showAccountScrobbling = false })
-                        showSources -> ({ showSources = false })
-                        showListenTogether -> ({ showListenTogether = false })
-                        showEqualizer -> ({ showEqualizer = false })
+                        showAccountScrobbling -> ({
+                            showAccountScrobbling = false
+                            if (settingsSubScreen == "account_scrobbling") settingsSubScreen = null
+                        })
+                        showSources -> ({
+                            showSources = false
+                            if (settingsSubScreen == "sources") settingsSubScreen = null
+                        })
+                        showListenTogether -> ({
+                            showListenTogether = false
+                            if (settingsSubScreen == "listen_together") settingsSubScreen = null
+                        })
+                        showWearOs -> ({
+                            showWearOs = false
+                            if (settingsSubScreen == "wear_os") settingsSubScreen = null
+                        })
+                        showEqualizer -> ({
+                            showEqualizer = false
+                            if (settingsSubScreen == "equalizer") settingsSubScreen = null
+                        })
+                        showAllowedExplicit -> ({
+                            showAllowedExplicit = false
+                            if (settingsSubScreen == "allowed_explicit") settingsSubScreen = null
+                        })
                         settingsSubScreen != null -> ({ settingsSubScreen = null })
                         showSettings -> ({ showSettings = false })
                         showReplay -> ({ showReplay = false })
@@ -3506,7 +3837,7 @@ private fun BitChordApp(
                     accessory = if (
                         selectedTab == TAB_SEARCH && detail == null && selectedMoodGenre == null &&
                         libraryShowAll == null && !showSettings && !showAccountScrobbling &&
-                        !showSources && !showListenTogether && !showEqualizer && !showDiscord &&
+                        !showSources && !showListenTogether && !showWearOs && !showEqualizer && !showAllowedExplicit && !showDiscord &&
                         !showHistory && !showReplay
                     ) {
                         {
@@ -3529,6 +3860,8 @@ private fun BitChordApp(
                                 placeholder = org.jetbrains.compose.resources.stringResource(
                                     if (searchSource == SearchSource.LIBRARY) {
                                         SharedRes.string.search_library_hint
+                                    } else if (searchSource == SearchSource.ADDONS) {
+                                        SharedRes.string.search_addons_hint
                                     } else {
                                         SharedRes.string.search_hint
                                     },
@@ -3598,7 +3931,7 @@ private fun BitChordApp(
                         }
                         // Only worth surfacing where there's room for it and it won't
                         // be mistaken for a per-page action — Home, at rest.
-                        if (!showSettings && !showAccountScrobbling && !showSources && !showListenTogether && !showEqualizer &&
+                        if (!showSettings && !showAccountScrobbling && !showSources && !showListenTogether && !showWearOs && !showEqualizer && !showAllowedExplicit &&
                             detail == null && selectedTab == TAB_HOME
                         ) {
                             updateNotice?.let { update ->
@@ -3669,12 +4002,28 @@ private fun BitChordApp(
                                     }
                                 }
                             }
-                            // Left of the account photo, and only on an album or
-                            // playlist page — an artist page has no single track
-                            // list to reorder, and the device folders already
-                            // carry this same control themselves (see
-                            // `LocalSearchField`).
-                            if (detail != null && !isLocalDetail && detail.type != BrowseType.ARTIST) {
+                            // Sort, only on an album or playlist page — an
+                            // artist page has no single track list to reorder,
+                            // and the device folders already carry this same
+                            // control themselves (see `LocalSearchField`).
+                            //
+                            // Search and the overflow flank it, as the share and
+                            // "…" pair do on Apple Music's album page: the header
+                            // below is left with just the sleeve, the title and
+                            // Shuffle / Play / Add.
+                            if (isReleaseDetail && detail != null) {
+                                val releaseSongs = (detail.songs as? UiState.Success)?.data.orEmpty()
+                                if (releaseSongs.isNotEmpty()) {
+                                    IconButton(onClick = { detailSearching = !detailSearching }) {
+                                        Icon(
+                                            if (detailSearching) Icons.Rounded.Close else BitChordIcons.Search,
+                                            contentDescription = stringResource(
+                                                if (detailSearching) R.string.close_search else R.string.search_this_list,
+                                            ),
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
+                                }
                                 // The menu itself is [FrostedSortMenu], composed
                                 // with the app's other frosted overlays further
                                 // down — in the main hierarchy, where the haze
@@ -3685,6 +4034,42 @@ private fun BitChordApp(
                                         contentDescription = stringResource(R.string.sort_songs),
                                         tint = MaterialTheme.colorScheme.onSurface,
                                     )
+                                }
+                                if (releaseSongs.isNotEmpty()) {
+                                    // The page's own tracks, in the order the page
+                                    // shows them, so the sheet has them already and
+                                    // Play, Shuffle and Open are the buttons beside
+                                    // the one that opened it rather than rows on it.
+                                    // Download lives in the sheet too — and the
+                                    // tracks arrive stamped with the album they came
+                                    // off, which is what the download record groups
+                                    // them under.
+                                    IconButton(
+                                        onClick = {
+                                            browseActions = BrowseTarget(
+                                                browseId = detail.browseId,
+                                                title = detail.title,
+                                                subtitle = detail.subtitle,
+                                                thumbnailUrl = detail.thumbnailUrl,
+                                                type = detail.type,
+                                                songs = releaseSongs.sortedForDetail(songSort).map { song ->
+                                                    if (detail.type == BrowseType.ALBUM) {
+                                                        song.copy(albumName = song.albumName ?: detail.title)
+                                                    } else {
+                                                        song
+                                                    }
+                                                },
+                                                fromCard = false,
+                                                downloadId = downloadIdFor(detail.browseId),
+                                            )
+                                        },
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.MoreHoriz,
+                                            contentDescription = stringResource(R.string.more),
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
                                 }
                             }
                             // Left of the account photo, on an artist page: iOS's
@@ -3717,7 +4102,10 @@ private fun BitChordApp(
                             // [TopBarDownloadButton], which decides that for
                             // itself rather than being told.
                             TopBarDownloadButton(onClick = { showDownloadManager = true })
-                            TopBarAccountButton(
+                            // Not on a release page, whose pill already carries
+                            // three of its own controls — Apple Music leaves the
+                            // profile off its album pages too.
+                            if (!isReleaseDetail) TopBarAccountButton(
                                 account = account,
                                 onClick = {
                                     if (signedIn) {
@@ -3757,7 +4145,9 @@ private fun BitChordApp(
                     showAccountScrobbling = false
                     showSources = false
                     showListenTogether = false
+                    showWearOs = false
                     showEqualizer = false
+                    showAllowedExplicit = false
                     showReplay = false
                     settingsSubScreen = null
                     showHistory = false
@@ -4091,6 +4481,16 @@ private fun BitChordApp(
                     val originalAudio = convertedFromAudio
                     when {
                         c == null -> Unit
+                        // An uploaded clean edit: between the video as itself and
+                        // the song's name and art, never to another recording.
+                        CleanVersions.isCleanUpload(song) -> {
+                            val target = if (song.isVideo) CleanVersions.asAudio(song) else CleanVersions.asVideo(song)
+                            if (target != null) {
+                                // Chosen on purpose: "Prefer music-only" leaves it be.
+                                keepVideoId = if (target.isVideo) song.videoId else null
+                                c.restyleCurrent(target)
+                            }
+                        }
                         original != null && (
                             convertedAudioId == song.videoId ||
                                 convertedAudioId == versionEffectiveSong.videoId ||
@@ -4169,10 +4569,28 @@ private fun BitChordApp(
                 onPlayNext = { playNext(song); songActions = null },
                 onAddToQueue = { addToQueue(song); songActions = null },
                 onStartRadio = { startRadio(song); songActions = null },
+                // The per-song way past the explicit filter, and back. Stays
+                // open so the row flips in place and says it took. For a song
+                // its lyrics made explicit as much as one the catalogue marks.
+                onToggleExplicitAllowed = if (
+                    ExplicitFilter.isExplicit(song, explicitPolicy) && explicitPolicy.mode != ExplicitFilterMode.OFF
+                ) {
+                    {
+                        AppSettings.setExplicitAllowed(
+                            song,
+                            !ExplicitFilter.isAllowedBySong(song, AppSettings.explicitAllowed.value),
+                        )
+                    }
+                } else {
+                    null
+                },
+                explicitAllowed = ExplicitFilter.isAllowedBySong(song, explicitPolicy.allowed),
+                notes = songNotes(song, explicitPolicy),
                 // Stays open: the row it replaces itself with is the
                 // progress, and closing the sheet would hide the only
                 // answer to "did that work?".
-                onDownload = { downloadSong(song) },
+                // "Play clean versions instead": the clean version is the one kept.
+                onDownload = { downloadSong(song.versionToKeep()) },
                 // The other direction: a device file going up to the
                 // server. Closed first, unlike a download — progress and
                 // the summary notice live outside the sheet.
@@ -4206,7 +4624,7 @@ private fun BitChordApp(
                 onAddToPlaylist = {
                     songActions = null
                     viewModel.loadPlaylists()
-                    playlistTarget = song
+                    playlistTarget = song.versionToKeep()
                 },
                 onRemoveFromPlaylist = editable?.let {
                     {
@@ -4508,13 +4926,13 @@ private fun BitChordApp(
                 startRenaming = browseRenameInSheet,
                 onPlayNext = act(playSongsNext),
                 onAddToQueue = act(addSongsToQueue),
-                onPlay = act { songs -> play(songs, 0) }.takeIf { target.fromCard },
+                onPlay = act { songs -> play(songs, songs.firstPlayableIndex(target.browseId)) }.takeIf { target.fromCard },
                 onShuffle = act { songs ->
                     // As on a release page: shuffle goes on before the queue
                     // is built, so it is built shuffled rather than played
                     // out of order.
                     QueueShuffle.enableForNextQueue()
-                    play(songs, songs.indices.random())
+                    play(songs, songs.randomPlayableIndex(target.browseId))
                 }.takeIf { target.fromCard },
                 onOpen = target.browseId
                     ?.takeIf { target.fromCard }
@@ -4539,7 +4957,7 @@ private fun BitChordApp(
                 // record wants.
                 onDownloadAll = act { songs ->
                     startDownload(
-                        songs,
+                        songs.map { it.versionToKeep() },
                         target.browseId
                             ?.takeIf { target.type != BrowseType.ARTIST }
                             ?.let { id ->
@@ -5216,6 +5634,67 @@ private fun BitChordApp(
             )
         }
 
+        explicitPrompt?.let { prompt ->
+            val (song, proceed) = prompt
+            BackHandler { explicitPrompt = null }
+            // Keyed on the song so a second blocked tap starts a fresh card
+            // rather than reusing one that is already animating out.
+            key(song.videoId) {
+                // Looked for while the card is up, so the answer is usually in
+                // before a choice is made.
+                val cleanOffer by produceState(
+                    initialValue = when {
+                        prompt.noCleanVersion -> CleanVersionOffer.NONE
+                        prompt.playClean == null -> CleanVersionOffer.HIDDEN
+                        CleanVersions.cached(song) != null -> CleanVersionOffer.AVAILABLE
+                        CleanVersions.isMissing(song) -> CleanVersionOffer.NONE
+                        else -> CleanVersionOffer.SEARCHING
+                    },
+                    key1 = prompt,
+                ) {
+                    if (value == CleanVersionOffer.SEARCHING) {
+                        value = when {
+                            CleanVersions.find(song) != null -> CleanVersionOffer.AVAILABLE
+                            CleanVersions.isMissing(song) -> CleanVersionOffer.NONE
+                            // The search failed rather than came back empty.
+                            else -> CleanVersionOffer.HIDDEN
+                        }
+                    }
+                }
+                ExplicitBlockedAlert(
+                    song = song,
+                    hazeState = hazeState,
+                    cleanVersion = cleanOffer,
+                    onChoice = { choice ->
+                        explicitPrompt = null
+                        when (choice) {
+                            ExplicitBlockedChoice.PLAY_CLEAN -> {
+                                val clean = CleanVersions.cached(song)
+                                if (clean != null) prompt.playClean?.invoke(song.cleanStandIn(clean))
+                            }
+                            ExplicitBlockedChoice.ALLOW_SONG -> {
+                                AppSettings.setExplicitAllowed(song, true)
+                                proceed()
+                            }
+                            // Back to filtering only what the app picks, so
+                            // AutoPlay and radio stay clean.
+                            ExplicitBlockedChoice.TURN_OFF_BLOCKING -> {
+                                AppSettings.setExplicitFilter(ExplicitFilterMode.SUGGESTIONS)
+                                proceed()
+                            }
+                            // Caught by its lyrics alone: only that check goes,
+                            // and songs marked explicit stay blocked.
+                            ExplicitBlockedChoice.TURN_OFF_LYRICS_CHECK -> {
+                                AppSettings.setExplicitLyricsCheck(false)
+                                proceed()
+                            }
+                            ExplicitBlockedChoice.CANCEL -> Unit
+                        }
+                    },
+                )
+            }
+        }
+
         if (confirmJioSaavn) {
             ConfirmationAlert(
                 hazeState = hazeState,
@@ -5463,3 +5942,46 @@ private const val TAB_SEARCH = 3
  * prefix has to be the one thing both the writing and the reading agree on.
  */
 private const val TAB_KEY = "tab:"
+
+/**
+ * A song the explicit filter stopped, waiting on the listener.
+ *
+ * @param proceed plays it as asked, once allowed.
+ * @param playClean plays a clean release in its place; null where there's
+ *   nothing to offer.
+ * @param noCleanVersion "Play clean versions instead" looked and found none —
+ *   the reason this is being asked at all.
+ */
+private data class ExplicitPrompt(
+    val song: Song,
+    val proceed: () -> Unit,
+    val playClean: ((Song) -> Unit)? = null,
+    val noCleanVersion: Boolean = false,
+)
+
+/**
+ * The notes at the top of a song's menu — what's worth knowing about this copy
+ * of the song before acting on it: that it is the clean version (and from
+ * where), plays as one, was let past the explicit filter or is blocked by it,
+ * was marked explicit by its lyrics, or is the song a music video became.
+ */
+@Composable
+private fun songNotes(song: Song, policy: com.music.bitchord.playback.ExplicitPolicy): List<String> {
+    val notes = mutableListOf<String>()
+    val cleanUpload = CleanVersions.isCleanUpload(song)
+    if (cleanUpload) {
+        notes += stringResource(R.string.song_note_clean_upload)
+    } else if (CleanVersions.isCleanRelease(song)) {
+        notes += stringResource(R.string.song_note_clean_release)
+    }
+    if (policy.mode != ExplicitFilterMode.OFF && ExplicitFilter.isExplicit(song, policy)) {
+        if (song.isExplicit != true) notes += stringResource(R.string.song_note_explicit_by_lyrics)
+        when {
+            ExplicitFilter.isAllowedBySong(song, policy.allowed) -> notes += stringResource(R.string.song_note_allowed)
+            song.explicitSwapsToClean() -> notes += stringResource(R.string.song_note_swaps_clean)
+            song.explicitBlocked() -> notes += stringResource(R.string.song_note_blocked)
+        }
+    }
+    if (song.isVideoOrigin && !song.isVideo && !cleanUpload) notes += stringResource(R.string.song_note_from_video)
+    return notes
+}

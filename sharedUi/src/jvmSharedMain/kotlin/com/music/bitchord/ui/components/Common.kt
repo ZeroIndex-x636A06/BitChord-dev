@@ -496,10 +496,13 @@ private fun SongRowContent(
     // has no match: shown, but not something a tap or a menu can act on.
     val matching = song.isMatchPending
     val unavailable = song.isMatchMissing
+    // Greyed, not hidden — see [LocalExplicitBlocked]. Still tappable: the tap
+    // is where the listener gets asked whether to allow it.
+    val explicitBlocked = LocalExplicitBlocked.current(song)
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .alpha(if (unavailable) 0.45f else 1f)
+            .alpha(if (unavailable || explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .background(activeBackground)
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onMore ?: onLongPress)
@@ -610,7 +613,7 @@ private fun SongRowContent(
         }
         // Same sheet the long-press opens, for anyone who doesn't think to hold.
         if (onMore != null && !matching && !unavailable) {
-            RowMoreButton(onClick = onMore)
+            RowMoreButton(onClick = onMore, tint = subtitleColor)
         }
     }
 }

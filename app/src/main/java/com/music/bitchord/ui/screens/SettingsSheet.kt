@@ -1,5 +1,6 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.wear.WatchInstaller
 import android.content.Context
 import android.content.Intent
 import android.media.AudioFormat
@@ -10,6 +11,7 @@ import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -30,8 +33,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.ScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Notes
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.Animation
+import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BlurOff
@@ -52,6 +57,9 @@ import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.Gradient
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Explicit
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Translate
@@ -110,6 +118,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.viewinterop.AndroidView
+import com.music.bitchord.AppIcon
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -148,6 +160,8 @@ import com.music.bitchord.data.settings.DownloadQuality
 import com.music.bitchord.data.settings.ThemeMode
 import com.music.bitchord.data.stats.Backup
 import com.music.bitchord.playback.AudioCache
+import com.music.bitchord.data.settings.ExplicitAllowList
+import com.music.bitchord.playback.ExplicitFilterMode
 import com.music.bitchord.ui.player.fullBleedArtworkAvailable
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -176,8 +190,11 @@ fun SettingsScreen(
     onTranslationLanguage: () -> Unit,
     onSources: () -> Unit,
     onListenTogether: () -> Unit,
+    onWearOs: () -> Unit,
     onSpotifyCanvasAuth: () -> Unit,
     onAppLanguage: () -> Unit,
+    /** Opens the list of songs let past the explicit filter. */
+    onAllowedExplicitSongs: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -229,6 +246,11 @@ fun SettingsScreen(
     val showQueueHistory by AppSettings.showQueueHistory.collectAsStateWithLifecycle()
     val swipeToPlayNext by AppSettings.swipeToPlayNext.collectAsStateWithLifecycle()
     val dontRepeatSuggestions by AppSettings.dontRepeatSuggestions.collectAsStateWithLifecycle()
+    val explicitFilter by AppSettings.explicitFilter.collectAsStateWithLifecycle()
+    val allowedExplicitSongs by ExplicitAllowList.songs.collectAsStateWithLifecycle()
+    val explicitAllowOwnPlaylists by AppSettings.explicitAllowOwnPlaylists.collectAsStateWithLifecycle()
+    val explicitLyricsCheck by AppSettings.explicitLyricsCheck.collectAsStateWithLifecycle()
+    val explicitSwapClean by AppSettings.explicitSwapClean.collectAsStateWithLifecycle()
     val preferMusicOnly by AppSettings.preferMusicOnly.collectAsStateWithLifecycle()
     val smartVersionAlignment by AppSettings.smartVersionAlignment.collectAsStateWithLifecycle()
     val filterNonMusicAudio by AppSettings.filterNonMusicAudio.collectAsStateWithLifecycle()
@@ -1169,6 +1191,15 @@ fun SettingsScreen(
             }
         }
 
+        // Only in a build that carries the watch app — see app/build.gradle.kts.
+        if (remember { WatchInstaller.available(context) }) {
+            SearchableSettingsGroup(search) {
+                row(stringResource(R.string.wear_os_section), "watch", "wear os", "galaxy watch", "pixel watch", "install") {
+                    WearOsSettingsRow(onClick = onWearOs)
+                }
+            }
+        }
+
         SearchableSettingsGroup(search, header = stringResource(R.string.your_data)) {
             val replayTitle = stringResource(R.string.replay)
             row(replayTitle, "stats", "history", "wrapped") {
@@ -1266,6 +1297,168 @@ fun SettingsScreen(
                     },
                     onClick = { AppSettings.setDontRepeatSuggestions(!dontRepeatSuggestions) },
                 )
+            }
+            // Issue #720. Two switches rather than a three-way picker because
+            // that is how listeners already know it from Spotify and Amazon
+            // Music: one to keep explicit songs out of what the app picks, one
+            // to keep them out of everything.
+            val filterExplicitTitle = stringResource(R.string.filter_explicit_content)
+            row(filterExplicitTitle, "explicit", "clean", "parental", "autoplay", "radio") {
+                val on = explicitFilter != ExplicitFilterMode.OFF
+                val toggle = {
+                    AppSettings.setExplicitFilter(
+                        if (on) ExplicitFilterMode.OFF else ExplicitFilterMode.SUGGESTIONS,
+                    )
+                }
+                SettingsRow(
+                    icon = Icons.Rounded.Explicit,
+                    title = filterExplicitTitle,
+                    subtitle = stringResource(R.string.filter_explicit_content_subtitle),
+                    trailing = {
+                        Switch(
+                            checked = on,
+                            onCheckedChange = { toggle() },
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = toggle,
+                )
+            }
+            val blockExplicitTitle = stringResource(R.string.block_explicit_everywhere)
+            row(blockExplicitTitle, "explicit", "clean", "parental", "block") {
+                val available = explicitFilter != ExplicitFilterMode.OFF
+                val everywhere = explicitFilter == ExplicitFilterMode.EVERYWHERE
+                val toggle = {
+                    AppSettings.setExplicitFilter(
+                        if (everywhere) ExplicitFilterMode.SUGGESTIONS else ExplicitFilterMode.EVERYWHERE,
+                    )
+                }
+                SettingsRow(
+                    icon = Icons.Rounded.Block,
+                    title = blockExplicitTitle,
+                    subtitle = stringResource(R.string.block_explicit_everywhere_subtitle),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = everywhere,
+                            onCheckedChange = { toggle() },
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) toggle else null,
+                )
+            }
+            // Only under the full block: with suggestions-only filtering,
+            // anything played from a playlist is already the listener's pick.
+            val allowOwnPlaylistsTitle = stringResource(R.string.allow_explicit_in_my_playlists)
+            row(allowOwnPlaylistsTitle, "explicit", "playlist", "my playlists") {
+                val available = explicitFilter == ExplicitFilterMode.EVERYWHERE
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                    title = allowOwnPlaylistsTitle,
+                    subtitle = stringResource(R.string.allow_explicit_in_my_playlists_subtitle),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = explicitAllowOwnPlaylists,
+                            onCheckedChange = AppSettings::setExplicitAllowOwnPlaylists,
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) {
+                        { AppSettings.setExplicitAllowOwnPlaylists(!explicitAllowOwnPlaylists) }
+                    } else {
+                        null
+                    },
+                )
+            }
+            // Off by default: it reads lyrics for songs before they play. Applies
+            // to whichever of the two modes is on.
+            val lyricsCheckTitle = stringResource(R.string.check_lyrics_explicit)
+            row(lyricsCheckTitle, "explicit", "lyrics", "swear", "profanity", "curse") {
+                val available = explicitFilter != ExplicitFilterMode.OFF
+                SettingsRow(
+                    icon = Icons.AutoMirrored.Rounded.Notes,
+                    title = lyricsCheckTitle,
+                    // It reads lyrics, so with lyrics off it can't do anything — say so.
+                    subtitle = stringResource(
+                        if (syncedLyrics) R.string.check_lyrics_explicit_subtitle else R.string.check_lyrics_explicit_needs_lyrics,
+                    ),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = explicitLyricsCheck,
+                            onCheckedChange = AppSettings::setExplicitLyricsCheck,
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) {
+                        { AppSettings.setExplicitLyricsCheck(!explicitLyricsCheck) }
+                    } else {
+                        null
+                    },
+                )
+            }
+            // Either mode: under "suggestions only" it swaps what AutoPlay and
+            // radio pick, under the full block everything blocked.
+            val swapCleanTitle = stringResource(R.string.play_clean_versions)
+            row(swapCleanTitle, "explicit", "clean", "clean version", "swap", "edited") {
+                val available = explicitFilter != ExplicitFilterMode.OFF
+                SettingsRow(
+                    icon = Icons.Rounded.SwapHoriz,
+                    title = swapCleanTitle,
+                    subtitle = stringResource(R.string.play_clean_versions_subtitle),
+                    enabled = available,
+                    trailing = {
+                        Switch(
+                            checked = explicitSwapClean,
+                            onCheckedChange = AppSettings::setExplicitSwapClean,
+                            enabled = available,
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        )
+                    },
+                    onClick = if (available) {
+                        { AppSettings.setExplicitSwapClean(!explicitSwapClean) }
+                    } else {
+                        null
+                    },
+                )
+            }
+            // While the filter is on, so the list can be found before anything
+            // is on it; and afterwards for as long as something is, so turning
+            // the filter off never hides songs that are still allowed.
+            if (explicitFilter != ExplicitFilterMode.OFF || allowedExplicitSongs.isNotEmpty()) {
+                val allowedTitle = stringResource(R.string.allowed_explicit_songs)
+                row(allowedTitle, "explicit", "allowed", "exceptions") {
+                    SettingsRow(
+                        icon = Icons.Rounded.Explicit,
+                        title = allowedTitle,
+                        subtitle = pluralStringResource(
+                            R.plurals.allowed_explicit_songs_count,
+                            allowedExplicitSongs.size,
+                            allowedExplicitSongs.size,
+                        ),
+                        onClick = onAllowedExplicitSongs,
+                    )
+                }
             }
             val stopMusicOnCloseTitle = stringResource(R.string.stop_music_on_close)
             row(stopMusicOnCloseTitle, "notification", "background") {
@@ -1397,6 +1590,66 @@ fun SettingsScreen(
                     },
                     onClick = { AppSettings.setShowNerdStats(!nerdStats) },
                 )
+            }
+            val appIconTitle = stringResource(R.string.app_icon)
+            row(appIconTitle, "icon", "launcher", "logo") {
+                var selectedIcon by remember { mutableStateOf(AppIcon.current(context)) }
+                SettingsRow(icon = Icons.Rounded.Apps, title = appIconTitle)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    AppIcon.entries.forEach { option ->
+                        val selected = option == selectedIcon
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    selectedIcon = option
+                                    AppIcon.apply(context, option)
+                                }
+                                .padding(vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            // The glass PNGs carry their own rounded corners, so they are
+                            // drawn whole; only the adaptive default needs a mask.
+                            if (option == AppIcon.Default) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        android.widget.ImageView(ctx).apply { setImageResource(option.iconRes) }
+                                    },
+                                    modifier = Modifier
+                                        .size(68.dp)
+                                        .clip(RoundedCornerShape(22.dp)),
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(option.iconRes),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.size(68.dp),
+                                )
+                            }
+                            Text(
+                                text = stringResource(
+                                    when (option) {
+                                        AppIcon.Default -> R.string.app_icon_default
+                                        AppIcon.GlassLight -> R.string.app_icon_light
+                                        AppIcon.GlassDark -> R.string.app_icon_dark
+                                    },
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (selected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.music.bitchord.R
 import com.music.bitchord.auth.AuthStore
+import com.music.bitchord.auth.SignedIn
 import com.music.bitchord.auth.GoogleAccountSession
 import com.music.bitchord.auth.YouTubeProfile
 import com.music.bitchord.auth.profileId
@@ -25,6 +26,7 @@ import com.music.bitchord.data.lyrics.LyricLine
 import com.music.bitchord.data.lyrics.LyricsRepository
 import com.music.bitchord.data.lyrics.LyricsSource
 import com.music.bitchord.data.settings.AppSettings
+import com.music.bitchord.data.settings.ExplicitLyricsCheck
 import com.music.bitchord.data.innertube.Innertube
 import com.music.bitchord.data.innertube.PlaybackTracker
 import com.music.bitchord.data.innertube.StreamResolver
@@ -79,6 +81,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import com.music.bitchord.data.sources.AddonSource
 import com.music.bitchord.data.sources.SourceKind
 import com.music.bitchord.data.sources.SourceRegistry
 import com.music.bitchord.data.sources.SourceResolver
@@ -92,13 +95,14 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /** What the Search tab searches: YouTube Music, or the Local Music folder on this device. */
-enum class SearchSource { YOUTUBE, LIBRARY }
+enum class SearchSource { YOUTUBE, LIBRARY, ADDONS }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val authStore = AuthStore(app)
 
-    private val _signedIn = MutableStateFlow(authStore.isSignedIn)
+    // Process-wide, so the playback service offers Like on the same tracks.
+    private val _signedIn = SignedIn.state(app)
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
 
     private val _home = MutableStateFlow<UiState<List<HomeShelf>>>(UiState.Loading)
@@ -194,6 +198,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Where the Search tab looks — see [setSearchSource]. */
     private val _searchSource = MutableStateFlow(SearchSource.YOUTUBE)
     val searchSource: StateFlow<SearchSource> = _searchSource.asStateFlow()
+
+    /**
+     * The Addons source's answer for the submitted query: every enabled addon
+     * searched at once and their rows interleaved. Null until something has
+     * been submitted. These songs carry source track keys, so a tap plays the
+     * addon's own stream with no YouTube lookup in between.
+     */
+    private val _addonResults = MutableStateFlow<UiState<List<Song>>?>(null)
+    val addonResults: StateFlow<UiState<List<Song>>?> = _addonResults.asStateFlow()
+    private var addonSearchJob: Job? = null
+
+    /** The words typed into the Addons search before, newest first. */
+    val addonSearchHistory: StateFlow<List<String>> = SearchHistory.addonRecent
+
+    fun removeAddonSearch(query: String) = SearchHistory.removeAddonQuery(query)
+
+    fun clearAddonSearchHistory() = SearchHistory.clearAddonQueries()
 
     /** Every track in the Local Music folder, read when the Library source is picked. */
     private val _librarySongs = MutableStateFlow<UiState<List<Song>>>(UiState.Loading)
@@ -1098,7 +1119,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             YtMusicRepository.removeFromPlaylist(
                 playlistId,
-                listOf(setVideoId to song.videoId),
+                // A row shown as its song still holds the video on the account.
+                listOf(setVideoId to (videoOnRow[setVideoId] ?: song.videoId)),
             ).fold(
                 onSuccess = {
                     libraryStale = true
@@ -1665,7 +1687,36 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun isCurrentHomeLoad(identity: String?, generation: Long) =
         identity == listenerKey() && generation == homeLoadGeneration.get()
 
+    /** Track cards on [shelves] as songs, for the lyric check to read ahead — see [ExplicitLyricsCheck.prepare]. */
+    private fun prepareCards(shelves: List<HomeShelf>) {
+        val songs = shelves.flatMap { shelf ->
+            shelf.items.mapNotNull { item ->
+                item.videoId?.let { Song(videoId = it, title = item.title, artist = item.subtitle, thumbnailUrl = item.thumbnailUrl, isExplicit = item.isExplicit) }
+            }
+        }
+        if (songs.isNotEmpty()) viewModelScope.launch { ExplicitLyricsCheck.prepare(songs, budgetMs = 0) }
+    }
+
+    /**
+     * "Play clean versions instead": the clean releases of a list's explicit
+     * songs, found before it shows so their "C" doesn't pop in.
+     */
+    private suspend fun prepareCleanVersions(songs: List<Song>, budgetMs: Long) {
+        val policy = AppSettings.explicitPolicy()
+        if (!policy.swapToClean || policy.mode == com.music.bitchord.playback.ExplicitFilterMode.OFF) return
+        com.music.bitchord.playback.CleanVersions.prepare(songs, budgetMs)
+    }
+
+    private fun List<SearchResult>.songs(): List<Song> = mapNotNull {
+        when (it) {
+            is SearchResult.TopTrack -> it.song
+            is SearchResult.Track -> it.song
+            else -> null
+        }
+    }
+
     private fun publishHomeShelves(shelves: List<HomeShelf>, prepend: Boolean = false) {
+        prepareCards(shelves)
         val existing = (_home.value as? UiState.Success)?.data.orEmpty()
         if (prepend) {
             // YouTube's core home can also contain a stale "Recently played"
@@ -1691,7 +1742,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             homeSeenTitles.clear()
             val shelves = feed.shelves.withoutRepeatsOf(emptyList())
                 .filter { homeSeenTitles.add(it.title.lowercase(Locale.ROOT)) }
-            if (shelves.isNotEmpty()) _home.value = UiState.Success(shelves)
+            if (shelves.isNotEmpty()) {
+                prepareCards(shelves)
+                _home.value = UiState.Success(shelves)
+            }
         }
         recent?.await()?.onSuccess { shelf ->
             if (identity == listenerKey()) shelf?.let { publishHomeShelves(listOf(it), prepend = true) }
@@ -1828,6 +1882,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(fromTypeahead.song.artist).joinToString(" · "),
                 artworkUrl = fromTypeahead.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = fromTypeahead.song.isExplicit,
             ))
             return
         }
@@ -1838,6 +1893,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(fromTypeahead.song.artist).joinToString(" · "),
                 artworkUrl = fromTypeahead.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = fromTypeahead.song.isExplicit,
             ))
             return
         }
@@ -1852,6 +1908,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(topResult.song.artist).joinToString(" · "),
                 artworkUrl = topResult.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = topResult.song.isExplicit,
             ))
         } else if (topResult is SearchResult.TopTrack) {
             recordEntity(SearchHistoryEntity(
@@ -1860,6 +1917,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 subtitle = listOfNotNull(topResult.song.artist).joinToString(" · "),
                 artworkUrl = topResult.song.thumbnailUrl,
                 entityType = EntityType.TRACK,
+                isExplicit = topResult.song.isExplicit,
             ))
         } else {
             // Fallback: record as a raw-text entity for backwards compatibility
@@ -1889,7 +1947,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         searchSubmitted = true
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
-        runSearch()
+        // Picking a suggestion or history item is deliberate, but it must NOT
+        // pollute the user's YTMusic server-side search history — only an
+        // explicit keyboard submission should do that.  Use the anonymous
+        // endpoint so YouTube does not log this query against the account.
+        runSearch(anonymous = true)
     }
 
     fun removeSearch(id: String) = SearchHistory.remove(id)
@@ -1903,6 +1965,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _suggestions.value = emptyList()
             _typeaheadResults.value = emptyList()
             _results.value = null
+            addonSearchJob?.cancel()
+            _addonResults.value = null
             // The list is about to switch from search results to recent
             // searches (or the empty state) — without this it can keep
             // whatever scroll offset the results list was left at, landing
@@ -1914,7 +1978,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         searchSubmitted = false
         // The Library source answers from the device on every keystroke (see
         // [libraryResults]); YouTube's completions have nothing to add to it.
-        if (_searchSource.value == SearchSource.LIBRARY) return
+        if (_searchSource.value != SearchSource.YOUTUBE) return
         // While typing, surface text completions — the pipeline already feeds
         // them through [suggestRequests] and publishes results via typeahead.
         suggestRequests.tryEmit(newValue)
@@ -1930,7 +1994,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         searchSubmitted = true
         _suggestions.value = emptyList()
         _typeaheadResults.value = emptyList()
-        runSearch()
+        if (_searchSource.value == SearchSource.ADDONS) {
+            runAddonSearch(q)
+            return
+        }
+        runSearch(anonymous = false)
+    }
+
+    /**
+     * Asks every enabled addon for [q] in parallel. A slow or failing addon
+     * only costs its own rows; the list is the rest of them, round-robin so
+     * no single catalogue buries the others.
+     */
+    private fun runAddonSearch(q: String) {
+        SearchHistory.recordAddonQuery(q)
+        addonSearchJob?.cancel()
+        _searchScrollReset.value += 1
+        val addons = SourceRegistry.active().filterIsInstance<AddonSource>()
+        if (addons.isEmpty()) {
+            _addonResults.value = UiState.Error(text(R.string.search_addons_none))
+            return
+        }
+        _addonResults.value = UiState.Loading
+        addonSearchJob = viewModelScope.launch {
+            val perAddon = coroutineScope {
+                addons.map { addon ->
+                    async {
+                        withTimeoutOrNull(ADDON_SEARCH_TIMEOUT_MS) {
+                            runCatching { addon.search(q, limit = ADDON_SEARCH_LIMIT) }.getOrDefault(emptyList())
+                        } ?: emptyList()
+                    }
+                }.map { it.await() }
+            }
+            val merged = buildList {
+                val longest = perAddon.maxOfOrNull { it.size } ?: 0
+                for (i in 0 until longest) perAddon.forEach { rows -> rows.getOrNull(i)?.let(::add) }
+            }
+            _addonResults.value = UiState.Success(merged)
+        }
     }
 
     /**
@@ -1949,6 +2050,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         when (source) {
             SearchSource.LIBRARY -> loadLibrarySongs()
             SearchSource.YOUTUBE -> submitSearch()
+            SearchSource.ADDONS -> if (_query.value.isNotBlank()) submitSearch()
         }
     }
 
@@ -1992,6 +2094,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val query: String,
         val filter: SearchFilter,
         val requestId: Long,
+        val anonymous: Boolean = true,
     )
 
     private fun cacheKey(query: String, filter: SearchFilter) = "${filter.name}:$query"
@@ -2009,7 +2112,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             ?.rows
     }
 
-    private fun runSearch() {
+    private fun runSearch(anonymous: Boolean = true) {
         val query = _query.value
         if (query.isBlank()) {
             // Nothing in flight can still be waiting to overwrite this: the
@@ -2024,7 +2127,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _searchScrollReset.value += 1
         searchSession = null
         _searchLoadingMore.value = false
-        searchRequests.tryEmit(SearchRequest(query, _filter.value, id))
+        searchRequests.tryEmit(SearchRequest(query, _filter.value, id, anonymous))
     }
 
     /**
@@ -2056,7 +2159,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val exact = searchCache.get(key)
                 val cached = exact?.rows ?: prefixMatch(request.query, request.filter)
                 _results.value = cached?.let { UiState.Success(it) } ?: UiState.Loading
-                if (exact != null) {
+                // An explicit submit still has to reach the server even when
+                // an anonymous lookup cached the same query: that call is what
+                // records it in the account's history.
+                if (exact != null && request.anonymous) {
                     searchSession = SearchSession(key, request.requestId, request.filter, exact.continuation)
                     return@collectLatest
                 }
@@ -2070,7 +2176,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // see [SourceResolver.substituteForYouTube] — which upgrades
                 // the ones it holds without any of them having to be a
                 // separate row to pick between.
-                val result = YtMusicRepository.searchPage(request.query, request.filter)
+                val result = YtMusicRepository.searchPage(request.query, request.filter, request.anonymous)
+                // The lyric check's verdicts for the first rows, so explicit
+                // results are marked from the start — briefly, a search is
+                // waited on.
+                result.getOrNull()?.let { page ->
+                    ExplicitLyricsCheck.prepare(page.rows.songs(), SEARCH_PREPARE_MS)
+                    prepareCleanVersions(page.rows.songs(), SEARCH_PREPARE_MS)
+                }
                 // A search that has been superseded shouldn't land on screen,
                 // whether it succeeded or failed.
                 if (request.requestId != newestRequestId.get()) return@collectLatest
@@ -2300,6 +2413,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        /** Playlist rows looked up for their song at once — see [showSongVersions]. */
+        private const val SONG_VERSION_LOOKUPS = 6
+
+        /** Video rows a playlist looks up before it opens — see [withSongVersions]. */
+        private const val SONG_VERSION_FIRST = 40
+
+        /** How long a failed song lookup for a playlist row waits before each retry. */
+        private val SONG_VERSION_RETRIES_MS = listOf(2_000L, 6_000L)
+
+        /** A video that says it is a clean edit. */
+        private val CLEAN_EDIT_TITLE = Regex("""\b(?:clean|edited|radio edit|censored)\b""", RegexOption.IGNORE_CASE)
+
+        /** Longest a playlist waits on those before it opens anyway. */
+        private const val SONG_VERSION_WAIT_MS = 4_000L
+
+        /** Playlist rows whose songs are published to the page together. */
+        private const val SONG_VERSION_BATCH = 6
+
+        /** How long a search waits on the lyric check's first verdicts — see [ExplicitLyricsCheck.prepare]. */
+        private const val SEARCH_PREPARE_MS = 1_500L
+
+        /** Per-addon budget for the Addons search tab; a slow addon is left out, not waited on. */
+        private const val ADDON_SEARCH_TIMEOUT_MS = 12_000L
+        private const val ADDON_SEARCH_LIMIT = 20
+
         /** How many Spotify tracks are looked up on YouTube Music at once. */
         private const val SPOTIFY_MATCH_PARALLELISM = 6
 
@@ -2574,6 +2712,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
             }
+            // "Prefer music-only version": a playlist's first rows are shown as
+            // their songs from the start rather than swapping in.
+            val shown = (state as? UiState.Success)?.data
+                ?.let { UiState.Success(withSongVersions(browseId, it)) } ?: state
+            // "Check lyrics for explicit content": the first screenful is read
+            // before the page shows, so its explicit rows are greyed from the
+            // start rather than popping in.
+            (shown as? UiState.Success)?.data?.let {
+                ExplicitLyricsCheck.prepare(it)
+                prepareCleanVersions(it, ExplicitLyricsCheck.PREPARE_BUDGET_MS)
+            }
             // Update by id — the user may have pushed another page meanwhile.
             // A page showing its downloaded copy takes only a real listing: a
             // failed or empty fetch leaves the downloaded tracks up.
@@ -2582,7 +2731,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     (it.songs is UiState.Loading || (onDevice.isNotEmpty() && state is UiState.Success))
                 ) {
                     it.copy(
-                        songs = state,
+                        songs = shown,
                         sections = sections,
                         thumbnailUrl = artwork ?: it.thumbnailUrl,
                         title = name ?: it.title,
@@ -2601,6 +2750,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // Only once the first page is on screen: [fillIn] appends to it,
             // and has nothing to append to before this.
             more?.let { fillIn(browseId, it, thumbnailUrl ?: artwork) }
+            showSongVersions(browseId)
         }
     }
 
@@ -2814,10 +2964,133 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         suggestedSongs = current.suggestedSongs + addedSuggested,
                     )
                 }
+                showSongVersions(browseId)
                 next = fetched.continuation
             }
         }
     }
+
+    /**
+     * The video id each playlist row shown as its song stood for, by the row's
+     * playlist entry — removing it from the playlist names the entry and the
+     * video that is really on it. See [showSongVersions].
+     */
+    private val videoOnRow = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Video rows already looked up for their song, by playlist, so a page grown by [fillIn] only asks for the new ones. */
+    private val songVersionAsked = java.util.concurrent.ConcurrentHashMap<String, MutableSet<String>>()
+
+    /** Song lookups for playlist rows running together; each is a search. */
+    private val songVersionGate = kotlinx.coroutines.sync.Semaphore(SONG_VERSION_LOOKUPS)
+
+    /**
+     * "Prefer music-only version" for a whole playlist: its music-video rows
+     * are shown — and so played, queued and kept — as the songs they are
+     * videos of, the same lookup the player makes for a video it is about to
+     * play. A video with no song version stays as it is. Only for a YouTube
+     * playlist (an album is songs already), and only with the setting on; the
+     * playlist on the account is left alone.
+     */
+    private fun showSongVersions(browseId: String) {
+        if (!AppSettings.preferMusicOnly.value || !browseId.startsWith("VL")) return
+        val page = _detailStack.value.firstOrNull { it.browseId == browseId } ?: return
+        val asked = songVersionAsked.getOrPut(browseId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }
+        val videos = (page.songs as? UiState.Success)?.data.orEmpty()
+            .filter { it.isVideo && it.localUri == null && it.localPath == null && asked.add(it.rowKey()) }
+        if (videos.isEmpty()) return
+        viewModelScope.launch {
+            var pending = videos
+            // A lookup that failed — a search refused or timed out, which a burst
+            // of them on a page opening can bring on — is tried again a little
+            // later rather than leaving the video as it is.
+            for (wait in listOf(0L) + SONG_VERSION_RETRIES_MS) {
+                if (pending.isEmpty()) break
+                delay(wait)
+                if (_detailStack.value.none { it.browseId == browseId }) return@launch
+                val failed = mutableListOf<Song>()
+                pending.chunked(SONG_VERSION_BATCH).forEach { batch ->
+                    val found = coroutineScope {
+                        batch.map { row ->
+                            async {
+                                songVersionGate.withPermit {
+                                    val song = songVersionOf(row)
+                                    if (song == null && lookupFailed(row)) synchronized(failed) { failed += row }
+                                    song?.let { row.rowKey() to it }
+                                }
+                            }
+                        }.mapNotNull { it.await() }.toMap()
+                    }
+                    if (found.isNotEmpty()) publishSongVersions(browseId, found)
+                }
+                pending = failed
+            }
+        }
+    }
+
+    /** [found] songs in place of the video rows they stand for, by row — see [showSongVersions]. */
+    private fun publishSongVersions(browseId: String, found: Map<String, Song>) {
+        _detailStack.value = _detailStack.value.map { open ->
+            val songs = (open.songs as? UiState.Success)?.data
+            if (open.browseId != browseId || songs == null) {
+                open
+            } else {
+                open.copy(songs = UiState.Success(songs.map { found[it.rowKey()] ?: it }))
+            }
+        }
+    }
+
+    /** Whether [row]'s lookup came back with no answer at all — failed, rather than found no song. */
+    private fun lookupFailed(row: Song): Boolean = YtMusicRepository.cachedAudioVersion(row.videoId) == null
+
+    /**
+     * [showSongVersions] for the rows a playlist opens on, before it is shown:
+     * the first [SONG_VERSION_FIRST] video rows are looked up — most straight
+     * from what earlier launches found — waiting at most [SONG_VERSION_WAIT_MS],
+     * so the page opens already showing songs. Whatever isn't in by then is
+     * left to [showSongVersions] once the page is up.
+     */
+    private suspend fun withSongVersions(browseId: String, songs: List<Song>): List<Song> {
+        if (!AppSettings.preferMusicOnly.value || !browseId.startsWith("VL")) return songs
+        val rows = songs.filter { it.isVideo && it.localUri == null && it.localPath == null }.take(SONG_VERSION_FIRST)
+        if (rows.isEmpty()) return songs
+        val lookups = rows.map { row ->
+            row to viewModelScope.async(Dispatchers.IO) { songVersionGate.withPermit { songVersionOf(row) } }
+        }
+        withTimeoutOrNull(SONG_VERSION_WAIT_MS) { lookups.forEach { it.second.await() } }
+        val asked = songVersionAsked.getOrPut(browseId) { java.util.concurrent.ConcurrentHashMap.newKeySet() }
+        val found = HashMap<String, Song>()
+        lookups.forEach { (row, lookup) ->
+            if (!lookup.isCompleted) return@forEach
+            val song = lookup.await()
+            // A failed one is left to [showSongVersions], which tries again.
+            if (song == null && lookupFailed(row)) return@forEach
+            asked += row.rowKey()
+            song?.let { found[row.rowKey()] = it }
+        }
+        return if (found.isEmpty()) songs else songs.map { found[it.rowKey()] ?: it }
+    }
+
+    /** The song [row], a playlist's video, stands for — or null when it has none. */
+    private suspend fun songVersionOf(row: Song): Song? {
+        val song = runCatching { YtMusicRepository.resolveAudio(row) }.getOrNull()
+            ?.takeIf { !it.isVideo || it.videoId == row.videoId }
+            ?.takeIf { it != row }
+            ?: return null
+        // A clean edit someone uploaded is not the explicit song it is an edit of.
+        if (song.isExplicit == true && CLEAN_EDIT_TITLE.containsMatchIn(row.title)) return null
+        row.setVideoId?.let { entry -> videoOnRow[entry] = row.videoId }
+        return song.asRowOf(row)
+    }
+
+    /** A playlist row's identity: its entry when it has one (the same video can be on a playlist twice). */
+    private fun Song.rowKey(): String = setVideoId ?: videoId
+
+    /** [this] song standing in for the playlist [row]: the row's entry and cover fallback, the song's everything else. */
+    private fun Song.asRowOf(row: Song): Song = copy(
+        setVideoId = row.setVideoId,
+        thumbnailUrl = thumbnailUrl ?: row.thumbnailUrl,
+        isVideoOrigin = true,
+    )
 
     /**
      * An album's track listing doesn't repeat the cover on every row — the

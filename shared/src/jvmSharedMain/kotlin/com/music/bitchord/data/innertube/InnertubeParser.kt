@@ -42,8 +42,21 @@ object InnertubeParser {
     fun parseSearchSongs(response: JsonObject): List<Song> =
         parseSearch(response).filterIsInstance<SearchResult.Track>().map { it.song }
 
-    /** One page of search rows, plus the token for the next page if YouTube offers one. */
-    data class SearchPage(val rows: List<SearchResult>, val continuation: String?)
+    /**
+     * One page of search rows, plus the token for the next page if YouTube offers one.
+     *
+     * [topVideo] is the promoted result when YouTube made a music video of it.
+     * The All page leaves videos out, so that card is not among [rows] — but it
+     * is very often *the* answer: searching a song by its exact name promotes
+     * its official video, where a misspelling promotes something else. Kept
+     * here so the caller can put the song that video is of in its place; see
+     * [com.music.bitchord.data.SearchTopResult].
+     */
+    data class SearchPage(
+        val rows: List<SearchResult>,
+        val continuation: String?,
+        val topVideo: Song? = null,
+    )
 
     /**
      * Search results are heterogeneous: songs carry a videoId, while albums,
@@ -76,6 +89,11 @@ object InnertubeParser {
                 collectRenderers(card, "musicResponsiveListItemRenderer").map { it to credit }
             }
         }
+
+        val topVideo = topResults.asSequence()
+            .filterIsInstance<SearchResult.TopTrack>()
+            .map { it.song }
+            .firstOrNull { it.isVideo }
 
         val seen = HashSet<String>()
         val parsed = buildList {
@@ -111,7 +129,7 @@ object InnertubeParser {
                 }
             }
         }
-        return SearchPage(parsed, continuationToken(response))
+        return SearchPage(parsed, continuationToken(response), topVideo)
     }
 
     /**
@@ -179,6 +197,7 @@ object InnertubeParser {
             browseId = browseId,
             title = title,
             subtitle = subtitle,
+            isExplicit = renderer.hasExplicitBadge(),
             thumbnailUrl = renderer.o("thumbnail").o("musicThumbnailRenderer")
                 .o("thumbnail").a("thumbnails").best(),
             type = when {
@@ -289,7 +308,10 @@ object InnertubeParser {
                 ?: parseResponsiveListItem(item.o("musicResponsiveListItemRenderer"))
                     ?.takeUnless { it.isVideo }
                     ?.let { song ->
-                        ShelfItem(song.title, song.artist, song.thumbnailUrl, song.videoId, null)
+                        ShelfItem(
+                            song.title, song.artist, song.thumbnailUrl, song.videoId, null,
+                            isExplicit = song.isExplicit,
+                        )
                     }
                 // A chart row with nothing to play — "Top artists" lists the
                 // artist alone, no track — falls through parseResponsiveListItem
@@ -305,7 +327,9 @@ object InnertubeParser {
         val items = shelf.a("contents").orEmpty().mapNotNull {
             parseResponsiveListItem(it.o("musicResponsiveListItemRenderer"))
         }.filterNot { it.isVideo }
-            .map { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null) }
+            .map {
+                ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null, isExplicit = it.isExplicit)
+            }
         return if (items.isEmpty()) null else HomeShelf(title.ifBlank { "For you" }, items)
     }
 
@@ -1393,6 +1417,7 @@ object InnertubeParser {
             thumbnailUrl = thumbnails.best(),
             videoId = videoId,
             browseId = resolvedBrowseId,
+            isExplicit = renderer["subtitleBadges"].hasExplicitBadge(),
         )
     }
 

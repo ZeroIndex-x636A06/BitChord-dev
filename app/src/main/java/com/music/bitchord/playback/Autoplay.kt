@@ -6,6 +6,7 @@ import com.music.bitchord.data.model.SearchFilter
 import com.music.bitchord.data.model.SearchResult
 import com.music.bitchord.data.model.QueueTier
 import com.music.bitchord.data.model.Song
+import com.music.bitchord.data.settings.AppSettings
 import com.music.bitchord.data.sources.SourceRegistry
 import com.music.bitchord.data.sources.TrackMatcher
 import com.music.bitchord.playback.QueueCoordinator.asQueueEntry
@@ -103,7 +104,18 @@ suspend fun loadAutoplayTracks(
 ): Result<List<Song>> {
     val seed = youtubeSeedFor(seedSong) ?: return Result.success(emptyList())
     val related = YtMusicRepository.radio(seed).getOrElse { return Result.failure(it) }
-    val extra = QueueBuilder.extend(existing, related, limit)
+    // Filtered before the batch is cut to [limit], so a station heavy with
+    // explicit tracks still tops the queue up with clean ones rather than
+    // coming back short. AutoPlay and every radio start share this helper,
+    // which is what makes it the one place suggestions need checking.
+    // With "Play clean versions instead" on, a blocked suggestion is swapped
+    // for its clean release rather than left out — see [CleanVersions].
+    val permitted = CleanVersions.applyToSuggestions(
+        related,
+        AppSettings.explicitPolicy(),
+        lookUpTo = limit * 2,
+    )
+    val extra = QueueBuilder.extend(existing, permitted, limit)
     if (extra.isEmpty()) return Result.success(emptyList())
 
     return Result.success(extra.map {

@@ -1,5 +1,6 @@
 package com.music.bitchord.desktop
 
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,7 +30,9 @@ import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.Explicit
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Radio
@@ -42,6 +45,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +67,8 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.music.bitchord.data.model.LikeStatus
 import com.music.bitchord.data.model.Song
+import com.music.bitchord.playback.ExplicitFilter
+import com.music.bitchord.playback.ExplicitFilterMode
 import com.music.bitchord.ui.icons.BitChordIcons
 
 /** The verbs the song menu needs that the player does not otherwise know about. */
@@ -220,6 +226,24 @@ internal fun DesktopSongMenu(
             return@DesktopMenuSurface
         }
 
+        // What's worth knowing about this copy of the song before acting on it.
+        val notes = desktopSongNotes(song, rememberDesktopExplicitPolicy())
+        if (notes.isNotEmpty()) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                notes.forEach { note ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Info, null, tint = DesktopSecondary, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(note, style = MaterialTheme.typography.bodySmall, color = DesktopSecondary)
+                    }
+                }
+            }
+            DesktopMenuDivider()
+        }
+
         // The two are never both offered.
         (onRevertToOriginal ?: onUpgradeQuality)?.let { action ->
             DesktopMenuRow(
@@ -275,6 +299,22 @@ internal fun DesktopSongMenu(
         DesktopMenuRow(Icons.Rounded.Radio, DesktopStrings["start_radio", "Start radio"], onClick = onStartRadio)
         DesktopMenuRow(Icons.AutoMirrored.Rounded.PlaylistPlay, DesktopStrings["play_next", "Play next"], onClick = onPlayNext)
         DesktopMenuRow(Icons.AutoMirrored.Rounded.QueueMusic, DesktopStrings["add_to_queue", "Add to queue"], onClick = onAddToQueue)
+        // The per-song way past the explicit filter, and back (issue #720). Only for an explicit
+        // track — marked by the catalogue or by its lyrics — while the filter is on; the menu stays
+        // open so the row flips in place.
+        val explicitPolicy = rememberDesktopExplicitPolicy()
+        val explicitAllowedKeys by DesktopExplicit.allowList.keys.collectAsState()
+        if (ExplicitFilter.isExplicit(song, explicitPolicy) && explicitPolicy.mode != ExplicitFilterMode.OFF) {
+            val allowed = ExplicitFilter.isAllowedBySong(song, explicitAllowedKeys)
+            DesktopMenuRow(
+                icon = if (allowed) Icons.Rounded.Block else Icons.Rounded.Explicit,
+                label = if (allowed) {
+                    DesktopStrings["d_block_this_explicit_song_again", "Block this explicit song again"]
+                } else {
+                    DesktopStrings["d_allow_this_explicit_song", "Allow this explicit song"]
+                },
+            ) { DesktopExplicit.setAllowed(song, !allowed) }
+        }
 
         val albumId = song.albumId
         val artistId = song.artistId
@@ -396,6 +436,28 @@ private fun DesktopMenuDivider() {
         thickness = 0.5.dp,
         color = DesktopCardEdge,
     )
+}
+
+/**
+ * The notes at the top of a song's menu: that it is the clean version, plays
+ * as one, was let past the explicit filter, or is blocked by it.
+ */
+private fun desktopSongNotes(song: Song, policy: com.music.bitchord.playback.ExplicitPolicy): List<String> = buildList {
+    if (com.music.bitchord.playback.CleanVersions.isCleanUpload(song)) {
+        add(DesktopStrings["d_song_note_clean_upload", "Clean version from a YouTube clean edit, shown as the song"])
+    } else if (com.music.bitchord.playback.CleanVersions.isCleanRelease(song)) {
+        add(DesktopStrings["d_song_note_clean_release", "Clean version of an explicit song"])
+    }
+    if (policy.mode == ExplicitFilterMode.OFF || !ExplicitFilter.isExplicit(song, policy)) return@buildList
+    if (song.isExplicit != true) add(DesktopStrings["d_song_note_explicit_by_lyrics", "Marked explicit by its lyrics"])
+    when {
+        ExplicitFilter.isAllowedBySong(song, policy.allowed) ->
+            add(DesktopStrings["d_song_note_allowed", "Explicit · you allowed it past the filter"])
+        song.desktopExplicitSwapsToClean() ->
+            add(DesktopStrings["d_song_note_swaps_clean", "Explicit · plays as its clean version"])
+        song.desktopExplicitBlocked() ->
+            add(DesktopStrings["d_song_note_blocked", "Explicit · blocked by your filter"])
+    }
 }
 
 /** One menu row. */

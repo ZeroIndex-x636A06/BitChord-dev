@@ -29,8 +29,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
@@ -48,6 +50,93 @@ object YtMusicRepository {
     private val videoVersionCache = ConcurrentHashMap<String, Song?>()
 
     fun cachedAudioVersion(videoId: String): Song? = audioVersionCache[videoId]
+
+    /** Where [audioVersionCache] is kept between launches — see [attachAudioVersions]. */
+    private var saveAudioVersions: ((String) -> Unit)? = null
+    private var pendingAudioVersionSave: kotlinx.coroutines.Job? = null
+    private val audioVersionSaver = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Restores the songs found for videos by earlier launches from [encoded],
+     * and from then on hands [save] the list as it grows. A video is then
+     * looked up once, ever, rather than once a launch — what makes a playlist
+     * of music videos open as songs at once the second time.
+     */
+    @Synchronized
+    fun attachAudioVersions(encoded: String?, save: (String) -> Unit) {
+        runCatching { decodeAudioVersions(encoded) }
+        saveAudioVersions = save
+    }
+
+    private fun rememberAudioVersion(videoId: String, song: Song) {
+        audioVersionCache[videoId] = song
+        val save = saveAudioVersions ?: return
+        // Once lookups go quiet: a playlist answers dozens in a row.
+        pendingAudioVersionSave?.cancel()
+        pendingAudioVersionSave = audioVersionSaver.launch {
+            kotlinx.coroutines.delay(2_000)
+            save(encodeAudioVersions())
+        }
+    }
+
+    private fun encodeAudioVersions(): String = kotlinx.serialization.json.buildJsonObject {
+        put("v", kotlinx.serialization.json.JsonPrimitive(AUDIO_VERSIONS_LOOKUP))
+        put("found", encodeAudioVersionList())
+    }.toString()
+
+    private fun encodeAudioVersionList() = kotlinx.serialization.json.buildJsonArray {
+        audioVersionCache.entries.toList().takeLast(MAX_AUDIO_VERSIONS).forEach { (videoId, song) ->
+            add(kotlinx.serialization.json.buildJsonObject {
+                put("for", kotlinx.serialization.json.JsonPrimitive(videoId))
+                put("id", kotlinx.serialization.json.JsonPrimitive(song.videoId))
+                put("title", kotlinx.serialization.json.JsonPrimitive(song.title))
+                put("artist", kotlinx.serialization.json.JsonPrimitive(song.artist))
+                song.thumbnailUrl?.let { put("art", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.durationText?.let { put("length", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.albumId?.let { put("albumId", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.albumName?.let { put("album", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.artistId?.let { put("artistId", kotlinx.serialization.json.JsonPrimitive(it)) }
+                song.isExplicit?.let { put("explicit", kotlinx.serialization.json.JsonPrimitive(it)) }
+                if (song.isVideo) put("video", kotlinx.serialization.json.JsonPrimitive(true))
+            })
+        }
+    }
+
+    private fun decodeAudioVersions(encoded: String?) {
+        encoded ?: return
+        // Answers from an older lookup aren't kept: it may have found no song
+        // where this one does ("Artist - Title" uploads, before 2).
+        val root = kotlinx.serialization.json.Json.parseToJsonElement(encoded) as? JsonObject ?: return
+        if ((root["v"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull != AUDIO_VERSIONS_LOOKUP.toString()) return
+        val entries = root["found"] as? kotlinx.serialization.json.JsonArray ?: return
+        fun JsonObject.text(key: String) = (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+        entries.forEach { element ->
+            val o = element as? JsonObject ?: return@forEach
+            val forId = o.text("for") ?: return@forEach
+            val id = o.text("id") ?: return@forEach
+            audioVersionCache.putIfAbsent(
+                forId,
+                Song(
+                    videoId = id,
+                    title = o.text("title").orEmpty(),
+                    artist = o.text("artist").orEmpty(),
+                    thumbnailUrl = o.text("art"),
+                    durationText = o.text("length"),
+                    albumId = o.text("albumId"),
+                    albumName = o.text("album"),
+                    artistId = o.text("artistId"),
+                    isExplicit = o.text("explicit")?.toBooleanStrictOrNull(),
+                    isVideo = o.text("video") == "true",
+                ),
+            )
+        }
+    }
+
+    /** Videos whose songs are kept between launches; the oldest are let go past it. */
+    private const val MAX_AUDIO_VERSIONS = 5_000
+
+    /** Bumped when the lookup changes in a way that could now find what it missed. */
+    private const val AUDIO_VERSIONS_LOOKUP = 2
     fun cachedVideoVersion(videoId: String): Song? = videoVersionCache[videoId]
 
     /**
@@ -122,6 +211,9 @@ object YtMusicRepository {
                     thumbnailUrl = it.thumbnailUrl,
                     videoId = it.videoId,
                     browseId = null,
+                    // Carried through so Recents can badge and filter explicit
+                    // tracks like every other list does.
+                    isExplicit = it.isExplicit,
                 )
             },
         )
@@ -293,15 +385,44 @@ object YtMusicRepository {
      * search responsive; the UI asks [searchContinuation] for later pages as
      * the listener reaches the end of the list.
      */
-    suspend fun searchPage(query: String, filter: SearchFilter): Result<SearchPage> =
+    suspend fun searchPage(query: String, filter: SearchFilter, anonymous: Boolean = true): Result<SearchPage> =
         call("search:${filter.name}") {
             InnertubeParser.parseSearchPage(
-                Innertube.search(query, filter.params),
+                Innertube.search(query, filter.params, anonymous),
                 includeVideos = filter == SearchFilter.VIDEOS,
             ).let { page ->
-                SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
+                SearchPage(withTopSong(page).distinctBy { it.identityKey() }, page.continuation)
             }
         }
+
+    /**
+     * The first page of a search as a signed-out listener gets it — see
+     * [Innertube.searchSignedOut]. For the clean-version lookup only; it
+     * doesn't touch the account's search history either.
+     */
+    suspend fun searchSignedOut(query: String, filter: SearchFilter): Result<List<SearchResult>> =
+        call("search-signed-out:${filter.name}") {
+            InnertubeParser.parseSearchPage(
+                Innertube.searchSignedOut(query, filter.params),
+                includeVideos = filter == SearchFilter.VIDEOS,
+            ).rows
+        }
+
+    /**
+     * The page's rows, led by the song its promoted music video is of — see
+     * [SearchTopResult]. Found on the page when it is there; otherwise one
+     * Songs search, the same lookup (and cache) "Prefer music-only version"
+     * uses, and only for a page whose top result would have gone missing.
+     */
+    private suspend fun withTopSong(page: InnertubeParser.SearchPage): List<SearchResult> {
+        val video = page.topVideo ?: return page.rows
+        if (page.rows.any { it is SearchResult.TopTrack }) return page.rows
+        SearchTopResult.promoteFromPage(page.rows, video)?.let { return it }
+        val audio = runCatching { resolveAudio(video) }.getOrNull()
+            ?.takeIf { !it.isVideo && it.videoId != video.videoId }
+            ?: return page.rows
+        return SearchTopResult.withTopResult(page.rows, audio)
+    }
 
     /** Fetches the next page of a search only when the result list needs it. */
     suspend fun searchContinuation(token: String, filter: SearchFilter): Result<SearchPage> = call("search:continuation") {
@@ -354,7 +475,12 @@ object YtMusicRepository {
                 Innertube.searchTypeahead(input),
                 includeVideos = false,
             ).let { page ->
-                SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
+                // From the page only: a lookup per keystroke is not worth it
+                // for a list the next keystroke replaces.
+                val rows = page.topVideo
+                    ?.let { SearchTopResult.promoteFromPage(page.rows, it) }
+                    ?: page.rows
+                SearchPage(rows.distinctBy { it.identityKey() }, page.continuation)
             }
         }
 
@@ -386,17 +512,39 @@ object YtMusicRepository {
      */
     suspend fun resolveAudio(song: Song): Song {
         if (!song.isVideo) return song
+        // An uploaded clean edit's "audio" is itself, dressed as the song —
+        // never the catalogue's song, which is the explicit original.
+        com.music.bitchord.playback.CleanVersions.asAudio(song)?.let { return it }
+        val audio = matchAudio(song)
+        // A video that says it is a clean edit ("99 Problems (Clean Version)")
+        // becomes the clean song, never the explicit one it matched: YouTube
+        // Music's clean release when there is one, else this upload as the
+        // song's clean audio version.
+        if (audio.videoId != song.videoId && audio.isExplicit == true &&
+            com.music.bitchord.playback.CleanVersions.saysClean(song)
+        ) {
+            return com.music.bitchord.playback.CleanVersions.cleanFor(song, audio)
+        }
+        return audio
+    }
+
+    /** The catalogue song [song], a video, is of — or [song] itself when there's none. */
+    private suspend fun matchAudio(song: Song): Song {
         audioVersionCache[song.videoId]?.let { return it }
-        val target = TrackMatcher.targetOf(song)
+        var failed = false
+        // The upload read as titled, then — for "Artist - Title" posted by
+        // someone else's channel — the other way round.
+        for (target in listOfNotNull(TrackMatcher.targetOf(song), TrackMatcher.uploadTarget(song)))
         for (query in TrackMatcher.queries(target)) {
             val candidates = search(query, SearchFilter.SONGS)
+                .onFailure { failed = true }
                 .getOrNull()
                 ?.filterIsInstance<SearchResult.Track>()
                 ?.map { it.song }
                 .orEmpty()
             TrackMatcher.best(candidates, target)?.let { match ->
                 Log.d(TAG, "audio switch: '${song.title}' -> '${match.title}' ($query)")
-                audioVersionCache[song.videoId] = match
+                rememberAudioVersion(song.videoId, match)
                 return match
             }
             // Music-video timing is visual timing, not the audio release's
@@ -404,12 +552,14 @@ object YtMusicRepository {
             // song/artist match even when the video has a long intro or outro.
             TrackMatcher.bestOfficialAudioForVideo(candidates, target)?.let { match ->
                 Log.d(TAG, "audio switch: accepted video/runtime drift '${song.title}' -> '${match.title}' ($query)")
-                audioVersionCache[song.videoId] = match
+                rememberAudioVersion(song.videoId, match)
                 return match
             }
         }
         Log.w(TAG, "audio switch: no official song match for '${song.title}' by '${song.artist}'")
-        audioVersionCache[song.videoId] = song
+        // "None" is only kept when every search came back: offline is not "no
+        // song", and a lookup that failed is asked again next time.
+        if (failed) Log.w(TAG, "audio switch: lookup failed for '${song.title}'") else rememberAudioVersion(song.videoId, song)
         return song
     }
 
@@ -423,6 +573,8 @@ object YtMusicRepository {
      */
     suspend fun resolveVideo(song: Song): Song? {
         if (song.isVideo) return null
+        // Likewise its video is the upload, not the original's music video.
+        com.music.bitchord.playback.CleanVersions.asVideo(song)?.let { return it }
         videoVersionCache[song.videoId]?.let { return it }
         val target = TrackMatcher.targetOf(song)
         for (query in TrackMatcher.queries(target)) {
@@ -728,7 +880,16 @@ object YtMusicRepository {
         InnertubeParser.parsePlaylistOwned(Innertube.browse(browseId))
     }
 
-    private fun pageOf(response: JsonObject): SongPage {
+    /**
+     * [rawPageOf], with any uploaded clean edit on it shown as its clean audio
+     * version — a playlist it was added to holds only the upload. See
+     * [com.music.bitchord.playback.CleanVersions.asCreated].
+     */
+    private fun pageOf(response: JsonObject): SongPage = rawPageOf(response).let { page ->
+        page.copy(songs = page.songs.map(com.music.bitchord.playback.CleanVersions::asCreated))
+    }
+
+    private fun rawPageOf(response: JsonObject): SongPage {
         val library = InnertubeParser.parseLibraryState(response)
         val header = InnertubeParser.parseBrowseHeader(response)
         // A playlist page is scoped to its own shelf so its "Suggested

@@ -1294,4 +1294,49 @@
     <string name="spotify_sign_in">התחברות עם Spotify</string>
     <string name="spotify_use_spdc_token">שימוש באסימון sp_dc</string>
     <string name="spotify_track_unavailable">לא נמצא שיר כזה ב-YouTube Music</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">סינון תוכן בוטה</string>
+    <string name="filter_explicit_content_subtitle">ניגון אוטומטי ורדיו לא יוסיפו שירים שמסומנים כבוטים</string>
+    <string name="block_explicit_everywhere">חסימת שירים בוטים בכל מקום</string>
+    <string name="block_explicit_everywhere_subtitle">שירים בוטים לא יתנגנו אלא אם תאשרו אותם אחד-אחד</string>
+    <string name="allow_explicit_in_my_playlists">לאפשר שירים בוטים בפלייליסטים שלי</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">שירים שהוספתם לפלייליסטים שיצרתם מתנגנים כרגיל, גם אם הם חסומים במקומות אחרים</string>
+    <string name="allowed_explicit_songs">שירים בוטים מאושרים</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">שיר %1$d אושר לעקוף את הסינון</item>
+        <item quantity="other">%1$d שירים אושרו לעקוף את הסינון</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">השירים האלה מתנגנים גם כשהסינון חוסם שירים בוטים. הסירו שיר כדי לחסום אותו שוב.</string>
+    <string name="allowed_explicit_songs_empty">עדיין אין שירים מאושרים. הקישו על שיר באפור ובחרו ״לאפשר״, או השתמשו ב״לאפשר את השיר הבוטה הזה״ בתפריט שלו.</string>
+    <string name="clear_all">ניקוי הכול</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">הסרת שיר %1$d</item>
+        <item quantity="other">הסרת כל %1$d השירים</item>
+    </plurals>
+    <string name="explicit_song_blocked">שיר בוטה</string>
+    <string name="explicit_song_blocked_message">״%1$s״ מסומן כבוטה והסינון שלכם חוסם אותו.</string>
+    <string name="allow_this_song">לאפשר את השיר הזה</string>
+    <string name="turn_off_blocking">כיבוי החסימה</string>
+    <string name="turn_off_lyrics_check">כבה את בדיקת המילים</string>
+    <string name="tap_again_to_confirm">הקישו שוב לאישור</string>
+    <string name="allow_explicit_song">לאפשר את השיר הבוטה הזה</string>
+    <string name="block_explicit_song">לחסום שוב את השיר הבוטה הזה</string>
+    <string name="explicit_songs_skipped">הסינון דילג על שירים בוטים</string>
+    <string name="check_lyrics_explicit">בדוק מילים לתוכן בוטה</string>
+    <string name="checking_lyrics">בודק מילים…</string>
+    <string name="check_lyrics_explicit_subtitle">חסום גם שירים שהמילים שלהם כוללות כמה קללות, גם אם YouTube Music לא סימן אותם כבוטים</string>
+    <string name="check_lyrics_explicit_needs_lyrics">הפעל מילים כדי להשתמש בזה</string>
+    <string name="explicit_lyrics_blocked_message">למילים של ”%1$s“ יש תוכן בוטה והמסנן שלך חוסם אותו.</string>
+    <string name="play_clean_versions">נגן גרסאות נקיות במקום</string>
+    <string name="play_clean_versions_subtitle">אם לשיר חסום יש גרסה נקייה, היא תנוגן במקומו</string>
+    <string name="play_clean_version">נגן גרסה נקייה</string>
+    <string name="looking_for_clean_version">מחפש גרסה נקייה…</string>
+    <string name="no_clean_version_found">לא נמצאה גרסה נקייה.</string>
+    <string name="song_note_clean_upload">גרסה נקייה מעריכה נקייה ביוטיוב, מוצגת כשיר</string>
+    <string name="song_note_clean_release">גרסה נקייה של שיר בוטה</string>
+    <string name="song_note_swaps_clean">בוטה · מתנגן בגרסה הנקייה</string>
+    <string name="song_note_allowed">בוטה · אישרת אותו למרות המסנן</string>
+    <string name="song_note_blocked">בוטה · נחסם על ידי המסנן שלך</string>
+    <string name="song_note_explicit_by_lyrics">סומן כבוטה לפי המילים</string>
+    <string name="song_note_from_video">גרסת השיר של קליפ</string>
 </resources>

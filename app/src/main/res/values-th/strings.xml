@@ -1272,4 +1272,47 @@
     <string name="spotify_sign_in">ลงชื่อเข้าใช้ด้วย Spotify</string>
     <string name="spotify_use_spdc_token">ใช้โทเค็น sp_dc</string>
     <string name="spotify_track_unavailable">หาเพลงนั้นบน YouTube Music ไม่พบ</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">กรองเนื้อหาที่ไม่เหมาะสม</string>
+    <string name="filter_explicit_content_subtitle">เล่นอัตโนมัติและวิทยุจะไม่เพิ่มเพลงที่ทำเครื่องหมายว่าไม่เหมาะสม</string>
+    <string name="block_explicit_everywhere">บล็อกเพลงที่ไม่เหมาะสมทุกที่</string>
+    <string name="block_explicit_everywhere_subtitle">เพลงที่ไม่เหมาะสมจะไม่เล่น เว้นแต่คุณอนุญาตทีละเพลง</string>
+    <string name="allow_explicit_in_my_playlists">อนุญาตเพลงที่ไม่เหมาะสมในเพลย์ลิสต์ของฉัน</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">เพลงที่คุณเพิ่มในเพลย์ลิสต์ที่คุณสร้างจะเล่นตามปกติ แม้จะถูกบล็อกในที่อื่น</string>
+    <string name="allowed_explicit_songs">เพลงที่ไม่เหมาะสมที่อนุญาตแล้ว</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="other">อนุญาตให้ %1$d เพลงผ่านตัวกรอง</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">เพลงเหล่านี้จะเล่นแม้ตัวกรองจะบล็อกเพลงที่ไม่เหมาะสม นำเพลงออกเพื่อบล็อกอีกครั้ง</string>
+    <string name="allowed_explicit_songs_empty">ยังไม่มีเพลงที่อนุญาต แตะเพลงที่เป็นสีเทาแล้วเลือกอนุญาต หรือใช้ “อนุญาตเพลงนี้” ในเมนูของเพลง</string>
+    <string name="clear_all">ล้างทั้งหมด</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="other">นำออกทั้งหมด %1$d เพลง</item>
+    </plurals>
+    <string name="explicit_song_blocked">เพลงที่ไม่เหมาะสม</string>
+    <string name="explicit_song_blocked_message">“%1$s” ถูกทำเครื่องหมายว่าไม่เหมาะสมและตัวกรองของคุณกำลังบล็อกอยู่</string>
+    <string name="allow_this_song">อนุญาตเพลงนี้</string>
+    <string name="turn_off_blocking">ปิดการบล็อก</string>
+    <string name="turn_off_lyrics_check">ปิดการตรวจเนื้อเพลง</string>
+    <string name="tap_again_to_confirm">แตะอีกครั้งเพื่อยืนยัน</string>
+    <string name="allow_explicit_song">อนุญาตเพลงนี้</string>
+    <string name="block_explicit_song">บล็อกเพลงนี้อีกครั้ง</string>
+    <string name="explicit_songs_skipped">ตัวกรองข้ามเพลงที่ไม่เหมาะสมแล้ว</string>
+    <string name="check_lyrics_explicit">ตรวจเนื้อเพลงที่มีเนื้อหาโจ่งแจ้ง</string>
+    <string name="checking_lyrics">กำลังตรวจเนื้อเพลง…</string>
+    <string name="check_lyrics_explicit_subtitle">บล็อกเพลงที่เนื้อเพลงมีคำหยาบหลายคำด้วย แม้ YouTube Music จะไม่ได้ทำเครื่องหมายว่าโจ่งแจ้ง</string>
+    <string name="check_lyrics_explicit_needs_lyrics">เปิดเนื้อเพลงเพื่อใช้ฟีเจอร์นี้</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” มีเนื้อเพลงโจ่งแจ้งและถูกตัวกรองของคุณบล็อก</string>
+    <string name="play_clean_versions">เล่นเวอร์ชันคลีนแทน</string>
+    <string name="play_clean_versions_subtitle">หากเพลงที่ถูกบล็อกมีเวอร์ชันคลีน จะเล่นเวอร์ชันนั้นแทน</string>
+    <string name="play_clean_version">เล่นเวอร์ชันคลีน</string>
+    <string name="looking_for_clean_version">กำลังค้นหาเวอร์ชันคลีน…</string>
+    <string name="no_clean_version_found">ไม่พบเวอร์ชันคลีน</string>
+    <string name="song_note_clean_upload">เวอร์ชันสะอาดจากคลิปตัดต่อแบบสะอาดบน YouTube แสดงเป็นเพลง</string>
+    <string name="song_note_clean_release">เวอร์ชันสะอาดของเพลงที่มีเนื้อหาโจ่งแจ้ง</string>
+    <string name="song_note_swaps_clean">มีเนื้อหาโจ่งแจ้ง · เล่นเป็นเวอร์ชันสะอาด</string>
+    <string name="song_note_allowed">มีเนื้อหาโจ่งแจ้ง · คุณอนุญาตให้ผ่านตัวกรอง</string>
+    <string name="song_note_blocked">มีเนื้อหาโจ่งแจ้ง · ถูกตัวกรองบล็อก</string>
+    <string name="song_note_explicit_by_lyrics">ถูกทำเครื่องหมายว่าโจ่งแจ้งจากเนื้อเพลง</string>
+    <string name="song_note_from_video">เวอร์ชันเพลงของมิวสิกวิดีโอ</string>
 </resources>

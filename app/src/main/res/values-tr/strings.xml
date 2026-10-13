@@ -1246,4 +1246,49 @@
     <string name="spotify_sign_in">Spotify ile oturum aç</string>
     <string name="spotify_use_spdc_token">sp_dc token\'ı kullan</string>
     <string name="spotify_track_unavailable">O şarkı YouTube Music’de bulunamadı</string>
+    <!-- Explicit content filter (#720) -->
+    <string name="filter_explicit_content">Müstehcen içeriği filtrele</string>
+    <string name="filter_explicit_content_subtitle">Otomatik oynatma ve radyo, müstehcen olarak işaretlenmiş şarkıları eklemez</string>
+    <string name="block_explicit_everywhere">Müstehcen şarkıları her yerde engelle</string>
+    <string name="block_explicit_everywhere_subtitle">Müstehcen şarkılar, tek tek izin vermediğiniz sürece çalmaz</string>
+    <string name="allow_explicit_in_my_playlists">Çalma listelerimde müstehcen şarkılara izin ver</string>
+    <string name="allow_explicit_in_my_playlists_subtitle">Oluşturduğunuz çalma listelerine eklediğiniz şarkılar, başka yerde engelli olsalar bile normal çalar</string>
+    <string name="allowed_explicit_songs">İzin verilen müstehcen şarkılar</string>
+    <plurals name="allowed_explicit_songs_count">
+        <item quantity="one">Filtreden geçmesine izin verilen %1$d şarkı</item>
+        <item quantity="other">Filtreden geçmesine izin verilen %1$d şarkı</item>
+    </plurals>
+    <string name="allowed_explicit_songs_description">Bunlar, filtre müstehcen şarkıları engellese bile çalar. Yeniden engellemek için birini kaldırın.</string>
+    <string name="allowed_explicit_songs_empty">Henüz izin verilen şarkı yok. Gri görünen bir şarkıya dokunup İzin ver\'i seçin veya menüsündeki “Bu müstehcen şarkıya izin ver” seçeneğini kullanın.</string>
+    <string name="clear_all">Tümünü temizle</string>
+    <plurals name="clear_all_allowed_explicit">
+        <item quantity="one">%1$d şarkıyı kaldır</item>
+        <item quantity="other">%1$d şarkının tümünü kaldır</item>
+    </plurals>
+    <string name="explicit_song_blocked">Müstehcen şarkı</string>
+    <string name="explicit_song_blocked_message">“%1$s” müstehcen olarak işaretli ve filtreniz onu engelliyor.</string>
+    <string name="allow_this_song">Bu şarkıya izin ver</string>
+    <string name="turn_off_blocking">Engellemeyi kapat</string>
+    <string name="turn_off_lyrics_check">Şarkı sözü kontrolünü kapat</string>
+    <string name="tap_again_to_confirm">Onaylamak için tekrar dokunun</string>
+    <string name="allow_explicit_song">Bu müstehcen şarkıya izin ver</string>
+    <string name="block_explicit_song">Bu müstehcen şarkıyı yeniden engelle</string>
+    <string name="explicit_songs_skipped">Müstehcen şarkılar filtreniz tarafından atlandı</string>
+    <string name="check_lyrics_explicit">Şarkı sözlerini müstehcen içerik için kontrol et</string>
+    <string name="checking_lyrics">Şarkı sözleri kontrol ediliyor…</string>
+    <string name="check_lyrics_explicit_subtitle">YouTube Music müstehcen olarak işaretlemese bile sözlerinde birkaç küfür olan şarkıları da engeller</string>
+    <string name="check_lyrics_explicit_needs_lyrics">Bunu kullanmak için şarkı sözlerini açın</string>
+    <string name="explicit_lyrics_blocked_message">“%1$s” müstehcen sözler içeriyor ve filtren onu engelliyor.</string>
+    <string name="play_clean_versions">Bunun yerine temiz sürümleri çal</string>
+    <string name="play_clean_versions_subtitle">Engellenen bir şarkının temiz sürümü varsa onun yerine o çalınır</string>
+    <string name="play_clean_version">Temiz sürümü çal</string>
+    <string name="looking_for_clean_version">Temiz sürüm aranıyor…</string>
+    <string name="no_clean_version_found">Temiz sürüm bulunamadı.</string>
+    <string name="song_note_clean_upload">YouTube’daki temiz düzenlemeden temiz sürüm, şarkı olarak gösteriliyor</string>
+    <string name="song_note_clean_release">Müstehcen bir şarkının temiz sürümü</string>
+    <string name="song_note_swaps_clean">Müstehcen · temiz sürümüyle çalınır</string>
+    <string name="song_note_allowed">Müstehcen · filtreden geçmesine izin verdiniz</string>
+    <string name="song_note_blocked">Müstehcen · filtreniz tarafından engellendi</string>
+    <string name="song_note_explicit_by_lyrics">Sözleri nedeniyle müstehcen olarak işaretlendi</string>
+    <string name="song_note_from_video">Bir müzik videosunun şarkı sürümü</string>
 </resources>
