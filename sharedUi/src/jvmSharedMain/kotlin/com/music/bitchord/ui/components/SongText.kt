@@ -71,12 +71,11 @@ fun CleanBadge(color: Color, modifier: Modifier = Modifier) {
 
 /**
  * The "C" for an explicit track that will play as its clean release — see
- * [LocalExplicitSwapped]. Fainter than [CleanBadge]: it's a note, not the
- * track's own mark.
+ * [LocalExplicitSwapped]. The same mark as a clean release's own: either way,
+ * the clean version is what plays.
  */
 @Composable
-fun CleanSwapBadge(color: Color, modifier: Modifier = Modifier) =
-    CleanBadge(color.copy(alpha = color.alpha * CLEAN_BADGE_ALPHA), modifier)
+fun CleanSwapBadge(color: Color, modifier: Modifier = Modifier) = CleanBadge(color, modifier)
 
 /** The "E", or the "C" when the track is going to be swapped for its clean release. */
 @Composable
@@ -84,7 +83,6 @@ fun ExplicitMark(swapped: Boolean, color: Color, modifier: Modifier = Modifier) 
     if (swapped) CleanSwapBadge(color, modifier) else ExplicitBadge(color, modifier)
 }
 
-private const val CLEAN_BADGE_ALPHA = 0.6f
 
 /** A song title with the catalogue-standard explicit badge in front of it. */
 @Composable
