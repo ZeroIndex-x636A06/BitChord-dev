@@ -464,8 +464,10 @@ object YtMusicRepository {
     suspend fun resolveAudio(song: Song): Song {
         if (!song.isVideo) return song
         audioVersionCache[song.videoId]?.let { return it }
-        val target = TrackMatcher.targetOf(song)
         var failed = false
+        // The upload read as titled, then — for "Artist - Title" posted by
+        // someone else's channel — the other way round.
+        for (target in listOfNotNull(TrackMatcher.targetOf(song), TrackMatcher.uploadTarget(song)))
         for (query in TrackMatcher.queries(target)) {
             val candidates = search(query, SearchFilter.SONGS)
                 .onFailure { failed = true }
