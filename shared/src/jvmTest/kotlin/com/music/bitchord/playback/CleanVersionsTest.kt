@@ -161,7 +161,44 @@ class CleanVersionsTest {
     fun setUp() {
         CleanVersions.reset()
         CleanVersions.saveDelayMs = 0
+        // Lyrics aren't read in tests: every unbadged row counts as proven unless a test says otherwise.
+        CleanVersions.provenClean = { true }
         queries.clear()
+    }
+
+    @Test
+    fun `an unbadged row is only taken once its lyrics prove it clean`() = runBlocking {
+        // The Box: YouTube Music lists a copy of the explicit recording with no badge.
+        CleanVersions.provenClean = { it.videoId == "real-clean" }
+        CleanVersions.search = { _, filter ->
+            if (filter == SearchFilter.VIDEOS) {
+                emptyList()
+            } else {
+                listOf(song("unbadged-explicit"), song("real-clean"))
+            }
+        }
+        assertEquals("real-clean", CleanVersions.find(explicit)?.videoId)
+    }
+
+    @Test
+    fun `nothing proven falls back to a clean upload, never the unbadged copy`() = runBlocking {
+        CleanVersions.provenClean = { false }
+        CleanVersions.search = { _, filter ->
+            if (filter == SearchFilter.VIDEOS) {
+                listOf(video("upload", "Eminem - Rap God (Clean)", "Edits", "6:05"))
+            } else {
+                listOf(song("unbadged-explicit"))
+            }
+        }
+        assertEquals("upload", CleanVersions.find(explicit)?.videoId)
+    }
+
+    @Test
+    fun `lyrics that couldn't be read aren't remembered as none`() = runBlocking {
+        CleanVersions.provenClean = { null }
+        CleanVersions.search = { _, filter -> if (filter == SearchFilter.VIDEOS) emptyList() else listOf(song("maybe")) }
+        assertNull(CleanVersions.find(explicit))
+        assertFalse(CleanVersions.isMissing(explicit))
     }
 
     @AfterTest

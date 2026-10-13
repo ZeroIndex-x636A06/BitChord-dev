@@ -1,5 +1,6 @@
 package com.music.bitchord.playback
 
+import com.music.bitchord.data.lyrics.YouTubeMusicLyrics
 import com.music.bitchord.data.TrackLog
 import com.music.bitchord.data.YtMusicRepository
 import com.music.bitchord.data.model.HomeShelf
@@ -68,15 +69,33 @@ import kotlin.math.abs
  */
 object CleanVersionMatcher {
 
-    fun pick(explicit: Song, candidates: List<Song>): Song? {
+    fun pick(explicit: Song, candidates: List<Song>): Song? = picks(explicit, candidates).firstOrNull()
+
+    /**
+     * Every row that could be [explicit]'s clean release, closest length
+     * first — what [pick] chooses from. An unbadged row is only a candidate:
+     * YouTube Music leaves the badge off some copies of the explicit recording
+     * too, so [CleanVersions] has each proven clean before taking it.
+     */
+    fun picks(explicit: Song, candidates: List<Song>): List<Song> {
         val wantedTitle = coreTitle(explicit.title)
-        if (wantedTitle.isBlank()) return null
+        if (wantedTitle.isBlank()) return emptyList()
+        val wantedLength = TrackMatcher.secondsOf(explicit.durationText)
         return candidates
             .asSequence()
             .filter { it.isExplicit != true && !it.isVideo && it.videoId != explicit.videoId }
             .filter { coreTitle(it.title) == wantedTitle }
             .filter { TrackMatcher.sharesArtist(explicit.artist, it.artist) }
-            .closestIn(explicit, requireLength = false)
+            .mapNotNull { candidate ->
+                val length = TrackMatcher.secondsOf(candidate.durationText)
+                val gap = if (wantedLength != null && length != null) abs(wantedLength - length) else 0
+                if (gap > MAX_LENGTH_DIFFERENCE_SEC) null else candidate to gap
+            }
+            .withIndex()
+            .sortedWith(compareBy({ it.value.second }, { it.index }))
+            .map { it.value.first }
+            .distinctBy { it.videoId }
+            .toList()
     }
 
     /**
@@ -250,6 +269,23 @@ object CleanVersions {
     internal var search: suspend (String, SearchFilter) -> List<Song>? = { query, filter ->
         YtMusicRepository.searchSignedOut(query, filter).getOrNull()
             ?.mapNotNull { (it as? SearchResult.Track)?.song ?: (it as? SearchResult.TopTrack)?.song }
+    }
+
+    /**
+     * Whether [Song] — a catalogue row with no explicit badge — is really
+     * clean: YouTube Music's own lyrics for that very recording have no
+     * explicit words (a clean edit's are censored). Null when they couldn't be
+     * asked; false when there are none, since an unbadged copy of the explicit
+     * recording also comes without a badge, and taking it would play the very
+     * words the swap is for. Swapped out by tests.
+     */
+    internal var provenClean: suspend (Song) -> Boolean? = { song ->
+        runCatching { YouTubeMusicLyrics.lyricsOrThrow(song.videoId) }
+            .map { lines ->
+                val words = lines?.map { it.text }?.filter { it.isNotBlank() }.orEmpty()
+                words.isNotEmpty() && !ExplicitLyrics.isExplicit(words, countMasked = false)
+            }
+            .getOrNull()
     }
 
     /** Oldest first, so the oldest answers are the ones let go at [MAX_REMEMBERED]. */
@@ -455,7 +491,7 @@ object CleanVersions {
             val clean = if (videos) {
                 CleanVersionMatcher.pickVideo(target, candidates)?.let { rememberUpload(song, it) }
             } else {
-                CleanVersionMatcher.pick(target, candidates)
+                provenPick(song, CleanVersionMatcher.picks(target, candidates)) { failed = true }
             }
             if (clean != null) {
                 TrackLog.d(TAG, "clean version of '${song.title}': ${clean.videoId} via \"$query\" (${filter.name})", song.videoId)
@@ -470,6 +506,25 @@ object CleanVersions {
         // so nothing is remembered and the next look asks again.
         if (!failed) rememberMissing(song.videoId, System.currentTimeMillis())
         else TrackLog.d(TAG, "clean version: not looked up fully, will ask again", song.videoId)
+        return null
+    }
+
+    /**
+     * The first of [picks] (at most [PROVEN_TRIES]) whose own lyrics prove it
+     * clean — see [provenClean]. [onFailed] hears of a check that couldn't be
+     * made, so a miss isn't remembered as "none".
+     */
+    private suspend fun provenPick(song: Song, picks: List<Song>, onFailed: () -> Unit): Song? {
+        for (candidate in picks.take(PROVEN_TRIES)) {
+            when (provenClean(candidate)) {
+                true -> return candidate
+                false -> TrackLog.d(TAG, "clean version: ${candidate.videoId} isn't proven clean by its lyrics", song.videoId)
+                null -> {
+                    TrackLog.d(TAG, "clean version: couldn't read ${candidate.videoId}'s lyrics", song.videoId)
+                    onFailed()
+                }
+            }
+        }
         return null
     }
 
@@ -726,7 +781,10 @@ object CleanVersions {
     private val SAYS_CLEAN = Regex("""\b(?:clean|edited|radio edit|censored)\b""", RegexOption.IGNORE_CASE)
 
     /** Bumped when the lookup changes in a way that could now find what it missed. */
-    private const val LOOKUP_VERSION = 4
+    private const val LOOKUP_VERSION = 5
+
+    /** Unbadged rows checked for one clean release before giving up on Songs. */
+    private const val PROVEN_TRIES = 3
 
     /** Searches a batch of suggestions may have running together. */
     private const val LOOKUPS_AT_ONCE = 4
