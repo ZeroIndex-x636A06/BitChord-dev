@@ -64,6 +64,30 @@ object TrackMatcher {
         song.isVideo,
     )
 
+    /**
+     * [song] read the other way round when it is an upload titled "Artist -
+     * Title" by a channel that isn't the artist — "Roddy Ricch - The Box
+     * (Clean - Lyrics)" posted by Polar Records — so the head is the artist
+     * and the tail the title. Null when the title doesn't have that shape or
+     * the head is the channel itself (which [targetOf] already handles). Only
+     * a second reading, tried when the first finds nothing: "Paniyon Sa -
+     * Satyamev Jayate" from a label's channel is title and film, not artist
+     * and title.
+     */
+    fun uploadTarget(song: Song): Target? {
+        if (!song.isVideo) return null
+        val title = song.title
+        val dash = Regex("""\s[-–—]\s""").find(title) ?: return null
+        val bracket = title.indexOfFirst { it == '(' || it == '[' }
+        if (bracket in 0 until dash.range.first) return null
+        val head = title.substring(0, dash.range.first).trim()
+        val tail = title.substring(dash.range.last + 1).trim()
+        if (head.isBlank() || tail.isBlank()) return null
+        val channel = song.artist.removeSuffix(" - Topic").trim()
+        if (isArtistName(normalize(head), channel)) return null
+        return targetOf(song).copy(title = tail, artist = head)
+    }
+
     // ── Asking ──────────────────────────────────────────────────────────────
 
     /**
