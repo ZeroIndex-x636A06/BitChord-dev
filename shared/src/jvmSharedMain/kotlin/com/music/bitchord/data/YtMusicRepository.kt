@@ -488,8 +488,9 @@ object YtMusicRepository {
             }
         }
         Log.w(TAG, "audio switch: no official song match for '${song.title}' by '${song.artist}'")
-        // "None" is only kept when every search came back: offline is not "no song".
-        if (failed) audioVersionCache[song.videoId] = song else rememberAudioVersion(song.videoId, song)
+        // "None" is only kept when every search came back: offline is not "no
+        // song", and a lookup that failed is asked again next time.
+        if (failed) Log.w(TAG, "audio switch: lookup failed for '${song.title}'") else rememberAudioVersion(song.videoId, song)
         return song
     }
 

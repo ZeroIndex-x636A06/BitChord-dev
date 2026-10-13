@@ -2375,6 +2375,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         /** Video rows a playlist looks up before it opens — see [withSongVersions]. */
         private const val SONG_VERSION_FIRST = 40
 
+        /** How long a failed song lookup for a playlist row waits before each retry. */
+        private val SONG_VERSION_RETRIES_MS = listOf(2_000L, 6_000L)
+
+        /** A video that says it is a clean edit. */
+        private val CLEAN_EDIT_TITLE = Regex("""\b(?:clean|edited|radio edit|censored)\b""", RegexOption.IGNORE_CASE)
+
         /** Longest a playlist waits on those before it opens anyway. */
         private const val SONG_VERSION_WAIT_MS = 4_000L
 
@@ -2939,26 +2945,48 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             .filter { it.isVideo && it.localUri == null && it.localPath == null && asked.add(it.rowKey()) }
         if (videos.isEmpty()) return
         viewModelScope.launch {
-            videos.chunked(SONG_VERSION_BATCH).forEach { batch ->
-                val found = coroutineScope {
-                    batch.map { row ->
-                        async {
-                            songVersionGate.withPermit { songVersionOf(row)?.let { row.rowKey() to it } }
-                        }
-                    }.mapNotNull { it.await() }.toMap()
-                }
-                if (found.isEmpty()) return@forEach
-                _detailStack.value = _detailStack.value.map { open ->
-                    val songs = (open.songs as? UiState.Success)?.data
-                    if (open.browseId != browseId || songs == null) {
-                        open
-                    } else {
-                        open.copy(songs = UiState.Success(songs.map { found[it.rowKey()] ?: it }))
+            var pending = videos
+            // A lookup that failed — a search refused or timed out, which a burst
+            // of them on a page opening can bring on — is tried again a little
+            // later rather than leaving the video as it is.
+            for (wait in listOf(0L) + SONG_VERSION_RETRIES_MS) {
+                if (pending.isEmpty()) break
+                delay(wait)
+                if (_detailStack.value.none { it.browseId == browseId }) return@launch
+                val failed = mutableListOf<Song>()
+                pending.chunked(SONG_VERSION_BATCH).forEach { batch ->
+                    val found = coroutineScope {
+                        batch.map { row ->
+                            async {
+                                songVersionGate.withPermit {
+                                    val song = songVersionOf(row)
+                                    if (song == null && lookupFailed(row)) synchronized(failed) { failed += row }
+                                    song?.let { row.rowKey() to it }
+                                }
+                            }
+                        }.mapNotNull { it.await() }.toMap()
                     }
+                    if (found.isNotEmpty()) publishSongVersions(browseId, found)
                 }
+                pending = failed
             }
         }
     }
+
+    /** [found] songs in place of the video rows they stand for, by row — see [showSongVersions]. */
+    private fun publishSongVersions(browseId: String, found: Map<String, Song>) {
+        _detailStack.value = _detailStack.value.map { open ->
+            val songs = (open.songs as? UiState.Success)?.data
+            if (open.browseId != browseId || songs == null) {
+                open
+            } else {
+                open.copy(songs = UiState.Success(songs.map { found[it.rowKey()] ?: it }))
+            }
+        }
+    }
+
+    /** Whether [row]'s lookup came back with no answer at all — failed, rather than found no song. */
+    private fun lookupFailed(row: Song): Boolean = YtMusicRepository.cachedAudioVersion(row.videoId) == null
 
     /**
      * [showSongVersions] for the rows a playlist opens on, before it is shown:
@@ -2979,8 +3007,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val found = HashMap<String, Song>()
         lookups.forEach { (row, lookup) ->
             if (!lookup.isCompleted) return@forEach
+            val song = lookup.await()
+            // A failed one is left to [showSongVersions], which tries again.
+            if (song == null && lookupFailed(row)) return@forEach
             asked += row.rowKey()
-            lookup.await()?.let { found[row.rowKey()] = it }
+            song?.let { found[row.rowKey()] = it }
         }
         return if (found.isEmpty()) songs else songs.map { found[it.rowKey()] ?: it }
     }
@@ -2991,6 +3022,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             ?.takeIf { !it.isVideo || it.videoId == row.videoId }
             ?.takeIf { it != row }
             ?: return null
+        // A clean edit someone uploaded is not the explicit song it is an edit of.
+        if (song.isExplicit == true && CLEAN_EDIT_TITLE.containsMatchIn(row.title)) return null
         row.setVideoId?.let { entry -> videoOnRow[entry] = row.videoId }
         return song.asRowOf(row)
     }
