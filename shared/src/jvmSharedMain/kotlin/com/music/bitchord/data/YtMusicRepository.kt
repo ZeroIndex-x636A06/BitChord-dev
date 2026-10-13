@@ -79,7 +79,12 @@ object YtMusicRepository {
         }
     }
 
-    private fun encodeAudioVersions(): String = kotlinx.serialization.json.buildJsonArray {
+    private fun encodeAudioVersions(): String = kotlinx.serialization.json.buildJsonObject {
+        put("v", kotlinx.serialization.json.JsonPrimitive(AUDIO_VERSIONS_LOOKUP))
+        put("found", encodeAudioVersionList())
+    }.toString()
+
+    private fun encodeAudioVersionList() = kotlinx.serialization.json.buildJsonArray {
         audioVersionCache.entries.toList().takeLast(MAX_AUDIO_VERSIONS).forEach { (videoId, song) ->
             add(kotlinx.serialization.json.buildJsonObject {
                 put("for", kotlinx.serialization.json.JsonPrimitive(videoId))
@@ -95,11 +100,15 @@ object YtMusicRepository {
                 if (song.isVideo) put("video", kotlinx.serialization.json.JsonPrimitive(true))
             })
         }
-    }.toString()
+    }
 
     private fun decodeAudioVersions(encoded: String?) {
         encoded ?: return
-        val entries = kotlinx.serialization.json.Json.parseToJsonElement(encoded) as? kotlinx.serialization.json.JsonArray ?: return
+        // Answers from an older lookup aren't kept: it may have found no song
+        // where this one does ("Artist - Title" uploads, before 2).
+        val root = kotlinx.serialization.json.Json.parseToJsonElement(encoded) as? JsonObject ?: return
+        if ((root["v"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull != AUDIO_VERSIONS_LOOKUP.toString()) return
+        val entries = root["found"] as? kotlinx.serialization.json.JsonArray ?: return
         fun JsonObject.text(key: String) = (this[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
         entries.forEach { element ->
             val o = element as? JsonObject ?: return@forEach
@@ -125,6 +134,9 @@ object YtMusicRepository {
 
     /** Videos whose songs are kept between launches; the oldest are let go past it. */
     private const val MAX_AUDIO_VERSIONS = 5_000
+
+    /** Bumped when the lookup changes in a way that could now find what it missed. */
+    private const val AUDIO_VERSIONS_LOOKUP = 2
     fun cachedVideoVersion(videoId: String): Song? = videoVersionCache[videoId]
 
     /**
