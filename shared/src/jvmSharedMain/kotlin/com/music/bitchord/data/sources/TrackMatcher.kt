@@ -56,7 +56,8 @@ object TrackMatcher {
 
     fun targetOf(song: Song) = Target(
         song.title,
-        song.artist,
+        // An auto-generated channel ("Terror Squad - Topic") is the artist's.
+        song.artist.removeSuffix(" - Topic").trim().ifBlank { song.artist },
         secondsOf(song.durationText),
         song.albumName,
         song.isExplicit,
