@@ -89,4 +89,13 @@
     <string name="d_translation_unavailable">Çeviri kullanılamıyor</string>
     <string name="d_what_the_translate_button_translates_into">Şarkı sözlerindeki çevir düğmesinin çevirdiği dil</string>
     <string name="d_off">Kapalı</string>
+    <string name="d_block_explicit_songs">Müstehcen şarkıları engelle</string>
+    <string name="d_block_explicit_songs_subtitle">Müstehcen olarak işaretlenen şarkıları AutoPlay, radyo ve sıranda atla. Bir şarkıya menüsünden izin ver</string>
+    <string name="d_allow_this_explicit_song">Bu müstehcen şarkıya izin ver</string>
+    <string name="d_block_this_explicit_song_again">Bu müstehcen şarkıyı yeniden engelle</string>
+    <string name="d_explicit_song_skipped">Müstehcen şarkı atlandı</string>
+    <string name="d_explicit_song">Müstehcen şarkı</string>
+    <string name="d_explicit_song_blocked_message">“%1$s” müstehcen olarak işaretli ve filtreniz onu engelliyor.</string>
+    <string name="d_turn_off_blocking">Engellemeyi kapat</string>
+    <string name="d_allow_this_song">Bu şarkıya izin ver</string>
 </resources>

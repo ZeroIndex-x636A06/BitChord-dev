@@ -89,4 +89,13 @@
     <string name="d_translation_unavailable">翻訳を利用できません</string>
     <string name="d_what_the_translate_button_translates_into">歌詞の翻訳ボタンが翻訳する言語</string>
     <string name="d_off">オフ</string>
+    <string name="d_block_explicit_songs">露骨な表現を含む曲をブロック</string>
+    <string name="d_block_explicit_songs_subtitle">オートプレイ、ラジオ、キューで露骨な表現を含む曲をスキップします。曲のメニューから個別に許可できます</string>
+    <string name="d_allow_this_explicit_song">この曲を許可</string>
+    <string name="d_block_this_explicit_song_again">この曲を再びブロック</string>
+    <string name="d_explicit_song_skipped">露骨な表現を含む曲をスキップしました</string>
+    <string name="d_explicit_song">露骨な表現を含む曲</string>
+    <string name="d_explicit_song_blocked_message">「%1$s」は露骨な表現を含む曲として指定されており、フィルターでブロックされています。</string>
+    <string name="d_turn_off_blocking">ブロックをオフにする</string>
+    <string name="d_allow_this_song">この曲を許可</string>
 </resources>

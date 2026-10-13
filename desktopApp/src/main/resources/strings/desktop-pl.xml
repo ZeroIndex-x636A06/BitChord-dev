@@ -89,4 +89,13 @@
     <string name="d_translation_unavailable">Tłumaczenie niedostępne</string>
     <string name="d_what_the_translate_button_translates_into">Na jaki język przycisk tłumaczenia przekłada tekst</string>
     <string name="d_off">Wyłączone</string>
+    <string name="d_block_explicit_songs">Blokuj utwory dla dorosłych</string>
+    <string name="d_block_explicit_songs_subtitle">Pomijaj utwory oznaczone jako dla dorosłych w AutoPlay, radiu i kolejce. Zezwól na utwór w jego menu</string>
+    <string name="d_allow_this_explicit_song">Zezwól na ten utwór dla dorosłych</string>
+    <string name="d_block_this_explicit_song_again">Ponownie blokuj ten utwór dla dorosłych</string>
+    <string name="d_explicit_song_skipped">Pominięto utwór dla dorosłych</string>
+    <string name="d_explicit_song">Utwór dla dorosłych</string>
+    <string name="d_explicit_song_blocked_message">„%1$s” jest oznaczony jako dla dorosłych i Twój filtr go blokuje.</string>
+    <string name="d_turn_off_blocking">Wyłącz blokowanie</string>
+    <string name="d_allow_this_song">Zezwól na ten utwór</string>
 </resources>
