@@ -1,4 +1,7 @@
-click 1015 230 3
-shot queue-after-on
-pause 8
-shot queue-after-on-8s
+click 1418 98 1
+click 67 108 4
+shot home-blocking
+scroll 800 500 5
+shot home-scrolled
+click 70 263 4
+shot history
