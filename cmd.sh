@@ -1,5 +1,7 @@
-key Escape
-click 1375 51 2
-shot queue
-scroll 1200 500 6
-shot queue-scrolled
+click 600 199 2
+shot prompt2
+click 727 505
+pause 10
+shot after-turnoff
+scroll 1250 500 8
+shot queue-off-scrolled
