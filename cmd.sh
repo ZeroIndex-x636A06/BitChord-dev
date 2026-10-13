@@ -1,6 +1,7 @@
 click 110 53
 key ctrl+a
-typetext "damn kendrick lamar album"
+typetext "good kid maad city"
 key Return
 pause 9
-shot album-search
+click 465 105 6
+shot albums-tab
