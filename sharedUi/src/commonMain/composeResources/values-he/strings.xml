@@ -200,4 +200,8 @@
     <string name="search_library_empty">מחפש את השירים בתיקיית המוזיקה המקומית שלכם.</string>
     <string name="search_library_hint">שירים, אמנים ואלבומים</string>
     <string name="search_library_no_results">אין דבר במוזיקה המקומית שתואם ל-„%1$s”.</string>
+    <string name="explicit_song_blocked">שיר בוטה</string>
+    <string name="explicit_song_blocked_message">״%1$s״ מסומן כבוטה והסינון שלכם חוסם אותו.</string>
+    <string name="allow_this_song">לאפשר את השיר הזה</string>
+    <string name="turn_off_blocking">כיבוי החסימה</string>
 </resources>

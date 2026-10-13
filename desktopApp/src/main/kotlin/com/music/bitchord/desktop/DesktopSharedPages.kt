@@ -87,6 +87,14 @@ internal object DesktopAppUiHost : AppUiHost {
         _librarySort.value = value
     }
 
+    override val blockExplicit: StateFlow<Boolean> get() = DesktopExplicit.enabled
+
+    override fun setBlockExplicit(value: Boolean) = DesktopExplicit.setEnabled(value)
+
+    override val explicitAllowed: StateFlow<Set<String>> get() = DesktopExplicit.allowed
+
+    override fun setExplicitAllowed(videoId: String, allowed: Boolean) = DesktopExplicit.setAllowed(videoId, allowed)
+
     /** Kept current by the app, which owns the download list — see `BitChordDesktopApp`. */
     val downloaded = MutableStateFlow<Set<String>>(emptySet())
 

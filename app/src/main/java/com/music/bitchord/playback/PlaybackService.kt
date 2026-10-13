@@ -994,6 +994,7 @@ class PlaybackService : MediaLibraryService() {
             autoplayLoadJob?.cancel()
             autoplayLoadJob = null
             autoplaySeed = null
+            skipBlockedExplicit()
             loadAutoplayForCurrentTrack()
             loadLyricsForCurrentTrack()
             if (exoPlayer.isPlaying) startLyricsTicker()
@@ -2647,6 +2648,31 @@ class PlaybackService : MediaLibraryService() {
         return dropped.reversed()
     }
 
+    /**
+     * "Block explicit songs": removes blocked songs from the rest of the queue,
+     * and skips the playing one if it is blocked (or pauses at its start when
+     * nothing comes after it). Not in a party, where the queue is everyone's.
+     */
+    private fun skipBlockedExplicit() {
+        if (!AppSettings.blockExplicit.value || ListenTogether.state.value.inParty) return
+        val exoPlayer = player ?: return
+        val allowed = AppSettings.explicitAllowed.value
+        fun MediaItem.blocked() = ExplicitFilter.blocks(toSong(), enabled = true, allowed = allowed)
+        for (index in exoPlayer.mediaItemCount - 1 downTo exoPlayer.currentMediaItemIndex + 1) {
+            if (exoPlayer.getMediaItemAt(index).blocked()) exoPlayer.removeMediaItem(index)
+        }
+        val current = exoPlayer.currentMediaItem ?: return
+        if (!current.blocked()) return
+        TrackLog.d("BitChord", "explicit song blocked; skipping", current.mediaId)
+        Toast.makeText(applicationContext, R.string.explicit_song_skipped, Toast.LENGTH_SHORT).show()
+        if (exoPlayer.hasNextMediaItem()) {
+            exoPlayer.seekToNextMediaItem()
+        } else {
+            exoPlayer.pause()
+            exoPlayer.seekTo(0)
+        }
+    }
+
     /** Clears the queue's AutoPlay tail for the duration of repeat-all, keeping it to put back. */
     private fun stashAutoplayTracks() {
         val exoPlayer = player ?: return
@@ -2790,6 +2816,7 @@ class PlaybackService : MediaLibraryService() {
         autoplayLoadJob?.cancel()
         autoplayLoadJob = null
         autoplaySeed = null
+        skipBlockedExplicit()
         loadAutoplayForCurrentTrack()
     }
 
@@ -6011,6 +6038,12 @@ class PlaybackService : MediaLibraryService() {
     private fun observeSettings() {
         scope.launch {
             AppSettings.skipSilence.collect { on -> eachPlayer { it.skipSilenceEnabled = on } }
+        }
+        scope.launch {
+            // Turning blocking on, or un-allowing a song, applies to the queue already lined up.
+            combine(AppSettings.blockExplicit, AppSettings.explicitAllowed) { _, _ -> }
+                .drop(1)
+                .collect { skipBlockedExplicit() }
         }
         scope.launch {
             // Re-evaluate the already queued next track immediately when this

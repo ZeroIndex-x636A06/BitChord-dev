@@ -200,4 +200,8 @@
     <string name="search_library_empty">Durchsuche die Songs in deinem Ordner für lokale Musik.</string>
     <string name="search_library_hint">Songs, Künstler und Alben</string>
     <string name="search_library_no_results">Nichts in der lokalen Musik passt zu „%1$s“.</string>
+    <string name="explicit_song_blocked">Expliziter Song</string>
+    <string name="explicit_song_blocked_message">„%1$s“ ist als explizit markiert und wird von deinem Filter gesperrt.</string>
+    <string name="allow_this_song">Diesen Song erlauben</string>
+    <string name="turn_off_blocking">Sperre ausschalten</string>
 </resources>

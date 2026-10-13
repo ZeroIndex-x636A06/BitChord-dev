@@ -89,4 +89,9 @@
     <string name="d_translation_unavailable">Übersetzung nicht verfügbar</string>
     <string name="d_what_the_translate_button_translates_into">Wonach die Übersetzen-Schaltfläche im Liedtext übersetzt</string>
     <string name="d_off">Aus</string>
+    <string name="d_block_explicit_songs">Explizite Songs sperren</string>
+    <string name="d_block_explicit_songs_subtitle">Als explizit markierte Songs in automatischer Wiedergabe, Radio und Warteschlange überspringen. Einzelne Songs über ihr Menü erlauben</string>
+    <string name="d_allow_this_explicit_song">Diesen expliziten Song erlauben</string>
+    <string name="d_block_this_explicit_song_again">Diesen expliziten Song wieder sperren</string>
+    <string name="d_explicit_song_skipped">Expliziter Song übersprungen</string>
 </resources>

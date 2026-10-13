@@ -89,4 +89,9 @@
     <string name="d_translation_unavailable">Terjemahan tidak tersedia</string>
     <string name="d_what_the_translate_button_translates_into">Bahasa tujuan tombol terjemahkan pada lirik</string>
     <string name="d_off">Mati</string>
+    <string name="d_block_explicit_songs">Blokir lagu eksplisit</string>
+    <string name="d_block_explicit_songs_subtitle">Lewati lagu bertanda eksplisit di Putar Otomatis, radio, dan antrean Anda. Izinkan satu lagu dari menunya</string>
+    <string name="d_allow_this_explicit_song">Izinkan lagu eksplisit ini</string>
+    <string name="d_block_this_explicit_song_again">Blokir lagu eksplisit ini lagi</string>
+    <string name="d_explicit_song_skipped">Lagu eksplisit dilewati</string>
 </resources>

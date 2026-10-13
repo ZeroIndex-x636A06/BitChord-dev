@@ -200,4 +200,8 @@
     <string name="search_library_empty">Поиск треков в папке локальной музыки.</string>
     <string name="search_library_hint">Треки, исполнители и альбомы</string>
     <string name="search_library_no_results">В локальной музыке нет ничего, совпадающего с «%1$s».</string>
+    <string name="explicit_song_blocked">Откровенная песня</string>
+    <string name="explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
+    <string name="allow_this_song">Разрешить эту песню</string>
+    <string name="turn_off_blocking">Отключить блокировку</string>
 </resources>

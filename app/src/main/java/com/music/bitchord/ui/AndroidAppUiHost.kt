@@ -14,6 +14,10 @@ object AndroidAppUiHost : AppUiHost {
     override fun setHomeRecentsViewType(value: LibraryViewType) = AppSettings.setHomeRecentsViewType(value)
     override val pinnedPlaylists = AppSettings.pinnedPlaylists
     override val librarySort = AppSettings.librarySort
+    override val blockExplicit = AppSettings.blockExplicit
+    override fun setBlockExplicit(value: Boolean) = AppSettings.setBlockExplicit(value)
+    override val explicitAllowed = AppSettings.explicitAllowed
+    override fun setExplicitAllowed(videoId: String, allowed: Boolean) = AppSettings.setExplicitAllowed(videoId, allowed)
 
     @Composable
     override fun downloadedIds(): Set<String> {

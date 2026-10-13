@@ -89,4 +89,9 @@
     <string name="d_translation_unavailable">Tradução indisponível</string>
     <string name="d_what_the_translate_button_translates_into">Para qual idioma o botão de traduzir da letra traduz</string>
     <string name="d_off">Desligado</string>
+    <string name="d_block_explicit_songs">Bloquear músicas explícitas</string>
+    <string name="d_block_explicit_songs_subtitle">Pula músicas marcadas como explícitas na reprodução automática, no rádio e na sua fila. Permita uma pelo menu dela</string>
+    <string name="d_allow_this_explicit_song">Permitir esta música explícita</string>
+    <string name="d_block_this_explicit_song_again">Bloquear esta música explícita de novo</string>
+    <string name="d_explicit_song_skipped">Música explícita pulada</string>
 </resources>

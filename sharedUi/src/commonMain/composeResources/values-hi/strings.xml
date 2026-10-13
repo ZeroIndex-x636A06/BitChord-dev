@@ -200,4 +200,8 @@
     <string name="search_library_empty">आपके लोकल म्यूज़िक फ़ोल्डर के गाने खोजें.</string>
     <string name="search_library_hint">गाने, कलाकार और एल्बम</string>
     <string name="search_library_no_results">लोकल म्यूज़िक में “%1$s” से मेल खाता कुछ नहीं.</string>
+    <string name="explicit_song_blocked">स्पष्ट गाना</string>
+    <string name="explicit_song_blocked_message">“%1$s” स्पष्ट चिह्नित है और आपका फ़िल्टर इसे ब्लॉक कर रहा है।</string>
+    <string name="allow_this_song">इस गाने की अनुमति दें</string>
+    <string name="turn_off_blocking">ब्लॉक करना बंद करें</string>
 </resources>

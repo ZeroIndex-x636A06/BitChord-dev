@@ -1,5 +1,9 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.ui.components.rememberExplicitBlocked
+import com.music.bitchord.ui.components.explicitGatedClick
+import com.music.bitchord.ui.components.BLOCKED_ROW_ALPHA
+import androidx.compose.ui.draw.alpha
 import com.music.bitchord.ui.components.contextClick
 import androidx.compose.ui.unit.Dp
 import com.music.bitchord.sharedui.resources.*
@@ -700,11 +704,13 @@ private fun TypeaheadSongRow(
     onLongPress: (() -> Unit)? = null,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    explicitBlocked: Boolean = rememberExplicitBlocked(song),
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
+            .longPressMenuClickable(onClick = explicitGatedClick(song, explicitBlocked, onClick), onLongClick = onLongPress)
             .contextClick(onLongPress)
             .padding(horizontal = PAGE_GUTTER, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -200,4 +200,8 @@
     <string name="search_library_empty">搜索本地音乐文件夹中的歌曲。</string>
     <string name="search_library_hint">歌曲、艺人和专辑</string>
     <string name="search_library_no_results">本地音乐中没有与「%1$s」匹配的内容。</string>
+    <string name="explicit_song_blocked">露骨歌曲</string>
+    <string name="explicit_song_blocked_message">“%1$s”被标记为露骨，你的过滤器正在屏蔽它。</string>
+    <string name="allow_this_song">允许这首歌曲</string>
+    <string name="turn_off_blocking">关闭屏蔽</string>
 </resources>

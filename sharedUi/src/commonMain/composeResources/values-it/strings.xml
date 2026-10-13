@@ -200,4 +200,8 @@
     <string name="search_library_empty">Cerca i brani nella cartella Musica locale.</string>
     <string name="search_library_hint">Brani, artisti e album</string>
     <string name="search_library_no_results">Nulla in Musica locale corrisponde a «%1$s».</string>
+    <string name="explicit_song_blocked">Brano esplicito</string>
+    <string name="explicit_song_blocked_message">«%1$s» è contrassegnato come esplicito e il tuo filtro lo blocca.</string>
+    <string name="allow_this_song">Consenti questo brano</string>
+    <string name="turn_off_blocking">Disattiva il blocco</string>
 </resources>

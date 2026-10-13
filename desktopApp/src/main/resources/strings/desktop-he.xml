@@ -89,4 +89,9 @@
     <string name="d_translation_unavailable">התרגום אינו זמין</string>
     <string name="d_what_the_translate_button_translates_into">לאיזו שפה כפתור התרגום מתרגם את המילים</string>
     <string name="d_off">כבוי</string>
+    <string name="d_block_explicit_songs">חסימת שירים בוטים</string>
+    <string name="d_block_explicit_songs_subtitle">דילוג על שירים שמסומנים כבוטים בניגון אוטומטי, ברדיו ובתור. אפשר לאשר שיר מהתפריט שלו</string>
+    <string name="d_allow_this_explicit_song">לאפשר את השיר הבוטה הזה</string>
+    <string name="d_block_this_explicit_song_again">לחסום שוב את השיר הבוטה הזה</string>
+    <string name="d_explicit_song_skipped">דילגנו על שיר בוטה</string>
 </resources>

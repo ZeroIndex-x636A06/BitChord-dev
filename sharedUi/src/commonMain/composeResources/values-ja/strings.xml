@@ -200,4 +200,8 @@
     <string name="search_library_empty">ローカル音楽フォルダ内の曲を検索します。</string>
     <string name="search_library_hint">曲・アーティスト・アルバム</string>
     <string name="search_library_no_results">ローカル音楽に「%1$s」に一致するものはありません。</string>
+    <string name="explicit_song_blocked">露骨な表現を含む曲</string>
+    <string name="explicit_song_blocked_message">「%1$s」は露骨な表現を含む曲として指定されており、フィルターでブロックされています。</string>
+    <string name="allow_this_song">この曲を許可</string>
+    <string name="turn_off_blocking">ブロックをオフにする</string>
 </resources>

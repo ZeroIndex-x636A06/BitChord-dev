@@ -91,4 +91,9 @@
     <string name="d_translation_unavailable">Translation unavailable</string>
     <string name="d_what_the_translate_button_translates_into">What the translate button on the lyrics translates into</string>
     <string name="d_off">Off</string>
+    <string name="d_block_explicit_songs">Block explicit songs</string>
+    <string name="d_block_explicit_songs_subtitle">Skip songs marked explicit in AutoPlay, radio and your queue. Allow one from its menu</string>
+    <string name="d_allow_this_explicit_song">Allow this explicit song</string>
+    <string name="d_block_this_explicit_song_again">Block this explicit song again</string>
+    <string name="d_explicit_song_skipped">Explicit song skipped</string>
 </resources>

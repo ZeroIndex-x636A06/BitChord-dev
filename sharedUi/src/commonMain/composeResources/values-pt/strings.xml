@@ -200,4 +200,8 @@
     <string name="search_library_empty">Pesquise as músicas da sua pasta de Música local.</string>
     <string name="search_library_hint">Músicas, artistas e álbuns</string>
     <string name="search_library_no_results">Nada na Música local corresponde a “%1$s”.</string>
+    <string name="explicit_song_blocked">Música explícita</string>
+    <string name="explicit_song_blocked_message">“%1$s” está marcada como explícita e seu filtro a está bloqueando.</string>
+    <string name="allow_this_song">Permitir esta música</string>
+    <string name="turn_off_blocking">Desativar bloqueio</string>
 </resources>

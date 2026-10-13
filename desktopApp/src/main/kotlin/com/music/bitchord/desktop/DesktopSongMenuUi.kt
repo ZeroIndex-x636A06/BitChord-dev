@@ -29,7 +29,9 @@ import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.DownloadDone
+import androidx.compose.material.icons.rounded.Explicit
 import androidx.compose.material.icons.rounded.HighQuality
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Radio
@@ -42,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -275,6 +278,20 @@ internal fun DesktopSongMenu(
         DesktopMenuRow(Icons.Rounded.Radio, DesktopStrings["start_radio", "Start radio"], onClick = onStartRadio)
         DesktopMenuRow(Icons.AutoMirrored.Rounded.PlaylistPlay, DesktopStrings["play_next", "Play next"], onClick = onPlayNext)
         DesktopMenuRow(Icons.AutoMirrored.Rounded.QueueMusic, DesktopStrings["add_to_queue", "Add to queue"], onClick = onAddToQueue)
+        // The per-song way past "Block explicit songs", and back. Stays open so the row flips in place.
+        val blockExplicit by DesktopExplicit.enabled.collectAsState()
+        val explicitAllowed by DesktopExplicit.allowed.collectAsState()
+        if (blockExplicit && song.isExplicit == true) {
+            val allowed = song.videoId in explicitAllowed
+            DesktopMenuRow(
+                icon = if (allowed) Icons.Rounded.Block else Icons.Rounded.Explicit,
+                label = if (allowed) {
+                    DesktopStrings["d_block_this_explicit_song_again", "Block this explicit song again"]
+                } else {
+                    DesktopStrings["d_allow_this_explicit_song", "Allow this explicit song"]
+                },
+            ) { DesktopExplicit.setAllowed(song.videoId, !allowed) }
+        }
 
         val albumId = song.albumId
         val artistId = song.artistId

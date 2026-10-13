@@ -28,6 +28,16 @@ interface AppUiHost {
     /** How a Library "Show all" grid is ordered. */
     val librarySort: StateFlow<LibrarySort>
 
+    /** "Block explicit songs": explicit rows are greyed out and ask before playing. */
+    val blockExplicit: StateFlow<Boolean>
+
+    fun setBlockExplicit(value: Boolean)
+
+    /** Video ids of explicit songs allowed past [blockExplicit]. */
+    val explicitAllowed: StateFlow<Set<String>>
+
+    fun setExplicitAllowed(videoId: String, allowed: Boolean)
+
     /** Video ids of the tracks already downloaded, for the mark on their rows. */
     @Composable
     fun downloadedIds(): Set<String>

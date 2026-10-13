@@ -200,4 +200,8 @@
     <string name="search_library_empty">ค้นหาเพลงในโฟลเดอร์เพลงในเครื่องของคุณ</string>
     <string name="search_library_hint">เพลง ศิลปิน และอัลบั้ม</string>
     <string name="search_library_no_results">ไม่มีอะไรในเพลงในเครื่องตรงกับ “%1$s”</string>
+    <string name="explicit_song_blocked">เพลงที่ไม่เหมาะสม</string>
+    <string name="explicit_song_blocked_message">“%1$s” ถูกทำเครื่องหมายว่าไม่เหมาะสมและตัวกรองของคุณกำลังบล็อกอยู่</string>
+    <string name="allow_this_song">อนุญาตเพลงนี้</string>
+    <string name="turn_off_blocking">ปิดการบล็อก</string>
 </resources>

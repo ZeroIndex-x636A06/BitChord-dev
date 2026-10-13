@@ -1,5 +1,8 @@
 package com.music.bitchord.desktop
 
+import com.music.bitchord.ui.components.rememberExplicitBlocked
+import com.music.bitchord.ui.components.explicitGatedClick
+import com.music.bitchord.ui.components.BLOCKED_ROW_ALPHA
 import androidx.compose.foundation.lazy.LazyListState
 import com.music.bitchord.ui.components.LocalShelfRowChrome
 import com.music.bitchord.ui.components.ShelfRowChrome
@@ -1652,6 +1655,25 @@ fun BitChordDesktopApp() {
         }
         playbackEngine.pause()
         partySync.onLocalIntent()
+    }
+    // "Block explicit songs" (#720): blocked songs after the current one are removed, and a
+    // blocked current song is skipped, or paused when nothing follows it. Not in a party, whose
+    // queue is everyone's.
+    val blockExplicit by DesktopExplicit.enabled.collectAsState()
+    val explicitAllowed by DesktopExplicit.allowed.collectAsState()
+    LaunchedEffect(blockExplicit, explicitAllowed, liveQueue.current?.videoId) {
+        if (!blockExplicit || DesktopListenTogether.state.value.inParty) return@LaunchedEffect
+        val queue = liveQueue
+        val kept = queue.songs.filterIndexed { at, song -> at <= queue.index || !DesktopExplicit.blocks(song) }
+        if (kept.size != queue.songs.size) {
+            liveQueue = queue.copy(songs = kept)
+            saveQueue()
+        }
+        val current = liveQueue.current ?: return@LaunchedEffect
+        if (!DesktopExplicit.blocks(current)) return@LaunchedEffect
+        DesktopTrackLog.log("explicit: '${current.title}' is blocked; ${if (liveQueue.hasNext) "skipping" else "pausing"}")
+        DesktopPlayerHost.showMessage(DesktopStrings["d_explicit_song_skipped", "Explicit song skipped"])
+        if (liveQueue.hasNext) playNext() else pauseFromUser()
     }
     val mprisController = remember(playbackEngine) {
         DesktopMprisController(
@@ -6017,6 +6039,16 @@ private fun DesktopSettingsScreen(
                         dontRepeatSuggestions,
                         onDontRepeatSuggestionsChange,
                     )
+                    val blockExplicit by DesktopExplicit.enabled.collectAsState()
+                    SettingsToggle(
+                        DesktopStrings["d_block_explicit_songs", "Block explicit songs"],
+                        DesktopStrings[
+                            "d_block_explicit_songs_subtitle",
+                            "Skip songs marked explicit in AutoPlay, radio and your queue. Allow one from its menu",
+                        ],
+                        blockExplicit,
+                        DesktopExplicit::setEnabled,
+                    )
                     SettingsToggle(
                         DesktopStrings["d_tray_icon", "Tray icon"],
                         DesktopStrings[
@@ -6805,6 +6837,8 @@ private fun DesktopCollectionSongRow(
     striped: Boolean,
     /** Takes this row out of the playlist being read. */
     onRemove: ((Song) -> Unit)? = null,
+    /** Explicit and kept from playing by "Block explicit songs": greyed out, and asks on click. */
+    explicitBlocked: Boolean = rememberExplicitBlocked(song),
 ) {
     // A Spotify track still being matched to YouTube Music, or with no match: listed, but there is
     // nothing yet to play, like, save or remove.
@@ -6812,10 +6846,10 @@ private fun DesktopCollectionSongRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .alpha(if (song.isMatchMissing) 0.45f else 1f)
+            .alpha(if (song.isMatchMissing || explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .clip(RoundedCornerShape(6.dp))
             .background(if (striped) Color.White.copy(alpha = 0.04f) else Color.Transparent)
-            .clickable(enabled = !unresolved) { onClick(song) }
+            .clickable(enabled = !unresolved, onClick = explicitGatedClick(song, explicitBlocked) { onClick(song) })
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -7243,13 +7277,16 @@ private fun DesktopSongRow(
     number: Int? = null,
     /** The row's own "…", when the page has a menu to give it. */
     menu: (@Composable (Song) -> Unit)? = null,
+    /** Explicit and kept from playing by "Block explicit songs": greyed out, and asks on click. */
+    explicitBlocked: Boolean = rememberExplicitBlocked(song),
 ) {
     Row(
         Modifier
             .fillMaxWidth()
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .clip(RoundedCornerShape(10.dp))
             .background(DesktopGlass.copy(alpha = 0.38f))
-            .clickable { onClick(song) }
+            .clickable(onClick = explicitGatedClick(song, explicitBlocked) { onClick(song) })
             .padding(horizontal = 10.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
