@@ -89,4 +89,13 @@
     <string name="d_translation_unavailable">Перевод недоступен</string>
     <string name="d_what_the_translate_button_translates_into">На какой язык кнопка перевода переводит текст песни</string>
     <string name="d_off">Выключено</string>
+    <string name="d_block_explicit_songs">Блокировать откровенные песни</string>
+    <string name="d_block_explicit_songs_subtitle">Пропускать песни с пометкой «откровенное» в автовоспроизведении, радио и очереди. Разрешить песню можно в её меню</string>
+    <string name="d_allow_this_explicit_song">Разрешить эту откровенную песню</string>
+    <string name="d_block_this_explicit_song_again">Снова блокировать эту откровенную песню</string>
+    <string name="d_explicit_song_skipped">Откровенная песня пропущена</string>
+    <string name="d_explicit_song">Откровенная песня</string>
+    <string name="d_explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
+    <string name="d_turn_off_blocking">Отключить блокировку</string>
+    <string name="d_allow_this_song">Разрешить эту песню</string>
 </resources>
