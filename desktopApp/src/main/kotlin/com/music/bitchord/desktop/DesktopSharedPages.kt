@@ -45,6 +45,7 @@ import com.music.bitchord.data.model.SearchHistoryEntity
 import com.music.bitchord.data.settings.LibrarySort
 import com.music.bitchord.data.settings.LibraryViewType
 import com.music.bitchord.ui.AppUiHost
+import com.music.bitchord.ui.components.ExplicitPrompt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.builtins.ListSerializer
@@ -87,6 +88,14 @@ internal object DesktopAppUiHost : AppUiHost {
     fun setLibrarySort(value: LibrarySort) {
         persistence.saveString(KEY_LIBRARY_SORT, value.name)
         _librarySort.value = value
+    }
+
+    override val blockExplicit: StateFlow<Boolean> get() = DesktopExplicit.enabled
+
+    override val explicitAllowed: StateFlow<Set<String>> get() = DesktopExplicit.allowed
+
+    override fun askExplicitBlocked(prompt: ExplicitPrompt) {
+        DesktopExplicit.prompt.value = prompt
     }
 
     /** Kept current by the app, which owns the download list — see `BitChordDesktopApp`. */
