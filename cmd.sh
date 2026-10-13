@@ -1,9 +1,12 @@
-click 846 505
-pause 6
-shot fdo-allowed
-pkill -f "BitChord/bin" ; pkill -f "music.bitchord" ; sleep 4
-cd "$HOME" && (DISPLAY=:99 JAVA_TOOL_OPTIONS="-Dskiko.renderApi=SOFTWARE_FAST" nohup "$HOME/BitChord/bin/BitChord" > "$HOME/app2.log" 2>&1 &) ; cd - >/dev/null
-sleep 30
-xdotool search --name "BitChord" | head -1 | xargs -r -I{} xdotool windowactivate {} windowsize {} 1440 900 windowmove {} 0 0 || true
-sleep 2
-shot restarted
+click 780 631
+dclick 658 57 3
+click 73 867 3
+click 1080 121
+typetext "explicit"
+pause 2
+shot settings-persisted
+click 110 53
+typetext "fdo pooh shiesty"
+key Return
+pause 9
+shot fdo-search
