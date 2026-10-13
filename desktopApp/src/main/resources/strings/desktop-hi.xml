@@ -89,4 +89,13 @@
     <string name="d_translation_unavailable">अनुवाद उपलब्ध नहीं है</string>
     <string name="d_what_the_translate_button_translates_into">बोल का अनुवाद बटन किस भाषा में अनुवाद करता है</string>
     <string name="d_off">बंद</string>
+    <string name="d_block_explicit_songs">स्पष्ट गाने ब्लॉक करें</string>
+    <string name="d_block_explicit_songs_subtitle">ऑटोप्ले, रेडियो और आपकी कतार में स्पष्ट चिह्नित गाने छोड़ें। किसी गाने को उसके मेनू से अनुमति दें</string>
+    <string name="d_allow_this_explicit_song">इस स्पष्ट गाने की अनुमति दें</string>
+    <string name="d_block_this_explicit_song_again">इस स्पष्ट गाने को फिर से ब्लॉक करें</string>
+    <string name="d_explicit_song_skipped">स्पष्ट गाना छोड़ा गया</string>
+    <string name="d_explicit_song">स्पष्ट गाना</string>
+    <string name="d_explicit_song_blocked_message">“%1$s” स्पष्ट चिह्नित है और आपका फ़िल्टर इसे ब्लॉक कर रहा है।</string>
+    <string name="d_turn_off_blocking">ब्लॉक करना बंद करें</string>
+    <string name="d_allow_this_song">इस गाने की अनुमति दें</string>
 </resources>
