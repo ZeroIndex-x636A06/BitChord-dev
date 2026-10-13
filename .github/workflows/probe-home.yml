@@ -1,0 +1,29 @@
+name: home explicit probe
+on:
+  push:
+    branches: [probe/home-explicit]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { java-version: '21', distribution: 'temurin' }
+      - uses: gradle/actions/setup-gradle@v4
+      - run: chmod +x gradlew
+      - name: Probe
+        env:
+          PROBE: '1'
+        run: ./gradlew :shared:jvmTest --tests "com.music.bitchord.playback.HomeExplicitProbe" --rerun-tasks > gradle.log 2>&1 || true
+      - name: Report
+        run: |
+          f=shared/probe-out.txt
+          if [ ! -f "$f" ]; then f=gradle.log; fi
+          grep -E "^e: |FAILED|Exception|error:" gradle.log | head -40 > gradle-errors.txt || true
+          msg=$(sed 's/%/%25/g' gradle-errors.txt | awk 'BEGIN{ORS="%0A"} {print}')
+          echo "::notice title=gradle::${msg}"
+          split -l 40 "$f" part_
+          for p in part_*; do
+            msg=$(sed 's/%/%25/g' "$p" | awk 'BEGIN{ORS="%0A"} {print}')
+            echo "::notice title=home $p::${msg}"
+          done
