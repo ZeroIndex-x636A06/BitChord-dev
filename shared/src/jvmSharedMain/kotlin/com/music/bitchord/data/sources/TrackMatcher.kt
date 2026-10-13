@@ -81,7 +81,11 @@ object TrackMatcher {
         val bracket = title.indexOfFirst { it == '(' || it == '[' }
         if (bracket in 0 until dash.range.first) return null
         val head = title.substring(0, dash.range.first).trim()
-        val tail = title.substring(dash.range.last + 1).trim()
+        // A feature credit after the brackets ("… (Clean & Lyrics) feat. Gunna")
+        // is the credit, not the title.
+        val tail = title.substring(dash.range.last + 1)
+            .replace(Regex("""\s+(?:feat\.?|ft\.?|featuring)\s.*$""", RegexOption.IGNORE_CASE), "")
+            .trim()
         if (head.isBlank() || tail.isBlank()) return null
         val channel = song.artist.removeSuffix(" - Topic").trim()
         if (isArtistName(normalize(head), channel)) return null
