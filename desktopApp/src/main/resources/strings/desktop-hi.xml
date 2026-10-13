@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">क्लीन वर्शन चलाएँ</string>
     <string name="d_looking_for_clean_version">क्लीन वर्शन ढूँढा जा रहा है…</string>
     <string name="d_no_clean_version_found">कोई क्लीन वर्शन नहीं मिला।</string>
+    <string name="d_song_note_clean_upload">YouTube के क्लीन एडिट से क्लीन संस्करण, गाने के रूप में दिखाया गया</string>
+    <string name="d_song_note_clean_release">एक स्पष्ट गाने का क्लीन संस्करण</string>
+    <string name="d_song_note_swaps_clean">स्पष्ट · इसका क्लीन संस्करण चलता है</string>
+    <string name="d_song_note_allowed">स्पष्ट · आपने इसे फ़िल्टर से आगे जाने दिया</string>
+    <string name="d_song_note_blocked">स्पष्ट · आपके फ़िल्टर ने ब्लॉक किया</string>
+    <string name="d_song_note_explicit_by_lyrics">बोलों के आधार पर स्पष्ट चिह्नित</string>
 </resources>

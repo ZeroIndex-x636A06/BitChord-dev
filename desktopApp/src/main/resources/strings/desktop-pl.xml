@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">Odtwórz czystą wersję</string>
     <string name="d_looking_for_clean_version">Szukanie czystej wersji…</string>
     <string name="d_no_clean_version_found">Nie znaleziono czystej wersji.</string>
+    <string name="d_song_note_clean_upload">Czysta wersja z czystej edycji z YouTube, pokazana jako utwór</string>
+    <string name="d_song_note_clean_release">Czysta wersja utworu z wulgaryzmami</string>
+    <string name="d_song_note_swaps_clean">Wulgarny · odtwarzany w czystej wersji</string>
+    <string name="d_song_note_allowed">Wulgarny · przepuszczony przez Ciebie mimo filtra</string>
+    <string name="d_song_note_blocked">Wulgarny · zablokowany przez Twój filtr</string>
+    <string name="d_song_note_explicit_by_lyrics">Oznaczony jako wulgarny na podstawie tekstu</string>
 </resources>

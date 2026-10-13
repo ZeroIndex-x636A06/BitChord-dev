@@ -1299,4 +1299,11 @@
     <string name="play_clean_version">Reproducir versión limpia</string>
     <string name="looking_for_clean_version">Buscando una versión limpia…</string>
     <string name="no_clean_version_found">No se encontró ninguna versión limpia.</string>
+    <string name="song_note_clean_upload">Versión limpia de una edición limpia de YouTube, mostrada como la canción</string>
+    <string name="song_note_clean_release">Versión limpia de una canción explícita</string>
+    <string name="song_note_swaps_clean">Explícita · se reproduce en su versión limpia</string>
+    <string name="song_note_allowed">Explícita · la dejaste pasar el filtro</string>
+    <string name="song_note_blocked">Explícita · bloqueada por tu filtro</string>
+    <string name="song_note_explicit_by_lyrics">Marcada como explícita por su letra</string>
+    <string name="song_note_from_video">Versión en canción de un videoclip</string>
 </resources>

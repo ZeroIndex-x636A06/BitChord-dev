@@ -1,5 +1,6 @@
 package com.music.bitchord.desktop
 
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -225,6 +226,24 @@ internal fun DesktopSongMenu(
             return@DesktopMenuSurface
         }
 
+        // What's worth knowing about this copy of the song before acting on it.
+        val notes = desktopSongNotes(song, rememberDesktopExplicitPolicy())
+        if (notes.isNotEmpty()) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                notes.forEach { note ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.Info, null, tint = DesktopSecondary, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(note, style = MaterialTheme.typography.bodySmall, color = DesktopSecondary)
+                    }
+                }
+            }
+            DesktopMenuDivider()
+        }
+
         // The two are never both offered.
         (onRevertToOriginal ?: onUpgradeQuality)?.let { action ->
             DesktopMenuRow(
@@ -417,6 +436,28 @@ private fun DesktopMenuDivider() {
         thickness = 0.5.dp,
         color = DesktopCardEdge,
     )
+}
+
+/**
+ * The notes at the top of a song's menu: that it is the clean version, plays
+ * as one, was let past the explicit filter, or is blocked by it.
+ */
+private fun desktopSongNotes(song: Song, policy: com.music.bitchord.playback.ExplicitPolicy): List<String> = buildList {
+    if (com.music.bitchord.playback.CleanVersions.isCleanUpload(song)) {
+        add(DesktopStrings["d_song_note_clean_upload", "Clean version from a YouTube clean edit, shown as the song"])
+    } else if (com.music.bitchord.playback.CleanVersions.isCleanRelease(song)) {
+        add(DesktopStrings["d_song_note_clean_release", "Clean version of an explicit song"])
+    }
+    if (policy.mode == ExplicitFilterMode.OFF || !ExplicitFilter.isExplicit(song, policy)) return@buildList
+    if (song.isExplicit != true) add(DesktopStrings["d_song_note_explicit_by_lyrics", "Marked explicit by its lyrics"])
+    when {
+        ExplicitFilter.isAllowedBySong(song, policy.allowed) ->
+            add(DesktopStrings["d_song_note_allowed", "Explicit · you allowed it past the filter"])
+        song.desktopExplicitSwapsToClean() ->
+            add(DesktopStrings["d_song_note_swaps_clean", "Explicit · plays as its clean version"])
+        song.desktopExplicitBlocked() ->
+            add(DesktopStrings["d_song_note_blocked", "Explicit · blocked by your filter"])
+    }
 }
 
 /** One menu row. */

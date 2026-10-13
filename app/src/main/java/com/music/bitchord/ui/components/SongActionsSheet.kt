@@ -1,5 +1,7 @@
 package com.music.bitchord.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.rounded.Info
 import com.music.bitchord.R
 
 import android.net.Uri
@@ -204,6 +206,13 @@ fun SongActionsSheet(
      * held row itself above them.
      */
     presentation: SongActionsPresentation = SongActionsPresentation.Sheet,
+    /**
+     * What's worth knowing about this copy of the song before acting on it —
+     * that it is the clean version, that it plays as one, that it was let past
+     * the explicit filter, that it was a music video. Shown above the actions;
+     * nothing shows when empty.
+     */
+    notes: List<String> = emptyList(),
 ) {
     var pickingSleepTimer by remember { mutableStateOf(false) }
     val menu = presentation == SongActionsPresentation.Menu
@@ -227,6 +236,10 @@ fun SongActionsSheet(
     val isOffline = song.localUri != null
 
     val rows: @Composable ColumnScope.() -> Unit = {
+        if (notes.isNotEmpty()) {
+            SongNotes(notes, menu)
+            GroupSeparator(palette)
+        }
         // Leads the list whenever it's available: which recording is playing
         // is the one question that has to be answered before any of the rows
         // below mean anything — there is no point rating, queueing or
@@ -789,6 +802,31 @@ private fun sleepTimerCountdown(): String? {
     return remaining?.let {
         val seconds = it / 1000
         "%d:%02d".format(Locale.ROOT, seconds / 60, seconds % 60)
+    }
+}
+
+/** [notes] — see the sheet's parameter of that name — one per line, each with an info mark. */
+@Composable
+private fun SongNotes(notes: List<String>, menu: Boolean) {
+    val color = if (menu) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = if (menu) 18.dp else 22.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        notes.forEach { note ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Rounded.Info,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(note, style = MaterialTheme.typography.bodySmall, color = color)
+            }
+        }
     }
 }
 

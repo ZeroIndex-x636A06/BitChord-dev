@@ -323,6 +323,23 @@ object CleanVersions {
         )
     }
 
+    /** Whether [video]'s title says it is a clean edit ("Clean Version", "Radio Edit", "Censored"). */
+    fun saysClean(video: Song): Boolean = SAYS_CLEAN.containsMatchIn(video.title)
+
+    /**
+     * The clean song for [upload], a video that says it is a clean edit of
+     * [explicit]: YouTube Music's clean release of it when there is one;
+     * otherwise [upload] itself, kept from now on as [explicit]'s clean audio
+     * version ([asAudio]) — so the explicit song swaps to it elsewhere too.
+     */
+    suspend fun cleanFor(upload: Song, explicit: Song): Song {
+        find(explicit)?.takeIf { !isCleanUpload(it) }?.let { return it }
+        val video = rememberUpload(explicit, upload)
+        remember(explicit.videoId, video)
+        TrackLog.d(TAG, "clean version of '${explicit.title}': the upload '${upload.title}' it was played as", upload.videoId)
+        return present(video)
+    }
+
     /** [song], an uploaded clean edit, as itself: the video's own title, channel and thumbnail. */
     fun asVideo(song: Song): Song? = uploadVideos[song.videoId]?.let { video ->
         song.copy(
@@ -705,6 +722,8 @@ object CleanVersions {
     }
 
     private const val TAG = "BitChord"
+
+    private val SAYS_CLEAN = Regex("""\b(?:clean|edited|radio edit|censored)\b""", RegexOption.IGNORE_CASE)
 
     /** Bumped when the lookup changes in a way that could now find what it missed. */
     private const val LOOKUP_VERSION = 4

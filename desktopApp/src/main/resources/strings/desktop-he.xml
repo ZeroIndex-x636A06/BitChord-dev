@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">נגן גרסה נקייה</string>
     <string name="d_looking_for_clean_version">מחפש גרסה נקייה…</string>
     <string name="d_no_clean_version_found">לא נמצאה גרסה נקייה.</string>
+    <string name="d_song_note_clean_upload">גרסה נקייה מעריכה נקייה ביוטיוב, מוצגת כשיר</string>
+    <string name="d_song_note_clean_release">גרסה נקייה של שיר בוטה</string>
+    <string name="d_song_note_swaps_clean">בוטה · מתנגן בגרסה הנקייה</string>
+    <string name="d_song_note_allowed">בוטה · אישרת אותו למרות המסנן</string>
+    <string name="d_song_note_blocked">בוטה · נחסם על ידי המסנן שלך</string>
+    <string name="d_song_note_explicit_by_lyrics">סומן כבוטה לפי המילים</string>
 </resources>

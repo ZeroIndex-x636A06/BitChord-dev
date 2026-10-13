@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">Riproduci versione clean</string>
     <string name="d_looking_for_clean_version">Ricerca di una versione clean…</string>
     <string name="d_no_clean_version_found">Nessuna versione clean trovata.</string>
+    <string name="d_song_note_clean_upload">Versione pulita da un edit pulito di YouTube, mostrata come il brano</string>
+    <string name="d_song_note_clean_release">Versione pulita di un brano esplicito</string>
+    <string name="d_song_note_swaps_clean">Esplicito · viene riprodotto nella versione pulita</string>
+    <string name="d_song_note_allowed">Esplicito · lo hai lasciato passare il filtro</string>
+    <string name="d_song_note_blocked">Esplicito · bloccato dal tuo filtro</string>
+    <string name="d_song_note_explicit_by_lyrics">Segnato come esplicito dal testo</string>
 </resources>
