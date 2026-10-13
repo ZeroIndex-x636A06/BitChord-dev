@@ -1,5 +1,7 @@
-click 637 148 3
-shot album-play
-click 1375 51 2
-shot album-play-queue
-grep -n "explicit:" $HOME/app.log | tail -5
+click 1418 98 1
+click 67 108 4
+hover 1300 660 1
+shot home-hover
+for i in $(seq 1 12); do xdotool click 7; sleep 0.1; done
+sleep 1
+shot home-qp-right
