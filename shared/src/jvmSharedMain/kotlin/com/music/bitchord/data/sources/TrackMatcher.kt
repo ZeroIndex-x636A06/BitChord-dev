@@ -85,12 +85,21 @@ object TrackMatcher {
         // is the credit, not the title.
         val tail = title.substring(dash.range.last + 1)
             .replace(Regex("""\s+(?:feat\.?|ft\.?|featuring)\s.*$""", RegexOption.IGNORE_CASE), "")
+            // And the upload's own labels — "(Clean Version & Lyrics)" — aren't
+            // part of the song's name; whether it's clean is read off the
+            // whole title elsewhere.
+            .replace(UPLOAD_LABEL, " ")
             .trim()
         if (head.isBlank() || tail.isBlank()) return null
         val channel = song.artist.removeSuffix(" - Topic").trim()
         if (isArtistName(normalize(head), channel)) return null
         return targetOf(song).copy(title = tail, artist = head)
     }
+
+    private val UPLOAD_LABEL = Regex(
+        """\s*[(\[][^)\]]*\b(?:lyrics?|clean|official|audio|video|visuali[sz]er)\b[^)\]]*[)\]]""",
+        RegexOption.IGNORE_CASE,
+    )
 
     // ── Asking ──────────────────────────────────────────────────────────────
 
