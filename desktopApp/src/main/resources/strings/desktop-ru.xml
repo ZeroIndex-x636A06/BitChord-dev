@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">Включить чистую версию</string>
     <string name="d_looking_for_clean_version">Поиск чистой версии…</string>
     <string name="d_no_clean_version_found">Чистая версия не найдена.</string>
+    <string name="d_song_note_clean_upload">Чистая версия из чистой правки на YouTube, показана как трек</string>
+    <string name="d_song_note_clean_release">Чистая версия трека с ненормативной лексикой</string>
+    <string name="d_song_note_swaps_clean">С ненормативной лексикой · играет чистая версия</string>
+    <string name="d_song_note_allowed">С ненормативной лексикой · вы разрешили его в обход фильтра</string>
+    <string name="d_song_note_blocked">С ненормативной лексикой · заблокирован фильтром</string>
+    <string name="d_song_note_explicit_by_lyrics">Отмечен как откровенный по тексту</string>
 </resources>

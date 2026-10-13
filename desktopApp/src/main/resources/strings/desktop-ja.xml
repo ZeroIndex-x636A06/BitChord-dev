@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">クリーン版を再生</string>
     <string name="d_looking_for_clean_version">クリーン版を検索中…</string>
     <string name="d_no_clean_version_found">クリーン版が見つかりませんでした。</string>
+    <string name="d_song_note_clean_upload">YouTube のクリーン編集版から作ったクリーン版（曲として表示）</string>
+    <string name="d_song_note_clean_release">露骨な表現を含む曲のクリーン版</string>
+    <string name="d_song_note_swaps_clean">露骨な表現 · クリーン版で再生</string>
+    <string name="d_song_note_allowed">露骨な表現 · フィルターを通過するよう許可済み</string>
+    <string name="d_song_note_blocked">露骨な表現 · フィルターでブロック中</string>
+    <string name="d_song_note_explicit_by_lyrics">歌詞により露骨な表現と判定</string>
 </resources>

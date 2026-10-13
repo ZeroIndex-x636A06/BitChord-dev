@@ -1302,4 +1302,11 @@
     <string name="play_clean_version">Putar versi bersih</string>
     <string name="looking_for_clean_version">Mencari versi bersih…</string>
     <string name="no_clean_version_found">Versi bersih tidak ditemukan.</string>
+    <string name="song_note_clean_upload">Versi bersih dari editan bersih YouTube, ditampilkan sebagai lagunya</string>
+    <string name="song_note_clean_release">Versi bersih dari lagu eksplisit</string>
+    <string name="song_note_swaps_clean">Eksplisit · diputar dalam versi bersihnya</string>
+    <string name="song_note_allowed">Eksplisit · kamu izinkan melewati filter</string>
+    <string name="song_note_blocked">Eksplisit · diblokir oleh filtermu</string>
+    <string name="song_note_explicit_by_lyrics">Ditandai eksplisit berdasarkan liriknya</string>
+    <string name="song_note_from_video">Versi lagu dari video musik</string>
 </resources>

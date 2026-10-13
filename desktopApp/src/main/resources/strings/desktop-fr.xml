@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">Lire la version non explicite</string>
     <string name="d_looking_for_clean_version">Recherche d’une version non explicite…</string>
     <string name="d_no_clean_version_found">Aucune version non explicite trouvée.</string>
+    <string name="d_song_note_clean_upload">Version propre issue d’un montage propre YouTube, affichée comme le titre</string>
+    <string name="d_song_note_clean_release">Version propre d’un titre explicite</string>
+    <string name="d_song_note_swaps_clean">Explicite · lu dans sa version propre</string>
+    <string name="d_song_note_allowed">Explicite · autorisé par vous malgré le filtre</string>
+    <string name="d_song_note_blocked">Explicite · bloqué par votre filtre</string>
+    <string name="d_song_note_explicit_by_lyrics">Marqué explicite d’après ses paroles</string>
 </resources>

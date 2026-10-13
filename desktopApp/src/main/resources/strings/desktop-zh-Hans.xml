@@ -119,4 +119,10 @@
     <string name="d_play_clean_version">播放净化版</string>
     <string name="d_looking_for_clean_version">正在查找净化版…</string>
     <string name="d_no_clean_version_found">未找到净化版。</string>
+    <string name="d_song_note_clean_upload">来自 YouTube 净化剪辑的净化版，以歌曲形式显示</string>
+    <string name="d_song_note_clean_release">露骨歌曲的净化版</string>
+    <string name="d_song_note_swaps_clean">露骨 · 以净化版播放</string>
+    <string name="d_song_note_allowed">露骨 · 你已允许其通过过滤</string>
+    <string name="d_song_note_blocked">露骨 · 已被你的过滤器屏蔽</string>
+    <string name="d_song_note_explicit_by_lyrics">因歌词被标记为露骨</string>
 </resources>

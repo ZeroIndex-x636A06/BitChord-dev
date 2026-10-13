@@ -405,6 +405,21 @@ object YtMusicRepository {
         // An uploaded clean edit's "audio" is itself, dressed as the song —
         // never the catalogue's song, which is the explicit original.
         com.music.bitchord.playback.CleanVersions.asAudio(song)?.let { return it }
+        val audio = matchAudio(song)
+        // A video that says it is a clean edit ("99 Problems (Clean Version)")
+        // becomes the clean song, never the explicit one it matched: YouTube
+        // Music's clean release when there is one, else this upload as the
+        // song's clean audio version.
+        if (audio.videoId != song.videoId && audio.isExplicit == true &&
+            com.music.bitchord.playback.CleanVersions.saysClean(song)
+        ) {
+            return com.music.bitchord.playback.CleanVersions.cleanFor(song, audio)
+        }
+        return audio
+    }
+
+    /** The catalogue song [song], a video, is of — or [song] itself when there's none. */
+    private suspend fun matchAudio(song: Song): Song {
         audioVersionCache[song.videoId]?.let { return it }
         val target = TrackMatcher.targetOf(song)
         for (query in TrackMatcher.queries(target)) {

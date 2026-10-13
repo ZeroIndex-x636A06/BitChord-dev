@@ -1259,6 +1259,13 @@ private fun BitChordApp(
 
             // The original MediaItem was never removed, so failure only needs
             // to release the loading state and resume it immediately.
+            // A clean edit uploaded as a video became its own clean audio
+            // version just now — see [YtMusicRepository.resolveAudio].
+            if (audio != null && audio.videoId == song.videoId && !audio.isVideo && stillCurrent) {
+                c.restyleCurrent(audio)
+                if (resumeAfterResolution) c.play()
+                return
+            }
             if (audio == null || audio.videoId == song.videoId) {
                 TrackLog.w("Player", "audio switch found no distinct official song", song.videoId)
                 if (stillCurrent && resumeAfterResolution) c.play()
@@ -4567,6 +4574,7 @@ private fun BitChordApp(
                     null
                 },
                 explicitAllowed = ExplicitFilter.isAllowedBySong(song, explicitPolicy.allowed),
+                notes = songNotes(song, explicitPolicy),
                 // Stays open: the row it replaces itself with is the
                 // progress, and closing the sheet would hide the only
                 // answer to "did that work?".
@@ -5939,3 +5947,30 @@ private data class ExplicitPrompt(
     val playClean: ((Song) -> Unit)? = null,
     val noCleanVersion: Boolean = false,
 )
+
+/**
+ * The notes at the top of a song's menu — what's worth knowing about this copy
+ * of the song before acting on it: that it is the clean version (and from
+ * where), plays as one, was let past the explicit filter or is blocked by it,
+ * was marked explicit by its lyrics, or is the song a music video became.
+ */
+@Composable
+private fun songNotes(song: Song, policy: com.music.bitchord.playback.ExplicitPolicy): List<String> {
+    val notes = mutableListOf<String>()
+    val cleanUpload = CleanVersions.isCleanUpload(song)
+    if (cleanUpload) {
+        notes += stringResource(R.string.song_note_clean_upload)
+    } else if (CleanVersions.isCleanRelease(song)) {
+        notes += stringResource(R.string.song_note_clean_release)
+    }
+    if (policy.mode != ExplicitFilterMode.OFF && ExplicitFilter.isExplicit(song, policy)) {
+        if (song.isExplicit != true) notes += stringResource(R.string.song_note_explicit_by_lyrics)
+        when {
+            ExplicitFilter.isAllowedBySong(song, policy.allowed) -> notes += stringResource(R.string.song_note_allowed)
+            song.explicitSwapsToClean() -> notes += stringResource(R.string.song_note_swaps_clean)
+            song.explicitBlocked() -> notes += stringResource(R.string.song_note_blocked)
+        }
+    }
+    if (song.isVideoOrigin && !song.isVideo && !cleanUpload) notes += stringResource(R.string.song_note_from_video)
+    return notes
+}
