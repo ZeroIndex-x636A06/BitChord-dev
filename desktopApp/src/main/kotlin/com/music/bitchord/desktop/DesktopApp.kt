@@ -1653,6 +1653,25 @@ fun BitChordDesktopApp() {
         playbackEngine.pause()
         partySync.onLocalIntent()
     }
+    // "Block explicit songs" (#720): blocked songs after the current one are removed, and a
+    // blocked current song is skipped, or paused when nothing follows it. Not in a party, whose
+    // queue is everyone's.
+    val blockExplicit by DesktopExplicit.enabled.collectAsState()
+    val explicitAllowed by DesktopExplicit.allowed.collectAsState()
+    LaunchedEffect(blockExplicit, explicitAllowed, liveQueue.current?.videoId) {
+        if (!blockExplicit || DesktopListenTogether.state.value.inParty) return@LaunchedEffect
+        val queue = liveQueue
+        val kept = queue.songs.filterIndexed { at, song -> at <= queue.index || !DesktopExplicit.blocks(song) }
+        if (kept.size != queue.songs.size) {
+            liveQueue = queue.copy(songs = kept)
+            saveQueue()
+        }
+        val current = liveQueue.current ?: return@LaunchedEffect
+        if (!DesktopExplicit.blocks(current)) return@LaunchedEffect
+        DesktopTrackLog.log("explicit: '${current.title}' is blocked; ${if (liveQueue.hasNext) "skipping" else "pausing"}")
+        DesktopPlayerHost.showMessage(DesktopStrings["d_explicit_song_skipped", "Explicit song skipped"])
+        if (liveQueue.hasNext) playNext() else pauseFromUser()
+    }
     val mprisController = remember(playbackEngine) {
         DesktopMprisController(
             onPlay = ::playFromUser,
@@ -6016,6 +6035,16 @@ private fun DesktopSettingsScreen(
                         DesktopStrings["d_autoplay_wont_suggest_a_song_already_played_or_suggested", "AutoPlay won\u2019t suggest a song already played or suggested this session"],
                         dontRepeatSuggestions,
                         onDontRepeatSuggestionsChange,
+                    )
+                    val blockExplicit by DesktopExplicit.enabled.collectAsState()
+                    SettingsToggle(
+                        DesktopStrings["d_block_explicit_songs", "Block explicit songs"],
+                        DesktopStrings[
+                            "d_block_explicit_songs_subtitle",
+                            "Skip songs marked explicit in AutoPlay, radio and your queue. Allow one from its menu",
+                        ],
+                        blockExplicit,
+                        DesktopExplicit::setEnabled,
                     )
                     SettingsToggle(
                         DesktopStrings["d_tray_icon", "Tray icon"],

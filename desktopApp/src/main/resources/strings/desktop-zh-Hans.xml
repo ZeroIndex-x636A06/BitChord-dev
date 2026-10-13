@@ -89,4 +89,9 @@
     <string name="d_translation_unavailable">无法翻译</string>
     <string name="d_what_the_translate_button_translates_into">歌词翻译按钮翻译成的语言</string>
     <string name="d_off">关闭</string>
+    <string name="d_block_explicit_songs">屏蔽露骨歌曲</string>
+    <string name="d_block_explicit_songs_subtitle">在自动播放、电台和播放队列中跳过标记为露骨的歌曲。可在歌曲菜单中单独允许</string>
+    <string name="d_allow_this_explicit_song">允许这首露骨歌曲</string>
+    <string name="d_block_this_explicit_song_again">重新屏蔽这首露骨歌曲</string>
+    <string name="d_explicit_song_skipped">已跳过露骨歌曲</string>
 </resources>
