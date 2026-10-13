@@ -10,7 +10,10 @@ import com.music.bitchord.data.model.Song
  */
 object ExplicitFilter {
     fun blocks(song: Song, enabled: Boolean, allowed: Set<String>): Boolean =
-        enabled && song.isExplicit == true && song.videoId !in allowed
+        blocks(song.isExplicit, song.videoId, enabled, allowed)
+
+    fun blocks(isExplicit: Boolean?, videoId: String?, enabled: Boolean, allowed: Set<String>): Boolean =
+        enabled && isExplicit == true && videoId != null && videoId !in allowed
 
     fun filter(songs: List<Song>, enabled: Boolean, allowed: Set<String>): List<Song> =
         if (!enabled) songs else songs.filterNot { blocks(it, enabled, allowed) }

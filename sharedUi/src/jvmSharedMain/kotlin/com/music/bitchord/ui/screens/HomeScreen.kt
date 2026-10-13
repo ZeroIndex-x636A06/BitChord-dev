@@ -1,5 +1,9 @@
 package com.music.bitchord.ui.screens
 
+import androidx.compose.ui.draw.alpha
+import com.music.bitchord.ui.components.rememberExplicitBlocked
+import com.music.bitchord.ui.components.explicitGatedClick
+import com.music.bitchord.ui.components.BLOCKED_ROW_ALPHA
 import com.music.bitchord.ui.components.contextClick
 import com.music.bitchord.ui.AppUi
 import com.music.bitchord.sharedui.resources.*
@@ -412,15 +416,17 @@ private fun RecentTrackRow(
     onLongPress: (() -> Unit)?,
     isCurrent: Boolean,
     isPlaying: Boolean,
+    explicitBlocked: Boolean = rememberExplicitBlocked(item),
 ) {
     CompactTrackRow(
         title = item.title,
         subtitle = item.subtitle,
         thumbnailUrl = item.thumbnailUrl,
-        onClick = onClick,
+        onClick = explicitGatedClick(item, explicitBlocked, onClick),
         onLongPress = onLongPress,
         isCurrent = isCurrent,
         isPlaying = isPlaying,
+        explicitBlocked = explicitBlocked,
     )
 }
 
@@ -438,10 +444,13 @@ fun CompactTrackRow(
     onLongPress: (() -> Unit)?,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    /** Greys the row out; see [rememberExplicitBlocked]. */
+    explicitBlocked: Boolean = false,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onLongPress)
             .padding(vertical = 4.dp),
@@ -782,14 +791,16 @@ private fun HeroCard(
     modifier: Modifier = Modifier,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    explicitBlocked: Boolean = rememberExplicitBlocked(item),
 ) {
     Box(
         modifier = modifier
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .aspectRatio(HERO_CARD_RATIO)
             .clip(RoundedCornerShape(18.dp))
             .thumbnailBorder(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(onClick = explicitGatedClick(item, explicitBlocked, onClick), onLongClick = onLongPress)
             .contextClick(onLongPress),
     ) {
         AsyncImage(
@@ -971,10 +982,12 @@ internal fun ShelfCard(
     isPinned: Boolean = false,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    explicitBlocked: Boolean = rememberExplicitBlocked(item),
 ) {
     Column(
         modifier = modifier
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
+            .longPressMenuClickable(onClick = explicitGatedClick(item, explicitBlocked, onClick), onLongClick = onLongPress)
             .contextClick(onLongPress),
     ) {
         when (item.browseId) {
