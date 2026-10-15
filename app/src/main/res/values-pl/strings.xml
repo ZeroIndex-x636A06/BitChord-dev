@@ -250,6 +250,10 @@
     <string name="explicit_song_blocked_message">„%1$s” jest oznaczony jako dla dorosłych i Twój filtr go blokuje.</string>
     <string name="allow_this_song">Zezwól na ten utwór</string>
     <string name="turn_off_blocking">Wyłącz blokowanie</string>
+    <string name="play_clean_versions">Odtwarzaj zamiast tego czyste wersje</string>
+    <string name="play_clean_versions_subtitle">Jeśli zablokowany utwór ma czystą wersję, zostanie odtworzona ona</string>
+    <string name="no_clean_version_found">Nie znaleziono czystej wersji.</string>
+    <string name="clean_version">Czysta wersja</string>
     <string name="download_quality_subtitle">%1$s na utwór, niezależnie od połączenia</string>
     <string name="filter_non_music_audio">Filtruj dźwięk inny niż muzyka</string>
     <string name="filter_non_music_audio_subtitle">Ukrywa klipy krótsze niż 30 sekund, pliki WAV, notatki głosowe, nagrania i dźwięki systemowe</string>

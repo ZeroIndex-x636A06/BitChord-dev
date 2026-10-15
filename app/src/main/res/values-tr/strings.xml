@@ -277,6 +277,10 @@
     <string name="explicit_song_blocked_message">“%1$s” müstehcen olarak işaretli ve filtreniz onu engelliyor.</string>
     <string name="allow_this_song">Bu şarkıya izin ver</string>
     <string name="turn_off_blocking">Engellemeyi kapat</string>
+    <string name="play_clean_versions">Bunun yerine temiz sürümleri çal</string>
+    <string name="play_clean_versions_subtitle">Engellenen bir şarkının temiz sürümü varsa onun yerine o çalınır</string>
+    <string name="no_clean_version_found">Temiz sürüm bulunamadı.</string>
+    <string name="clean_version">Temiz sürüm</string>
     <string name="download_quality_subtitle">Bağlantı ne olursa olsun parça başına %1$s</string>
     <string name="filter_non_music_audio">Müzik olmayan sesleri filtrele</string>
     <string name="filter_non_music_audio_subtitle">30 saniyeden kısa klipleri, WAV dosyalarını, sesli notları, kayıtları ve sistem seslerini gizler</string>

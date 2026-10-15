@@ -386,6 +386,10 @@
     <string name="explicit_song_blocked_message">“%1$s” is marked explicit and your filter is blocking it.</string>
     <string name="allow_this_song">Allow this song</string>
     <string name="turn_off_blocking">Turn off blocking</string>
+    <string name="play_clean_versions">Play clean versions instead</string>
+    <string name="play_clean_versions_subtitle">When a blocked song has a clean version, play that instead</string>
+    <string name="no_clean_version_found">No clean version was found.</string>
+    <string name="clean_version">Clean version</string>
     <string name="download_quality_subtitle">%1$s per track, whatever the connection</string>
     <string name="filter_non_music_audio">Filter non-music audio</string>
     <string name="filter_non_music_audio_subtitle">Hides clips under 30 seconds, WAV files, voice notes, recordings and system sounds</string>

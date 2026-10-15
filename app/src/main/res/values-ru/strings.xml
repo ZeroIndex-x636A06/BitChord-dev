@@ -262,6 +262,10 @@
     <string name="explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
     <string name="allow_this_song">Разрешить эту песню</string>
     <string name="turn_off_blocking">Отключить блокировку</string>
+    <string name="play_clean_versions">Включать чистые версии вместо них</string>
+    <string name="play_clean_versions_subtitle">Если у заблокированной песни есть чистая версия, будет играть она</string>
+    <string name="no_clean_version_found">Чистая версия не найдена.</string>
+    <string name="clean_version">Чистая версия</string>
     <string name="download_quality_subtitle">%1$s за трек, независимо от соединения</string>
     <string name="filter_non_music_audio">Фильтровать немузыкальное аудио</string>
     <string name="filter_non_music_audio_subtitle">Скрывает клипы короче 30 секунд, файлы WAV, голосовые заметки, записи и системные звуки</string>

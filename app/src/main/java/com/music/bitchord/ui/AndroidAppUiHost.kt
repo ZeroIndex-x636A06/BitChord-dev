@@ -18,6 +18,7 @@ object AndroidAppUiHost : AppUiHost {
     override val librarySort = AppSettings.librarySort
     override val blockExplicit = AppSettings.blockExplicit
     override val explicitAllowed = AppSettings.explicitAllowed
+    override val playCleanVersions = AppSettings.playCleanVersions
 
     /** The tapped blocked explicit song MainActivity's alert is asking about; null when none is. */
     val explicitPrompt = MutableStateFlow<ExplicitPrompt?>(null)

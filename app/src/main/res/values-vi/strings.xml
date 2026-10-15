@@ -284,6 +284,10 @@
     <string name="explicit_song_blocked_message">“%1$s” được gắn nhãn nhạy cảm và bộ lọc của bạn đang chặn bài này.</string>
     <string name="allow_this_song">Cho phép bài hát này</string>
     <string name="turn_off_blocking">Tắt chặn</string>
+    <string name="play_clean_versions">Phát phiên bản sạch thay thế</string>
+    <string name="play_clean_versions_subtitle">Nếu bài hát bị chặn có phiên bản sạch, phiên bản đó sẽ được phát</string>
+    <string name="no_clean_version_found">Không tìm thấy phiên bản sạch.</string>
+    <string name="clean_version">Phiên bản sạch</string>
     <string name="download_quality_subtitle">%1$s mỗi bài, bất kể loại kết nối</string>
     <string name="filter_non_music_audio">Lọc âm thanh không phải nhạc</string>
     <string name="filter_non_music_audio_subtitle">Ẩn các đoạn âm thanh dưới 30 giây, tệp WAV, ghi âm giọng nói, bản thu âm và âm thanh hệ thống</string>

@@ -204,6 +204,9 @@ const val EXTRA_SWAP_MEDIA_ITEM = "bitchord.swap.media_item"
 /** How long the service may stay in the foreground, paused, while the watch plays. */
 private const val WATCH_SESSION_FOREGROUND_MS = 6 * 60 * 60 * 1000L
 
+/** How many songs ahead a blocked one is swapped for its clean version. */
+private const val CLEAN_SWAP_LOOKAHEAD = 3
+
 const val ACTION_TOGGLE_FAVORITE = "com.music.bitchord.action.TOGGLE_FAVORITE"
 
 /** Session command used by the media notification's and the 4×1 widget's Shuffle button. */
@@ -3090,10 +3093,13 @@ class PlaybackService : MediaLibraryService() {
     /**
      * "Block explicit songs": removes blocked songs from the rest of the queue,
      * and skips the playing one if it is blocked (or pauses at its start when
-     * nothing comes after it). Not in a party, where the queue is everyone's.
+     * nothing comes after it). With "Play clean versions instead" on, they are
+     * swapped for their clean versions instead ([swapBlockedForClean]). Not in a
+     * party, where the queue is everyone's.
      */
     private fun skipBlockedExplicit() {
         if (!AppSettings.blockExplicit.value || ListenTogether.state.value.inParty) return
+        if (AppSettings.playCleanVersions.value) return swapBlockedForClean()
         val exoPlayer = player ?: return
         val allowed = AppSettings.explicitAllowed.value
         fun MediaItem.blocked() = ExplicitFilter.blocks(toSong(), enabled = true, allowed = allowed)
@@ -3102,7 +3108,14 @@ class PlaybackService : MediaLibraryService() {
         }
         val current = exoPlayer.currentMediaItem ?: return
         if (!current.blocked()) return
-        Toast.makeText(applicationContext, R.string.explicit_song_skipped, Toast.LENGTH_SHORT).show()
+        skipBlockedCurrent(R.string.explicit_song_skipped)
+    }
+
+    /** Moves off the blocked playing song, or pauses at its start when nothing comes after it. */
+    private fun skipBlockedCurrent(message: Int) {
+        val exoPlayer = player ?: return
+        val current = exoPlayer.currentMediaItem ?: return
+        Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
         if (exoPlayer.hasNextMediaItem()) {
             TrackLog.d("BitChord", "explicit song blocked; skipping", current.mediaId)
             exoPlayer.seekToNextMediaItem()
@@ -3110,6 +3123,64 @@ class PlaybackService : MediaLibraryService() {
             TrackLog.d("BitChord", "explicit song blocked; pausing at its start", current.mediaId)
             exoPlayer.pause()
             exoPlayer.seekTo(0)
+        }
+    }
+
+    /**
+     * "Play clean versions instead": the blocked playing song and the blocked
+     * ones among the next [CLEAN_SWAP_LOOKAHEAD] are each swapped for their
+     * clean version ([swapToClean]). Ones further on wait until they get closer.
+     */
+    private fun swapBlockedForClean() {
+        val exoPlayer = player ?: return
+        val allowed = AppSettings.explicitAllowed.value
+        val currentIndex = exoPlayer.currentMediaItemIndex
+        val lastIndex = minOf(exoPlayer.mediaItemCount - 1, currentIndex + CLEAN_SWAP_LOOKAHEAD)
+        for (index in currentIndex..lastIndex) {
+            val song = exoPlayer.getMediaItemAt(index).toSong()
+            if (ExplicitFilter.blocks(song, enabled = true, allowed = allowed)) {
+                swapToClean(song, current = index == currentIndex)
+            }
+        }
+    }
+
+    /** Clean-version lookups under way, by video id, so a re-check doesn't start the same one twice. */
+    private val cleanLookups = HashMap<String, Job>()
+
+    /**
+     * Swaps [song] in the queue for its clean version once that is found. With
+     * none, the [current] song is skipped and an upcoming one removed. The
+     * current one is held paused while it is looked up, so not a word of the
+     * explicit version is heard. Found again by id when the answer comes back,
+     * since the queue may have moved on meanwhile.
+     */
+    private fun swapToClean(song: Song, current: Boolean) {
+        val exoPlayer = player ?: return
+        val wasPlaying = exoPlayer.playWhenReady
+        if (current) exoPlayer.pause()
+        if (cleanLookups[song.videoId]?.isActive == true) return
+        cleanLookups[song.videoId] = scope.launch {
+            val clean = CleanVersions.find(song)
+            val active = player ?: return@launch
+            val index = (active.currentMediaItemIndex until active.mediaItemCount)
+                .firstOrNull { active.getMediaItemAt(it).mediaId == song.videoId } ?: return@launch
+            val isCurrent = index == active.currentMediaItemIndex
+            when {
+                clean != null -> {
+                    TrackLog.d("BitChord", "explicit song swapped for its clean version", clean.videoId)
+                    val standIn = active.getMediaItemAt(index).toSong().cleanStandIn(clean)
+                    active.replaceMediaItem(index, standIn.toMediaItem())
+                    if (isCurrent) {
+                        active.seekTo(index, 0)
+                        if (wasPlaying) active.play()
+                    }
+                }
+                isCurrent -> {
+                    skipBlockedCurrent(R.string.no_clean_version_found)
+                    if (wasPlaying && active.currentMediaItemIndex != index) active.play()
+                }
+                else -> active.removeMediaItem(index)
+            }
         }
     }
 
@@ -6606,8 +6677,12 @@ class PlaybackService : MediaLibraryService() {
             AppSettings.skipSilence.collect { on -> eachPlayer { it.skipSilenceEnabled = on } }
         }
         scope.launch {
-            // Turning blocking on, or un-allowing a song, applies to the queue already lined up.
-            combine(AppSettings.blockExplicit, AppSettings.explicitAllowed) { _, _ -> }
+            // Turning blocking or clean versions on, or un-allowing a song, applies to the queue already lined up.
+            combine(
+                AppSettings.blockExplicit,
+                AppSettings.explicitAllowed,
+                AppSettings.playCleanVersions,
+            ) { _, _, _ -> }
                 .drop(1)
                 .collect { skipBlockedExplicit() }
         }

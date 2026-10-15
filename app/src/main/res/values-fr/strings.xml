@@ -253,6 +253,10 @@
     <string name="explicit_song_blocked_message">« %1$s » est marqué explicite et votre filtre le bloque.</string>
     <string name="allow_this_song">Autoriser ce titre</string>
     <string name="turn_off_blocking">Désactiver le blocage</string>
+    <string name="play_clean_versions">Lire plutôt les versions non explicites</string>
+    <string name="play_clean_versions_subtitle">Si un titre bloqué a une version non explicite, elle est lue à la place</string>
+    <string name="no_clean_version_found">Aucune version non explicite trouvée.</string>
+    <string name="clean_version">Version non explicite</string>
     <string name="download_quality_subtitle">%1$s par piste, quelle que soit la connexion</string>
     <string name="filter_non_music_audio">Filtrer l\'audio non musical</string>
     <string name="filter_non_music_audio_subtitle">Masque les extraits de moins de 30 secondes, les fichiers WAV, les notes vocales, les enregistrements et les sons système</string>

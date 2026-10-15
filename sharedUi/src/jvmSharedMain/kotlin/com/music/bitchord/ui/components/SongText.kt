@@ -78,7 +78,9 @@ fun ExplicitTitle(
 /**
  * The explicit mark, as Apple Music draws it: a filled tile with the E cut
  * out of it, so whatever sits behind — a list row, the player's artwork —
- * shows through the letter. Used everywhere a track is marked explicit.
+ * shows through the letter. Used everywhere a track is marked explicit. While
+ * explicit songs play their clean versions ([playsCleanVersions]) it is a C:
+ * the song will play clean.
  *
  * The cut-out is a real hole rather than the letter painted in a background
  * colour, which is why it draws into its own offscreen layer: DstOut can then
@@ -88,7 +90,8 @@ fun ExplicitTitle(
 fun ExplicitBadge(color: Color, modifier: Modifier = Modifier) {
     val measurer = rememberTextMeasurer()
     val style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-    val letter = remember(measurer, style) { measurer.measure("E", style) }
+    val mark = if (playsCleanVersions()) "C" else "E"
+    val letter = remember(measurer, style, mark) { measurer.measure(mark, style) }
     // Same footprint the outlined badge had — the letter's line box plus 3dp
     // a side — so no row shifts.
     val size = with(LocalDensity.current) {

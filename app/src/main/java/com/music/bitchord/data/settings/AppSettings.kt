@@ -399,6 +399,9 @@ object AppSettings {
     /** Video ids of explicit songs let through [blockExplicit] anyway, from the song menu or its prompt. */
     val explicitAllowed = MutableStateFlow<Set<String>>(emptySet())
 
+    /** With [blockExplicit] on, play a blocked song's clean version instead of skipping it, when one exists. */
+    val playCleanVersions = MutableStateFlow(false)
+
     /**
      * Prefer the catalogue audio release when the selected result is a music
      * video. The video itself is still handed to the player first so its
@@ -878,6 +881,7 @@ object AppSettings {
         dontRepeatSuggestions.value = prefs.getBoolean(KEY_DONT_REPEAT_SUGGESTIONS, false)
         blockExplicit.value = prefs.getBoolean(KEY_BLOCK_EXPLICIT, false)
         explicitAllowed.value = prefs.getStringSet(KEY_EXPLICIT_ALLOWED, null)?.toSet().orEmpty()
+        playCleanVersions.value = prefs.getBoolean(KEY_PLAY_CLEAN_VERSIONS, false)
         preferMusicOnly.value = prefs.getBoolean(KEY_PREFER_MUSIC_ONLY, false)
         smartVersionAlignment.value = prefs.getBoolean(KEY_SMART_VERSION_ALIGNMENT, true)
         reduceDynamicBlur.value = prefs.getBoolean(KEY_REDUCE_BLUR, false)
@@ -1284,6 +1288,11 @@ object AppSettings {
         val next = if (allowed) explicitAllowed.value + videoId else explicitAllowed.value - videoId
         explicitAllowed.value = next
         prefs.edit().putStringSet(KEY_EXPLICIT_ALLOWED, HashSet(next)).apply()
+    }
+
+    fun setPlayCleanVersions(value: Boolean) {
+        playCleanVersions.value = value
+        prefs.edit().putBoolean(KEY_PLAY_CLEAN_VERSIONS, value).apply()
     }
 
     fun setPreferMusicOnly(value: Boolean) {
@@ -2052,6 +2061,7 @@ object AppSettings {
     private const val KEY_DONT_REPEAT_SUGGESTIONS = "dont_repeat_suggestions"
     private const val KEY_BLOCK_EXPLICIT = "block_explicit"
     private const val KEY_EXPLICIT_ALLOWED = "explicit_allowed"
+    private const val KEY_PLAY_CLEAN_VERSIONS = "play_clean_versions"
     private const val KEY_PREFER_MUSIC_ONLY = "prefer_music_only"
     private const val KEY_SMART_VERSION_ALIGNMENT = "smart_version_alignment"
     private const val KEY_REDUCE_BLUR = "reduce_dynamic_blur"

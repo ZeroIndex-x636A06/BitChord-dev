@@ -271,6 +271,10 @@
     <string name="explicit_song_blocked_message">“%1$s” ถูกทำเครื่องหมายว่าไม่เหมาะสมและตัวกรองของคุณกำลังบล็อกอยู่</string>
     <string name="allow_this_song">อนุญาตเพลงนี้</string>
     <string name="turn_off_blocking">ปิดการบล็อก</string>
+    <string name="play_clean_versions">เล่นเวอร์ชันคลีนแทน</string>
+    <string name="play_clean_versions_subtitle">หากเพลงที่ถูกบล็อกมีเวอร์ชันคลีน จะเล่นเวอร์ชันนั้นแทน</string>
+    <string name="no_clean_version_found">ไม่พบเวอร์ชันคลีน</string>
+    <string name="clean_version">เวอร์ชันคลีน</string>
     <string name="download_quality_subtitle">%1$s ต่อแทร็ก ไม่ว่าการเชื่อมต่อจะเป็นแบบใด</string>
     <string name="filter_non_music_audio">กรองเสียงที่ไม่ใช่เพลง</string>
     <string name="filter_non_music_audio_subtitle">ซ่อนคลิปสั้นกว่า 30 วินาที ไฟล์ WAV บันทึกเสียง การอัดเสียง และเสียงระบบ</string>

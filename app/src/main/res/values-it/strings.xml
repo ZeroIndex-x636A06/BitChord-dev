@@ -295,6 +295,10 @@
     <string name="explicit_song_blocked_message">«%1$s» è contrassegnato come esplicito e il tuo filtro lo blocca.</string>
     <string name="allow_this_song">Consenti questo brano</string>
     <string name="turn_off_blocking">Disattiva il blocco</string>
+    <string name="play_clean_versions">Riproduci invece le versioni clean</string>
+    <string name="play_clean_versions_subtitle">Se un brano bloccato ha una versione clean, viene riprodotta quella</string>
+    <string name="no_clean_version_found">Nessuna versione clean trovata.</string>
+    <string name="clean_version">Versione clean</string>
     <string name="download_quality_subtitle">%1$s per brano, indipendentemente dalla connessione</string>
     <string name="filter_non_music_audio">Filtra audio non musicale</string>
     <string name="filter_non_music_audio_subtitle">Nasconde clip sotto i 30 secondi, file WAV, note vocali, registrazioni e suoni di sistema</string>

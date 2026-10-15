@@ -181,6 +181,7 @@ import com.music.bitchord.ui.screens.SpotifyCanvasAuthScreen
 import com.music.bitchord.ui.screens.SpotifyLibraryScreen
 import com.music.bitchord.data.spotify.SPOTIFY_PAGE_PREFIX
 import com.music.bitchord.playback.AudioCache
+import com.music.bitchord.playback.CleanVersions
 import com.music.bitchord.playback.LinkRequest
 import com.music.bitchord.playback.MusicLink
 import com.music.bitchord.playback.OriginalVersion
@@ -4348,6 +4349,7 @@ private fun BitChordApp(
                 ?.takeIf { !fromPlayer && song.setVideoId != null }
             val blockExplicit by AppSettings.blockExplicit.collectAsStateWithLifecycle()
             val explicitAllowed by AppSettings.explicitAllowed.collectAsStateWithLifecycle()
+            val playClean by AppSettings.playCleanVersions.collectAsStateWithLifecycle()
             SongActionsSheet(
                 song = song,
                 presentation = presentation,
@@ -4356,12 +4358,15 @@ private fun BitChordApp(
                 onPlayNext = { playNext(song); songActions = null },
                 onAddToQueue = { addToQueue(song); songActions = null },
                 onStartRadio = { startRadio(song); songActions = null },
-                onToggleExplicitAllowed = if (blockExplicit && song.isExplicit == true) {
+                // With clean versions on there's nothing to allow: the song
+                // plays clean. Instead the menu says where that came from.
+                onToggleExplicitAllowed = if (blockExplicit && !playClean && song.isExplicit == true) {
                     { AppSettings.setExplicitAllowed(song.videoId, song.videoId !in explicitAllowed) }
                 } else {
                     null
                 },
                 explicitAllowed = song.videoId in explicitAllowed,
+                cleanVersionSource = CleanVersions.sourceOf(song.videoId)?.label?.takeIf { blockExplicit && playClean },
                 // Stays open: the row it replaces itself with is the
                 // progress, and closing the sheet would hide the only
                 // answer to "did that work?".

@@ -35,6 +35,9 @@ interface AppUiHost {
     /** Video ids of explicit songs allowed past [blockExplicit]. */
     val explicitAllowed: StateFlow<Set<String>>
 
+    /** "Play clean versions instead": blocked songs play their clean version rather than being skipped. */
+    val playCleanVersions: StateFlow<Boolean>
+
     /** Shows the app's alert for a tapped blocked explicit song. */
     fun askExplicitBlocked(prompt: ExplicitPrompt)
 

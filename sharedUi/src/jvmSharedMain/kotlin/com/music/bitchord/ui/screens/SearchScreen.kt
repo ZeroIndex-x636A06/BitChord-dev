@@ -16,6 +16,8 @@ import androidx.compose.foundation.clickable
 import com.music.bitchord.ui.components.explicitGatedClick
 import com.music.bitchord.ui.components.ExplicitSongTitle
 import com.music.bitchord.ui.components.isExplicitBlocked
+import com.music.bitchord.ui.components.playsCleanVersions
+import com.music.bitchord.playback.CleanEditions
 import com.music.bitchord.ui.components.longPressMenuClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -167,6 +169,7 @@ fun SearchScreen(
      */
     sourceSwitcher: (@Composable () -> Unit)? = null,
 ) {
+    val playsClean = playsCleanVersions()
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -326,7 +329,8 @@ fun SearchScreen(
                             )
                         }
                     }
-                    searchSections(results.data, filter).forEach { section ->
+                    val shownRows = if (playsClean) CleanEditions.searchRows(results.data) else results.data
+                    searchSections(shownRows, filter).forEach { section ->
                         section.title?.let { title ->
                             item(key = "search-section:$title") {
                                 Text(

@@ -37,6 +37,7 @@ import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Explicit
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.FileUpload
@@ -180,6 +181,11 @@ fun SongActionsSheet(
     onToggleExplicitAllowed: (() -> Unit)? = null,
     /** Whether the song is already allowed, so the row offers the other way. */
     explicitAllowed: Boolean = false,
+    /**
+     * Where this song's clean version came from ("YouTube Music", "YouTube"),
+     * while "Play clean versions instead" plays it. Null hides the row.
+     */
+    cleanVersionSource: String? = null,
     /**
      * Copies what the app logged while starting this track. Null everywhere
      * except the player, where "this track" means something.
@@ -361,6 +367,16 @@ fun SongActionsSheet(
                 label = stringResource(R.string.lyrics_offset),
                 accent = palette.accent,
                 onClick = it,
+            )
+        }
+        cleanVersionSource?.let { source ->
+            ActionRow(
+                icon = Icons.Rounded.Info,
+                label = stringResource(R.string.clean_version),
+                value = source,
+                accent = palette.accent,
+                enabled = false,
+                onClick = {},
             )
         }
         onToggleExplicitAllowed?.let {
