@@ -1,5 +1,5 @@
 click 1080 121
-typetext "explicit"
+key ctrl+a
+typetext "clean"
 pause 2
-click 1195 230 2
-shot block-on
+shot clean-search
