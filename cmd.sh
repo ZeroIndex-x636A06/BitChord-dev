@@ -1,2 +1,2 @@
-click 1410 51 2
-shot account-menu
+click 1120 255 3
+shot settings
