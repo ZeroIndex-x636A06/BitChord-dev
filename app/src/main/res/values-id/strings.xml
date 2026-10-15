@@ -247,6 +247,9 @@
     <string name="explicit_song_blocked_message">“%1$s” ditandai eksplisit dan diblokir oleh filter Anda.</string>
     <string name="allow_this_song">Izinkan lagu ini</string>
     <string name="turn_off_blocking">Matikan pemblokiran</string>
+    <string name="play_clean_versions">Putar versi bersih sebagai gantinya</string>
+    <string name="play_clean_versions_subtitle">Jika lagu yang diblokir punya versi bersih, versi itu yang diputar</string>
+    <string name="no_clean_version_found">Versi bersih tidak ditemukan.</string>
     <string name="download_quality_subtitle">%1$s per trek, apa pun koneksinya</string>
     <string name="filter_non_music_audio">Filter audio non-musik</string>
     <string name="filter_non_music_audio_subtitle">Menyembunyikan klip di bawah 30 detik, file WAV, catatan suara, rekaman, dan suara sistem</string>

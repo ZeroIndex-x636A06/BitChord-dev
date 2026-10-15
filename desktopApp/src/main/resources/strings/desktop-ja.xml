@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">「%1$s」は露骨な表現を含む曲として指定されており、フィルターでブロックされています。</string>
     <string name="d_turn_off_blocking">ブロックをオフにする</string>
     <string name="d_allow_this_song">この曲を許可</string>
+    <string name="d_play_clean_versions">代わりにクリーン版を再生</string>
+    <string name="d_play_clean_versions_subtitle">ブロックされた曲にクリーン版がある場合は、そちらを再生します</string>
+    <string name="d_no_clean_version_found">クリーン版が見つかりませんでした。</string>
 </resources>

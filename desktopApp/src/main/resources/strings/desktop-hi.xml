@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">“%1$s” स्पष्ट चिह्नित है और आपका फ़िल्टर इसे ब्लॉक कर रहा है।</string>
     <string name="d_turn_off_blocking">ब्लॉक करना बंद करें</string>
     <string name="d_allow_this_song">इस गाने की अनुमति दें</string>
+    <string name="d_play_clean_versions">इसके बजाय क्लीन वर्शन चलाएँ</string>
+    <string name="d_play_clean_versions_subtitle">अगर ब्लॉक किए गए गाने का क्लीन वर्शन है, तो वही चलेगा</string>
+    <string name="d_no_clean_version_found">कोई क्लीन वर्शन नहीं मिला।</string>
 </resources>

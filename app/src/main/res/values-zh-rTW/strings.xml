@@ -247,6 +247,9 @@
     <string name="explicit_song_blocked_message">「%1$s」被標記為露骨，你的過濾器正在封鎖它。</string>
     <string name="allow_this_song">允許這首歌曲</string>
     <string name="turn_off_blocking">關閉封鎖</string>
+    <string name="play_clean_versions">改為播放乾淨版</string>
+    <string name="play_clean_versions_subtitle">被封鎖的歌曲若有乾淨版，則改為播放乾淨版</string>
+    <string name="no_clean_version_found">找不到乾淨版。</string>
     <string name="download_quality_subtitle">無論何種網路連線，每首曲目均為%1$s</string>
     <string name="filter_non_music_audio">過濾非音樂音訊</string>
     <string name="filter_non_music_audio_subtitle">隱藏時長低於 30 秒的片段、WAV 檔案、語音備忘錄、錄音和系統提示音</string>

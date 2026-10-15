@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">“%1$s” müstehcen olarak işaretli ve filtreniz onu engelliyor.</string>
     <string name="d_turn_off_blocking">Engellemeyi kapat</string>
     <string name="d_allow_this_song">Bu şarkıya izin ver</string>
+    <string name="d_play_clean_versions">Bunun yerine temiz sürümleri çal</string>
+    <string name="d_play_clean_versions_subtitle">Engellenen bir şarkının temiz sürümü varsa onun yerine o çalınır</string>
+    <string name="d_no_clean_version_found">Temiz sürüm bulunamadı.</string>
 </resources>

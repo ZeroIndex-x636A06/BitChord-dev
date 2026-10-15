@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">«%1$s» è contrassegnato come esplicito e il tuo filtro lo blocca.</string>
     <string name="d_turn_off_blocking">Disattiva il blocco</string>
     <string name="d_allow_this_song">Consenti questo brano</string>
+    <string name="d_play_clean_versions">Riproduci invece le versioni clean</string>
+    <string name="d_play_clean_versions_subtitle">Se un brano bloccato ha una versione clean, viene riprodotta quella</string>
+    <string name="d_no_clean_version_found">Nessuna versione clean trovata.</string>
 </resources>

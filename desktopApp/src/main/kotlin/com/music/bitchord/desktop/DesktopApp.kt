@@ -37,6 +37,8 @@ import com.music.bitchord.ui.screens.LibraryScreen
 import com.music.bitchord.ui.screens.MoodGenrePlaylistsScreen
 import com.music.bitchord.ui.screens.SearchScreen
 import com.music.bitchord.data.NerdStats
+import com.music.bitchord.playback.CleanVersions
+import com.music.bitchord.playback.cleanStandIn
 import com.music.bitchord.playback.PlaybackPosition
 import com.music.bitchord.playback.QueueSource
 import com.music.bitchord.playback.QueueTimeline
@@ -1879,25 +1881,63 @@ fun BitChordDesktopApp() {
     }
     val playback by playbackEngine.state.collectAsState()
     // "Block explicit songs": blocked songs after the current one are removed, and a
-    // blocked current song is skipped, or paused when nothing follows it. Run again whenever
+    // blocked current song is skipped, or paused when nothing follows it. With "Play clean
+    // versions instead" on, both are swapped for their clean version instead (the upcoming
+    // ones a few at a time) and only skipped or removed when there is none. Run again whenever
     // playback starts, so pressing play on a song paused this way can't play it. Not in a
     // party, whose queue is everyone's.
     val blockExplicit by DesktopExplicit.enabled.collectAsState()
     val explicitAllowed by DesktopExplicit.allowed.collectAsState()
-    LaunchedEffect(blockExplicit, explicitAllowed, liveQueue.current?.videoId, playback.isPlaying) {
+    val playClean by DesktopExplicit.cleanVersions.collectAsState()
+    LaunchedEffect(blockExplicit, explicitAllowed, playClean, liveQueue.current?.videoId, playback.isPlaying) {
         if (!blockExplicit || DesktopListenTogether.state.value.inParty) return@LaunchedEffect
-        val queue = liveQueue
-        val kept = queue.songs.filterIndexed { at, song -> at <= queue.index || !DesktopExplicit.blocks(song) }
-        if (kept.size != queue.songs.size) {
-            liveQueue = queue.copy(songs = kept)
-            saveQueue()
+        fun skip(current: Song, message: String) {
+            val action = if (liveQueue.hasNext) "skipping" else "pausing"
+            DesktopTrackLog.log("explicit: '${current.title}' is blocked; $action")
+            DesktopPlayerHost.showMessage(message)
+            if (liveQueue.hasNext) playNext() else pauseFromUser()
+        }
+        if (!playClean) {
+            val queue = liveQueue
+            val kept = queue.songs.filterIndexed { at, song -> at <= queue.index || !DesktopExplicit.blocks(song) }
+            if (kept.size != queue.songs.size) {
+                liveQueue = queue.copy(songs = kept)
+                saveQueue()
+            }
+            val current = liveQueue.current ?: return@LaunchedEffect
+            if (DesktopExplicit.blocks(current)) {
+                skip(current, DesktopStrings["d_explicit_song_skipped", "Explicit song skipped"])
+            }
+            return@LaunchedEffect
         }
         val current = liveQueue.current ?: return@LaunchedEffect
-        if (!DesktopExplicit.blocks(current)) return@LaunchedEffect
-        val action = if (liveQueue.hasNext) "skipping" else "pausing"
-        DesktopTrackLog.log("explicit: '${current.title}' is blocked; $action")
-        DesktopPlayerHost.showMessage(DesktopStrings["d_explicit_song_skipped", "Explicit song skipped"])
-        if (liveQueue.hasNext) playNext() else pauseFromUser()
+        if (DesktopExplicit.blocks(current)) {
+            // Held paused while it is looked up, so not a word of the explicit version is heard.
+            pauseFromUser()
+            val clean = CleanVersions.find(current)
+            if (liveQueue.current?.videoId != current.videoId) return@LaunchedEffect
+            if (clean == null) {
+                skip(current, DesktopStrings["d_no_clean_version_found", "No clean version was found."])
+            } else {
+                DesktopTrackLog.log("explicit: '${current.title}' swapped for its clean version")
+                liveQueue = liveQueue.copy(
+                    songs = liveQueue.songs.toMutableList().also { it[liveQueue.index] = current.cleanStandIn(clean) },
+                )
+                playCurrent()
+            }
+            return@LaunchedEffect
+        }
+        val upcoming = liveQueue.songs.drop(liveQueue.index + 1).take(DesktopExplicit.CLEAN_SWAP_LOOKAHEAD)
+        for (song in upcoming.filter(DesktopExplicit::blocks)) {
+            val clean = CleanVersions.find(song)
+            val queue = liveQueue
+            val at = (queue.index + 1 until queue.songs.size)
+                .firstOrNull { queue.songs[it].videoId == song.videoId } ?: continue
+            val songs = queue.songs.toMutableList()
+            if (clean != null) songs[at] = song.cleanStandIn(clean) else songs.removeAt(at)
+            liveQueue = queue.copy(songs = songs)
+            saveQueue()
+        }
     }
 
     // The shared player reads the playhead off this one object, and only where it
@@ -6494,6 +6534,18 @@ private fun DesktopSettingsScreen(
                         blockExplicit,
                         DesktopExplicit::setEnabled,
                     )
+                    if (blockExplicit) {
+                        val playClean by DesktopExplicit.cleanVersions.collectAsState()
+                        SettingsToggle(
+                            DesktopStrings["d_play_clean_versions", "Play clean versions instead"],
+                            DesktopStrings[
+                                "d_play_clean_versions_subtitle",
+                                "When a blocked song has a clean version, play that instead",
+                            ],
+                            playClean,
+                            DesktopExplicit::setCleanVersions,
+                        )
+                    }
                     SettingsToggle(
                         DesktopStrings["d_tray_icon", "Tray icon"],
                         DesktopStrings[

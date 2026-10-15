@@ -15,6 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.music.bitchord.ui.components.explicitGatedClick
 import com.music.bitchord.ui.components.isExplicitBlocked
+import com.music.bitchord.ui.components.hidesExplicitEditions
+import com.music.bitchord.playback.CleanEditions
 import com.music.bitchord.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -149,6 +151,7 @@ fun HomeScreen(
     isPlaying: Boolean = false,
 ) {
     val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
+    val hideExplicitEditions = hidesExplicitEditions()
 
     PullToRefresh(
         refreshing = refreshing,
@@ -201,7 +204,7 @@ fun HomeScreen(
                     // Recently Played lands, every real shelf must retain its
                     // compact-card layout instead of briefly becoming a hero.
                     itemsIndexedShelves(
-                        shelves = state.data,
+                        shelves = if (hideExplicitEditions) CleanEditions.shelves(state.data) else state.data,
                         onItemClick = onItemClick,
                         onItemLongPress = onItemLongPress,
                         currentSong = currentSong,

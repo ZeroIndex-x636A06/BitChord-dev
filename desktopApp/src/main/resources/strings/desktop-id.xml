@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">“%1$s” ditandai eksplisit dan diblokir oleh filter Anda.</string>
     <string name="d_turn_off_blocking">Matikan pemblokiran</string>
     <string name="d_allow_this_song">Izinkan lagu ini</string>
+    <string name="d_play_clean_versions">Putar versi bersih sebagai gantinya</string>
+    <string name="d_play_clean_versions_subtitle">Jika lagu yang diblokir punya versi bersih, versi itu yang diputar</string>
+    <string name="d_no_clean_version_found">Versi bersih tidak ditemukan.</string>
 </resources>

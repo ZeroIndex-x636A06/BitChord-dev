@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">«%1$s» помечена как откровенная, и ваш фильтр её блокирует.</string>
     <string name="d_turn_off_blocking">Отключить блокировку</string>
     <string name="d_allow_this_song">Разрешить эту песню</string>
+    <string name="d_play_clean_versions">Включать чистые версии вместо них</string>
+    <string name="d_play_clean_versions_subtitle">Если у заблокированной песни есть чистая версия, будет играть она</string>
+    <string name="d_no_clean_version_found">Чистая версия не найдена.</string>
 </resources>

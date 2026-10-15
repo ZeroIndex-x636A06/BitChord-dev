@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">« %1$s » est marqué explicite et votre filtre le bloque.</string>
     <string name="d_turn_off_blocking">Désactiver le blocage</string>
     <string name="d_allow_this_song">Autoriser ce titre</string>
+    <string name="d_play_clean_versions">Lire plutôt les versions non explicites</string>
+    <string name="d_play_clean_versions_subtitle">Si un titre bloqué a une version non explicite, elle est lue à la place</string>
+    <string name="d_no_clean_version_found">Aucune version non explicite trouvée.</string>
 </resources>

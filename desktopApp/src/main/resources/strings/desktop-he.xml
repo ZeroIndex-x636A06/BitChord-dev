@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">״%1$s״ מסומן כבוטה והסינון שלכם חוסם אותו.</string>
     <string name="d_turn_off_blocking">כיבוי החסימה</string>
     <string name="d_allow_this_song">לאפשר את השיר הזה</string>
+    <string name="d_play_clean_versions">נגן גרסאות נקיות במקום</string>
+    <string name="d_play_clean_versions_subtitle">אם לשיר חסום יש גרסה נקייה, היא תנוגן במקומו</string>
+    <string name="d_no_clean_version_found">לא נמצאה גרסה נקייה.</string>
 </resources>

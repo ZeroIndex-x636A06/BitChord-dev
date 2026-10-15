@@ -25,12 +25,21 @@ internal object DesktopExplicit {
     )
     val allowed: StateFlow<Set<String>> = _allowed.asStateFlow()
 
+    /** "Play clean versions instead": a blocked song plays its clean version rather than being skipped. */
+    private val _cleanVersions = MutableStateFlow(persistence.boolean(KEY_CLEAN_VERSIONS, false))
+    val cleanVersions: StateFlow<Boolean> = _cleanVersions.asStateFlow()
+
     /** The tapped blocked explicit song the app's dialog is asking about; null when none is. */
     val prompt = MutableStateFlow<ExplicitPrompt?>(null)
 
     fun setEnabled(value: Boolean) {
         _enabled.value = value
         persistence.saveBoolean(KEY_ENABLED, value)
+    }
+
+    fun setCleanVersions(value: Boolean) {
+        _cleanVersions.value = value
+        persistence.saveBoolean(KEY_CLEAN_VERSIONS, value)
     }
 
     fun setAllowed(videoId: String, allowed: Boolean) {
@@ -44,4 +53,8 @@ internal object DesktopExplicit {
 
     private const val KEY_ENABLED = "block_explicit"
     private const val KEY_ALLOWED = "explicit_allowed"
+    private const val KEY_CLEAN_VERSIONS = "play_clean_versions"
+
+    /** How many songs ahead a blocked one is swapped for its clean version. */
+    const val CLEAN_SWAP_LOOKAHEAD = 3
 }

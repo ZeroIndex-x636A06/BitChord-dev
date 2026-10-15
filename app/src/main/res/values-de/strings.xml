@@ -252,6 +252,9 @@
     <string name="explicit_song_blocked_message">„%1$s“ ist als explizit markiert und wird von deinem Filter gesperrt.</string>
     <string name="allow_this_song">Diesen Song erlauben</string>
     <string name="turn_off_blocking">Sperre ausschalten</string>
+    <string name="play_clean_versions">Stattdessen Clean-Versionen abspielen</string>
+    <string name="play_clean_versions_subtitle">Hat ein gesperrter Song eine Clean-Version, wird stattdessen diese abgespielt</string>
+    <string name="no_clean_version_found">Keine Clean-Version gefunden.</string>
     <string name="download_quality_subtitle">%1$s pro Track, unabhängig von der Verbindung</string>
     <string name="filter_non_music_audio">Nicht-Musik-Audio filtern</string>
     <string name="filter_non_music_audio_subtitle">Blendet Clips unter 30 Sekunden, WAV-Dateien, Sprachnotizen, Aufnahmen und Systemtöne aus</string>

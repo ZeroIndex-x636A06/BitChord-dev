@@ -27,7 +27,8 @@ data class ExplicitPrompt(val videoId: String, val title: String, val play: () -
 
 /**
  * Whether "Block explicit songs" keeps [song] from playing. Always false while
- * blocking is off, so rows look exactly as before.
+ * blocking is off, so rows look exactly as before, and with "Play clean
+ * versions instead" on, since then the song plays, just clean.
  */
 @Composable
 fun isExplicitBlocked(song: Song): Boolean = isExplicitBlocked(song.isExplicit, song.videoId)
@@ -40,7 +41,20 @@ fun isExplicitBlocked(item: ShelfItem): Boolean = isExplicitBlocked(item.isExpli
 private fun isExplicitBlocked(isExplicit: Boolean?, videoId: String?): Boolean {
     val enabled by AppUi.host.blockExplicit.collectAsStateWithLifecycle()
     val allowed by AppUi.host.explicitAllowed.collectAsStateWithLifecycle()
-    return ExplicitFilter.blocks(isExplicit, videoId, enabled, allowed)
+    val playClean by AppUi.host.playCleanVersions.collectAsStateWithLifecycle()
+    return !playClean && ExplicitFilter.blocks(isExplicit, videoId, enabled, allowed)
+}
+
+/**
+ * Whether lists show only the clean edition of an album or single listed in
+ * both: while blocking and "Play clean versions instead" are both on. See
+ * [com.music.bitchord.playback.CleanEditions].
+ */
+@Composable
+fun hidesExplicitEditions(): Boolean {
+    val enabled by AppUi.host.blockExplicit.collectAsStateWithLifecycle()
+    val playClean by AppUi.host.playCleanVersions.collectAsStateWithLifecycle()
+    return enabled && playClean
 }
 
 /** A song row's tap: plays as usual, unless [blocked], when it asks first (see [ExplicitPrompt]). */

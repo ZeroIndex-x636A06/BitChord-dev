@@ -98,4 +98,7 @@
     <string name="d_explicit_song_blocked_message">„%1$s” jest oznaczony jako dla dorosłych i Twój filtr go blokuje.</string>
     <string name="d_turn_off_blocking">Wyłącz blokowanie</string>
     <string name="d_allow_this_song">Zezwól na ten utwór</string>
+    <string name="d_play_clean_versions">Odtwarzaj zamiast tego czyste wersje</string>
+    <string name="d_play_clean_versions_subtitle">Jeśli zablokowany utwór ma czystą wersję, zostanie odtworzona ona</string>
+    <string name="d_no_clean_version_found">Nie znaleziono czystej wersji.</string>
 </resources>

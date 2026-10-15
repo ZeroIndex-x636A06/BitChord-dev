@@ -94,6 +94,8 @@ internal object DesktopAppUiHost : AppUiHost {
 
     override val explicitAllowed: StateFlow<Set<String>> get() = DesktopExplicit.allowed
 
+    override val playCleanVersions: StateFlow<Boolean> get() = DesktopExplicit.cleanVersions
+
     override fun askExplicitBlocked(prompt: ExplicitPrompt) {
         DesktopExplicit.prompt.value = prompt
     }
