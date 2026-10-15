@@ -784,6 +784,12 @@ object AppSettings {
         prefs = context.getSharedPreferences("bitchord_settings", Context.MODE_PRIVATE)
         this.authStore = authStore
         com.music.bitchord.data.spotify.LocalPlaylistStore.init(context)
+        // The songs found for music videos, kept so each video is looked up once.
+        context.getSharedPreferences("audio_versions", Context.MODE_PRIVATE).let { kept ->
+            com.music.bitchord.data.YtMusicRepository.keepAudioVersions(kept.getString("found", null)) { found ->
+                kept.edit().putString("found", found).apply()
+            }
+        }
         readAll()
         watchConnection(context)
     }

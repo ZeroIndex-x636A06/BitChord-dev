@@ -56,11 +56,46 @@ object TrackMatcher {
 
     fun targetOf(song: Song) = Target(
         song.title,
-        song.artist,
+        // An auto-generated channel ("Terror Squad - Topic") is the artist's.
+        song.artist.removeSuffix(" - Topic").trim().ifBlank { song.artist },
         secondsOf(song.durationText),
         song.albumName,
         song.isExplicit,
         song.isVideo,
+    )
+
+    /**
+     * [song] read the other way round when it is an upload titled "Artist -
+     * Title" by a channel that isn't the artist ("Roddy Ricch - The Box (Clean
+     * - Lyrics)" posted by Polar Records): the head is the artist, the tail the
+     * title. Null when the title doesn't have that shape or the head is the
+     * channel itself, which [targetOf] already handles. Only a second reading,
+     * for when the first finds nothing: a label's "Paniyon Sa - Satyamev
+     * Jayate" is title and film, not artist and title.
+     */
+    fun uploadTarget(song: Song): Target? {
+        if (!song.isVideo) return null
+        val title = song.title
+        val dash = UPLOAD_DASH.find(title) ?: return null
+        val bracket = title.indexOfFirst { it == '(' || it == '[' }
+        if (bracket in 0 until dash.range.first) return null
+        val head = title.substring(0, dash.range.first).trim()
+        // A credit after the brackets ("… (Clean & Lyrics) feat. Gunna") and the
+        // upload's own labels ("(Clean Version & Lyrics)") aren't the song's name.
+        val tail = title.substring(dash.range.last + 1)
+            .replace(UPLOAD_CREDIT, "")
+            .replace(UPLOAD_LABEL, " ")
+            .trim()
+        if (head.isBlank() || tail.isBlank()) return null
+        if (isArtistName(normalize(head), song.artist.removeSuffix(" - Topic").trim())) return null
+        return targetOf(song).copy(title = tail, artist = head)
+    }
+
+    private val UPLOAD_DASH = Regex("""\s[-–—]\s""")
+    private val UPLOAD_CREDIT = Regex("""\s+(?:feat\.?|ft\.?|featuring)\s.*$""", RegexOption.IGNORE_CASE)
+    private val UPLOAD_LABEL = Regex(
+        """\s*[(\[][^)\]]*\b(?:lyrics?|clean|official|audio|video|visuali[sz]er)\b[^)\]]*[)\]]""",
+        RegexOption.IGNORE_CASE,
     )
 
     // ── Asking ──────────────────────────────────────────────────────────────

@@ -1127,7 +1127,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             YtMusicRepository.removeFromPlaylist(
                 playlistId,
-                listOf(setVideoId to song.videoId),
+                // A row shown as its song still holds the video on the account.
+                listOf(setVideoId to (videoOnEntry[setVideoId] ?: song.videoId)),
             ).fold(
                 onSuccess = {
                     libraryStale = true
@@ -1433,6 +1434,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             BoundedContextRequests.snapshot.collect { snapshot ->
                 snapshot?.let(::applyBoundedContextSnapshot)
             }
+        }
+        viewModelScope.launch {
+            // "Prefer music-only version" for whole playlists, whichever way their rows arrive.
+            combine(_detailStack, AppSettings.preferMusicOnly) { stack, on -> if (on) stack else emptyList() }
+                .collect(::showSongVersions)
         }
         viewModelScope.launch {
             AppSettings.filterNonMusicAudio.drop(1).collect {
@@ -2381,7 +2387,97 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** The songs found for playlists' videos, by video id; the video itself when it has none. */
+    private val songVersions = ConcurrentHashMap<String, Song>()
+
+    /** Videos already looked up for their song, so each is asked once. */
+    private val songVersionAsked = ConcurrentHashMap.newKeySet<String>()
+
+    /** The video each playlist entry shown as its song really holds: what removing it has to name. */
+    private val videoOnEntry = ConcurrentHashMap<String, String>()
+
+    private val songVersionGate = Semaphore(SONG_VERSION_LOOKUPS)
+
+    /**
+     * "Prefer music-only version" for a whole YouTube playlist: its music-video
+     * rows are shown, and so played, queued and downloaded, as the songs they
+     * are videos of (the lookup the player makes for a video it's about to
+     * play). Run whenever an open page changes, so rows that arrive later are
+     * looked up too. A video with no song stays as it is, and the playlist on
+     * the account is left alone.
+     */
+    private fun showSongVersions(stack: List<DetailPage>) {
+        val videos = stack.filter { it.browseId.startsWith("VL") }
+            .flatMap { (it.songs as? UiState.Success)?.data.orEmpty() }
+            .filter { it.isVideo && it.localUri == null && it.localPath == null }
+        if (videos.isEmpty()) return
+        if (videos.any { songVersions[it.videoId]?.isVideo == false }) publishSongVersions()
+        val fresh = videos.distinctBy { it.videoId }.filter { songVersionAsked.add(it.videoId) }
+        if (fresh.isEmpty()) return
+        viewModelScope.launch {
+            var pending = fresh
+            // A lookup that failed (a burst of searches on a page opening can be
+            // refused) is tried again a little later.
+            for (wait in listOf(0L) + SONG_VERSION_RETRIES_MS) {
+                if (pending.isEmpty()) break
+                delay(wait)
+                val failed = mutableListOf<Song>()
+                pending.chunked(SONG_VERSION_LOOKUPS).forEach { batch ->
+                    batch.map { video -> async { songVersionGate.withPermit { video to songVersionOf(video) } } }
+                        .map { it.await() }
+                        .forEach { (video, song) ->
+                            if (song == null) failed += video else songVersions[video.videoId] = song
+                        }
+                    publishSongVersions()
+                }
+                pending = failed
+            }
+        }
+    }
+
+    /** The song [video] is a recording of; [video] itself when it has none, null when the lookup failed. */
+    private suspend fun songVersionOf(video: Song): Song? {
+        val song = runCatching { YtMusicRepository.resolveAudio(video) }.getOrNull() ?: return null
+        if (song.videoId == video.videoId) {
+            return video.takeIf { YtMusicRepository.cachedAudioVersion(video.videoId) != null }
+        }
+        // A clean edit someone uploaded is not the explicit song it is an edit of.
+        return if (song.isExplicit == true && CLEAN_EDIT_TITLE.containsMatchIn(video.title)) video else song
+    }
+
+    /** Every open playlist with the songs found so far in place of their videos. */
+    private fun publishSongVersions() {
+        _detailStack.update { stack -> stack.map { page -> page.withSongVersions() } }
+    }
+
+    private fun DetailPage.withSongVersions(): DetailPage {
+        val rows = (songs as? UiState.Success)?.data ?: return this
+        if (!browseId.startsWith("VL")) return this
+        if (rows.none { it.isVideo && songVersions[it.videoId]?.isVideo == false }) return this
+        val shown = rows.map { row ->
+            val song = songVersions[row.videoId]?.takeIf { row.isVideo && !it.isVideo } ?: return@map row
+            row.setVideoId?.let { videoOnEntry[it] = row.videoId }
+            song.copy(
+                setVideoId = row.setVideoId,
+                thumbnailUrl = song.thumbnailUrl ?: row.thumbnailUrl,
+                isVideoOrigin = true,
+            )
+        }
+        // The player's copy of the playlist can bring an entry back as its video
+        // after the page shows it as the song; it is kept once.
+        return copy(songs = UiState.Success(shown.distinctBy { it.contextEntryKey() }))
+    }
+
     companion object {
+        /** Playlist videos looked up for their song at once; each is a search. */
+        private const val SONG_VERSION_LOOKUPS = 6
+
+        /** How long a failed lookup for a playlist video waits before each retry. */
+        private val SONG_VERSION_RETRIES_MS = listOf(2_000L, 6_000L)
+
+        /** A video that says it is a clean edit. */
+        private val CLEAN_EDIT_TITLE = Regex("""\b(?:clean|edited|radio edit|censored)\b""", RegexOption.IGNORE_CASE)
+
         /** Per-addon budget for the Addons search tab; a slow addon is left out, not waited on. */
         private const val ADDON_SEARCH_TIMEOUT_MS = 12_000L
         private const val ADDON_SEARCH_LIMIT = 20
