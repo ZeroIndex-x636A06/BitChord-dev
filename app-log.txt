@@ -1,0 +1,120 @@
+BitChord: 21:36:46  BitChord/D: extractor fetch 18ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:36:46  BitChord/D: extractor fetch 151ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=oi6i1Y6bfAwZ&id=0EnRK5YvBwU&$fields=playerResponse
+BitChord: 21:36:46  BitChord/W: extraction attempt 3 of 3 failed for 0EnRK5YvBwU: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:36:46  BitChord/W: resolve failed for 0EnRK5YvBwU after 5619ms: org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot" (YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot")
+BitChord: 21:36:46  BitChord/D: extractor fetch 36ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:36:46  BitChord/D: extractor fetch 170ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=2adQiRCtN7gP&id=8HBcV0MtAQg&$fields=playerResponse
+BitChord: 21:36:46  BitChord/W: extraction attempt 3 of 3 failed for 8HBcV0MtAQg: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:36:46  BitChord/W: resolve failed for 8HBcV0MtAQg after 6358ms: org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot" (YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot")
+BitChord: 21:37:04  BitChord/D: suggest ok
+BitChord: 21:37:04  BitChord/D: typeahead:dracula tame impala jennie ok
+BitChord: 21:37:05  BitChord/D: search:ALL ok
+BitChord: 21:37:14  resolving 'Dracula (feat. JENNIE)' by 'Tame Impala' — racing JioSaavn against YouTube
+BitChord: 21:37:14    asking for: dracula tame impala | dracula
+BitChord: 21:37:15  autoplay: building a station from 'Dracula (feat. JENNIE)'
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_EMBEDDED_PLAYER, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  PoTokenGenerator/D: WebView state: supported=true, badImpl=false
+BitChord: 21:37:15  PoTokenWebView/D: PO-token generation requested
+BitChord: 21:37:15  PoTokenWebView/W: JS: [obtainPoToken] Token size 93 bytes may be outside expected range (110-128)
+BitChord: 21:37:15  PoTokenWebView/D: Encoded PO-token result received
+BitChord: 21:37:15  PoTokenWebView/D: PO token decoded
+BitChord: 21:37:15  PoTokenGenerator/D: PO token generated successfully
+BitChord: 21:37:15  BitChord/D: search-signed-out:SONGS ok
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=TVHTML5_SIMPLY, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:15  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:15  BitChord/W: ITX InnerTubeExtractor: watch page cache unusable [authenticated=false]
+BitChord: 21:37:15  BitChord/D: radio:DXO288FnB-A ok
+BitChord: 21:37:15  autoplay: station for 'Dracula (feat. JENNIE)' offered 50 tracks
+BitChord: 21:37:15  autoplay: queued 10 after 'Dracula (feat. JENNIE)'
+BitChord: 21:37:15  BitChord/D: search-signed-out:SONGS ok
+BitChord: 21:37:15  JioSaavn has no copy of 'Dracula (feat. JENNIE)'
+BitChord: 21:37:16  BitChord/D: search-signed-out:VIDEOS ok
+BitChord: 21:37:16  CleanVersions/D: clean version of 'Dracula (feat. JENNIE)': JG7dLAMiyjQ from YouTube, via "dracula tame impala clean"
+BitChord: 21:37:16  explicit: 'Dracula (feat. JENNIE)' swapped for its clean version
+BitChord: 21:37:16  resolving 'Dracula (feat. JENNIE)' by 'Tame Impala' — racing JioSaavn against YouTube
+BitChord: 21:37:16    asking for: dracula tame impala | dracula
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_EMBEDDED_PLAYER, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_EMBEDDED_PLAYER, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  PoTokenGenerator/D: WebView state: supported=true, badImpl=false
+BitChord: 21:37:16  PoTokenWebView/D: PO-token generation requested
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  PoTokenGenerator/D: WebView state: supported=true, badImpl=false
+BitChord: 21:37:16  PoTokenWebView/W: JS: [obtainPoToken] Token size 93 bytes may be outside expected range (110-128)
+BitChord: 21:37:16  PoTokenWebView/D: PO-token generation requested
+BitChord: 21:37:16  PoTokenWebView/W: JS: [obtainPoToken] Token size 93 bytes may be outside expected range (110-128)
+BitChord: 21:37:16  PoTokenWebView/D: Encoded PO-token result received
+BitChord: 21:37:16  PoTokenWebView/D: PO token decoded
+BitChord: 21:37:16  PoTokenWebView/D: Encoded PO-token result received
+BitChord: 21:37:16  PoTokenWebView/D: PO token decoded
+BitChord: 21:37:16  PoTokenGenerator/D: PO token generated successfully
+BitChord: 21:37:16  PoTokenGenerator/D: PO token generated successfully
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=TVHTML5_SIMPLY, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=TVHTML5_SIMPLY, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:16  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:16  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:16  BitChord/W: ITX InnerTubeExtractor: watch page cache unusable [authenticated=false]
+BitChord: 21:37:16  JioSaavn has no copy of 'Dracula (feat. JENNIE)'
+BitChord: 21:37:17  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_EMBEDDED_PLAYER, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:17  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_KIDS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:18  BitChord/W: InnerTubeX failed for DXO288FnB-A: StreamResolveException: This track is unavailable.
+BitChord: 21:37:18  BitChord/D: TIMING DXO288FnB-A InnerTubeX: 3313ms
+BitChord: 21:37:18  BitChord/W: InnerTubeX found no usable stream for DXO288FnB-A; falling back to extraction
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_EMBEDDED_PLAYER, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  BitChord/D: extractor fetch 77ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  PoTokenGenerator/D: WebView state: supported=true, badImpl=false
+BitChord: 21:37:18  PoTokenWebView/D: PO-token generation requested
+BitChord: 21:37:18  PoTokenWebView/W: JS: [obtainPoToken] Token size 93 bytes may be outside expected range (110-128)
+BitChord: 21:37:18  PoTokenWebView/D: Encoded PO-token result received
+BitChord: 21:37:18  PoTokenWebView/D: PO token decoded
+BitChord: 21:37:18  PoTokenGenerator/D: PO token generated successfully
+BitChord: 21:37:18  BitChord/D: extractor fetch 140ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=VuOSKAm9wsOV&id=DXO288FnB-A&$fields=playerResponse
+BitChord: 21:37:18  BitChord/W: extraction attempt 1 of 3 failed for DXO288FnB-A: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=TVHTML5_SIMPLY, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_REMIX, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=VISIONOS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:18  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_EMBEDDED_PLAYER, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:18  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:19  BitChord/W: ITX PlayerClientDirector: client response unavailable [client=WEB_KIDS, profilePresent=true, tokenUnavailable=false, requestFailure=false, failurePresent=true]
+BitChord: 21:37:19  BitChord/W: ITX InnerTubeExtractor: no playable clients
+BitChord: 21:37:19  BitChord/W: InnerTubeX failed for JG7dLAMiyjQ: StreamResolveException: This track is unavailable.
+BitChord: 21:37:19  BitChord/D: TIMING JG7dLAMiyjQ InnerTubeX: 2885ms
+BitChord: 21:37:19  BitChord/W: InnerTubeX found no usable stream for JG7dLAMiyjQ; falling back to extraction
+BitChord: 21:37:19  BitChord/D: extractor fetch 21ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:37:19  BitChord/D: extractor fetch 142ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=OJvgBx7oc_Cr&id=JG7dLAMiyjQ&$fields=playerResponse
+BitChord: 21:37:19  BitChord/W: extraction attempt 1 of 3 failed for JG7dLAMiyjQ: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:37:19  BitChord/D: extractor fetch 23ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:37:19  BitChord/D: extractor fetch 141ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=Ef0DIkuKD3gO&id=DXO288FnB-A&$fields=playerResponse
+BitChord: 21:37:19  BitChord/W: extraction attempt 2 of 3 failed for DXO288FnB-A: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:37:20  BitChord/D: extractor fetch 20ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:37:20  BitChord/D: extractor fetch 160ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=mdY8gHDrsRfR&id=JG7dLAMiyjQ&$fields=playerResponse
+BitChord: 21:37:20  BitChord/W: extraction attempt 2 of 3 failed for JG7dLAMiyjQ: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:37:21  BitChord/D: extractor fetch 74ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:37:21  BitChord/D: extractor fetch 126ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=kZ4s_CpjGw5q&id=DXO288FnB-A&$fields=playerResponse
+BitChord: 21:37:21  BitChord/W: extraction attempt 3 of 3 failed for DXO288FnB-A: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:37:21  BitChord/W: resolve failed for DXO288FnB-A after 6901ms: org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot" (YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot")
+BitChord: 21:37:22  BitChord/D: extractor fetch 25ms POST https://youtubei.googleapis.com/youtubei/v1/visitor_id?prettyPrint=false
+BitChord: 21:37:22  BitChord/D: extractor fetch 115ms POST https://youtubei.googleapis.com/youtubei/v1/reel/reel_item_watch?prettyPrint=false&t=yFdzc99FSgMK&id=JG7dLAMiyjQ&$fields=playerResponse
+BitChord: 21:37:22  BitChord/W: extraction attempt 3 of 3 failed for JG7dLAMiyjQ: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot"
+BitChord: 21:37:22  BitChord/W: resolve failed for JG7dLAMiyjQ after 6374ms: org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException: YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot" (YouTube probably temporarily blocked anonymous watch access with this IP , got error LOGIN_REQUIRED: "Sign in to confirm that you're not a bot")
