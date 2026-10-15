@@ -25,10 +25,15 @@ import com.music.bitchord.data.model.SongMenu
 import com.music.bitchord.data.model.UserPlaylist
 import com.music.bitchord.data.sources.TrackMatcher
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import java.util.Locale
@@ -48,6 +53,61 @@ object YtMusicRepository {
     private val videoVersionCache = ConcurrentHashMap<String, Song?>()
 
     fun cachedAudioVersion(videoId: String): Song? = audioVersionCache[videoId]
+
+    /** Hands [audioVersionCache] on to be kept between launches; see [keepAudioVersions]. */
+    private var saveAudioVersions: ((String) -> Unit)? = null
+    private var pendingAudioVersionSave: Job? = null
+    private val audioVersionSaves = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * Restores the songs earlier launches found for videos from [saved] (as
+     * handed to [save]) and keeps the list from then on, so a video is looked
+     * up once rather than once a launch: a playlist of music videos opened
+     * before opens as songs straight away.
+     */
+    fun keepAudioVersions(saved: String?, save: (String) -> Unit) {
+        val lines = saved?.lines().orEmpty()
+        // Answers from an older lookup aren't trusted: it may have found no song where this one does.
+        if (lines.firstOrNull() == AUDIO_VERSIONS_FORMAT) {
+            lines.drop(1).mapNotNull(::audioVersionOf).forEach { (video, song) ->
+                audioVersionCache.putIfAbsent(video, song)
+            }
+        }
+        saveAudioVersions = save
+    }
+
+    private fun rememberAudioVersion(videoId: String, song: Song) {
+        audioVersionCache[videoId] = song
+        val save = saveAudioVersions ?: return
+        // Once lookups go quiet: a playlist answers dozens in a row.
+        pendingAudioVersionSave?.cancel()
+        pendingAudioVersionSave = audioVersionSaves.launch {
+            delay(2_000)
+            val lines = audioVersionCache.entries.take(MAX_AUDIO_VERSIONS).map { (video, found) ->
+                listOf(
+                    video, found.videoId, found.title, found.artist, found.thumbnailUrl, found.durationText,
+                    found.albumId, found.albumName, found.artistId, found.isExplicit?.toString(),
+                    "1".takeIf { found.isVideo },
+                ).joinToString("\t") { it.orEmpty().replace(LINE_BREAKS, " ") }
+            }
+            save((listOf(AUDIO_VERSIONS_FORMAT) + lines).joinToString("\n"))
+        }
+    }
+
+    private fun audioVersionOf(line: String): Pair<String, Song>? {
+        val f = line.split('\t').takeIf { it.size == 11 } ?: return null
+        fun at(i: Int) = f[i].ifEmpty { null }
+        return f[0] to Song(
+            videoId = f[1], title = f[2], artist = f[3], thumbnailUrl = at(4), durationText = at(5),
+            albumId = at(6), albumName = at(7), artistId = at(8),
+            isExplicit = at(9)?.toBooleanStrictOrNull(), isVideo = f[10] == "1",
+        )
+    }
+
+    /** Bumped when the lookup changes in a way that could now find what it missed. */
+    private const val AUDIO_VERSIONS_FORMAT = "audio-versions 1"
+    private const val MAX_AUDIO_VERSIONS = 5_000
+    private val LINE_BREAKS = Regex("""[\t\r\n]""")
     fun cachedVideoVersion(videoId: String): Song? = videoVersionCache[videoId]
 
     /**
@@ -293,10 +353,10 @@ object YtMusicRepository {
      * search responsive; the UI asks [searchContinuation] for later pages as
      * the listener reaches the end of the list.
      */
-    suspend fun searchPage(query: String, filter: SearchFilter): Result<SearchPage> =
+    suspend fun searchPage(query: String, filter: SearchFilter, anonymous: Boolean = true): Result<SearchPage> =
         call("search:${filter.name}") {
             InnertubeParser.parseSearchPage(
-                Innertube.search(query, filter.params),
+                Innertube.search(query, filter.params, anonymous),
                 includeVideos = filter == SearchFilter.VIDEOS,
             ).let { page ->
                 SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
@@ -387,16 +447,20 @@ object YtMusicRepository {
     suspend fun resolveAudio(song: Song): Song {
         if (!song.isVideo) return song
         audioVersionCache[song.videoId]?.let { return it }
-        val target = TrackMatcher.targetOf(song)
+        var failed = false
+        // The upload read as titled, then, for "Artist - Title" posted by someone
+        // else's channel, the other way round.
+        for (target in listOfNotNull(TrackMatcher.targetOf(song), TrackMatcher.uploadTarget(song)))
         for (query in TrackMatcher.queries(target)) {
             val candidates = search(query, SearchFilter.SONGS)
+                .onFailure { failed = true }
                 .getOrNull()
                 ?.filterIsInstance<SearchResult.Track>()
                 ?.map { it.song }
                 .orEmpty()
             TrackMatcher.best(candidates, target)?.let { match ->
                 Log.d(TAG, "audio switch: '${song.title}' -> '${match.title}' ($query)")
-                audioVersionCache[song.videoId] = match
+                rememberAudioVersion(song.videoId, match)
                 return match
             }
             // Music-video timing is visual timing, not the audio release's
@@ -404,12 +468,14 @@ object YtMusicRepository {
             // song/artist match even when the video has a long intro or outro.
             TrackMatcher.bestOfficialAudioForVideo(candidates, target)?.let { match ->
                 Log.d(TAG, "audio switch: accepted video/runtime drift '${song.title}' -> '${match.title}' ($query)")
-                audioVersionCache[song.videoId] = match
+                rememberAudioVersion(song.videoId, match)
                 return match
             }
         }
         Log.w(TAG, "audio switch: no official song match for '${song.title}' by '${song.artist}'")
-        audioVersionCache[song.videoId] = song
+        // "None" is kept only when every search came back: offline isn't "no
+        // song", and a lookup that failed is asked again next time.
+        if (!failed) rememberAudioVersion(song.videoId, song)
         return song
     }
 
