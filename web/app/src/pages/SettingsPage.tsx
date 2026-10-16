@@ -63,6 +63,7 @@ export default function SettingsPage() {
   const setShareHistory = useHistorySettings((s) => s.setShare);
   const { setAutoplay, setCrossfade } = usePlayer.getState();
   const blockExplicit = useExplicit((s) => s.block);
+  const playClean = useExplicit((s) => s.playClean);
   const [lyrics, setLyrics] = useState(false);
   const present = extension.state === 'present';
   const discordText =
@@ -138,6 +139,14 @@ export default function SettingsPage() {
             checked={blockExplicit}
             onChange={useExplicit.getState().setBlock}
           />
+          {blockExplicit && (
+            <Toggle
+              label="Play Clean Versions Instead"
+              detail="When a blocked song has a clean version, play that instead."
+              checked={playClean}
+              onChange={useExplicit.getState().setPlayClean}
+            />
+          )}
           <label className={styles.row}>
             <span>Crossfade</span>
             <select className={styles.select} value={crossfadeSec} onChange={(e) => setCrossfade(Number(e.currentTarget.value))}>

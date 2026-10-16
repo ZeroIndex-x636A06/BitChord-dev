@@ -4,7 +4,8 @@ import { PrefetchLink } from '@/components/PrefetchLink';
 import shelfStyles from '@/components/Shelf.module.css';
 import type { MusicItem, Shelf, Track } from '@/data/music/types';
 import type { QueueSource } from '@/playback/queue/timeline';
-import { playUnlessBlocked } from '@/state/explicit';
+import { cleanEditions } from '@/playback/cleanVersions';
+import { playUnlessBlocked, usePlaysClean } from '@/state/explicit';
 import { browseHref } from './links';
 import { CircleLockup, SquareLockup, TrackLockup, VideoLockup } from './Lockups';
 import { playList } from './play';
@@ -138,11 +139,12 @@ export function TrackShelf({ title, to, tracks, source }: { title: string; to?: 
 
 /** A titled horizontal shelf (report §2): grid columns per breakpoint, scroll-snap, hover arrows. */
 export function ShelfView({ shelf }: { shelf: Shelf }) {
+  const items = usePlaysClean() ? cleanEditions(shelf.items) : shelf.items;
   return (
     <section className={shelfStyles.section} aria-label={shelf.title}>
       <ShelfTitle title={shelf.title} to={shelf.seeAll ? browseHref(shelf.seeAll) : null} />
-      <ShelfScroller key={shelf.items.length} layoutClass={LAYOUT_CLASS[shelf.layout]}>
-        {shelf.items.map((item, i) => (
+      <ShelfScroller key={items.length} layoutClass={LAYOUT_CLASS[shelf.layout]}>
+        {items.map((item, i) => (
           <li key={`${item.id}-${i}`}>{renderItem(shelf, item)}</li>
         ))}
       </ShelfScroller>

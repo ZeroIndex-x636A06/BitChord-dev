@@ -21,7 +21,8 @@ import {
   type QueueSource,
 } from '@/playback/queue/timeline';
 import { trackLog } from '@/playback/trackLog';
-import { isBlocked, useExplicit } from '@/state/explicit';
+import { findClean } from '@/playback/cleanVersions';
+import { isBlocked, playsClean, useExplicit } from '@/state/explicit';
 import type { LoadedTrack, YouTubeEngine } from '@/playback/youtube/engine';
 
 export interface NowPlaying {
@@ -439,6 +440,7 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
   const state = usePlayer.getState();
   const entry = state.queue[at];
   if (!entry) return;
+  if (holdForClean(at, { startSec, auto, autoplay })) return;
   const instead = skipBlocked(at);
   if (instead === 'stop') {
     getAudio()?.pause();
@@ -610,7 +612,7 @@ function refillAutoplay(force = false): Promise<void> {
  * null to play [at] as it is. Not in a party, whose queue is everyone's.
  */
 function skipBlocked(at: number): number | 'stop' | null {
-  if (!useExplicit.getState().block || partyHooks?.inParty()) return null;
+  if (!useExplicit.getState().block || playsClean() || partyHooks?.inParty()) return null;
   const { queue } = usePlayer.getState();
   const kept = queue.filter((e, i) => i <= at || !isBlocked(e.track));
   if (kept.length !== queue.length) usePlayer.setState({ queue: kept });
@@ -621,11 +623,74 @@ function skipBlocked(at: number): number | 'stop' | null {
   return at + 1 < kept.length ? at + 1 : 'stop';
 }
 
-// Turning blocking on, or un-allowing a song, applies to the queue already lined up.
+/** How many songs ahead a blocked one is swapped for its clean version (CLEAN_SWAP_LOOKAHEAD). */
+const CLEAN_SWAP_LOOKAHEAD = 3;
+
+/**
+ * "Play clean versions instead" (PlaybackService.swapBlockedForClean): a
+ * blocked [at] is held, paused, while its clean version is looked up, so not
+ * a word of the explicit one is heard, then plays as that; with none it is
+ * skipped. Blocked songs among the next few are swapped ahead of time, or
+ * dropped when there's no clean version. Returns whether [at] is being held.
+ */
+function holdForClean(at: number, start: { startSec: number; auto: boolean; autoplay: boolean }): boolean {
+  if (!playsClean() || partyHooks?.inParty()) return false;
+  swapUpcoming(at);
+  const entry = usePlayer.getState().queue[at];
+  if (!entry || !isBlocked(entry.track)) return false;
+  cancelCrossfade();
+  getAudio()?.pause();
+  const token = ++loadToken;
+  usePlayer.setState({ index: at, nowPlaying: hintOf(entry.track), status: 'loading', error: null });
+  void swapForClean(entry, true).then((index) => {
+    if (token !== loadToken || index === null) return;
+    const { queue } = usePlayer.getState();
+    if (!queue[index]!.track.explicit) return void startAt(index, start);
+    useExplicit.getState().notify('No clean version was found.');
+    if (index + 1 < queue.length) void startAt(index + 1, start);
+    else usePlayer.setState({ status: 'paused' });
+  });
+  return true;
+}
+
+/** Swaps the blocked songs among the next [CLEAN_SWAP_LOOKAHEAD] after [at]; ones further on wait until they get closer. */
+function swapUpcoming(at: number) {
+  for (const entry of usePlayer.getState().queue.slice(at + 1, at + 1 + CLEAN_SWAP_LOOKAHEAD)) {
+    if (isBlocked(entry.track)) void swapForClean(entry, false);
+  }
+}
+
+/**
+ * Puts [entry]'s clean version in its place once found: its id, title and
+ * art in the same queue entry. With none, an upcoming entry is dropped and
+ * the [current] one left for the caller to skip. Found again by entry id when
+ * the answer comes back, since the queue may have moved on meanwhile; returns
+ * its index then, or null when it's gone or (upcoming) has become current.
+ */
+async function swapForClean(entry: QueueEntry, current: boolean): Promise<number | null> {
+  const clean = await findClean(entry.track);
+  const { queue, index } = usePlayer.getState();
+  const at = queue.findIndex((e) => e.entryId === entry.entryId);
+  if (at < 0 || (!current && at <= index)) return null;
+  if (clean) {
+    usePlayer.setState({ queue: queue.map((e, i) => (i === at ? { ...e, track: { ...clean, explicit: false } } : e)) });
+    trackLog.i('explicit song swapped for its clean version', clean.videoId);
+  } else if (!current) {
+    usePlayer.setState({ queue: queue.filter((_, i) => i !== at) });
+  }
+  return at;
+}
+
+// Turning blocking or clean versions on, or un-allowing a song, applies to the queue already lined up.
 useExplicit.subscribe((now, before) => {
-  if (now.block === before.block && now.allowed === before.allowed) return;
-  const { index } = usePlayer.getState();
+  if (now.block === before.block && now.allowed === before.allowed && now.playClean === before.playClean) return;
+  const { index, queue } = usePlayer.getState();
   if (index < 0) return;
+  if (playsClean(now) && !partyHooks?.inParty()) {
+    if (isBlocked(queue[index]!.track)) void startAt(index, { startSec: 0, autoplay: usePlayer.getState().status === 'playing' });
+    else swapUpcoming(index);
+    return;
+  }
   const instead = skipBlocked(index);
   if (instead === 'stop') getAudio()?.pause();
   else if (instead !== null) void startAt(instead);

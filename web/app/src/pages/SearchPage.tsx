@@ -10,7 +10,8 @@ import { Shelves } from '@/components/music/ShelfView';
 import { EmptyState, LoadError, NeedsExtension } from '@/components/music/States';
 import { useCategories, useSearch, useYouTubeReady } from '@/data/music/queries';
 import type { MusicItem, SearchResults, Shelf } from '@/data/music/types';
-import { useBlocked } from '@/state/explicit';
+import { cleanEditions } from '@/playback/cleanVersions';
+import { useBlocked, usePlaysClean } from '@/state/explicit';
 import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 import { ShelfSkeleton } from '@/skeletons/ShelfSkeleton';
 import styles from './SearchPage.module.css';
@@ -95,20 +96,23 @@ function ResultsSkeleton() {
 
 function Results({ query }: { query: string }) {
   const search = useSearch(query);
+  const clean = usePlaysClean();
   if (search.isError) return <LoadError error={search.error} onRetry={() => void search.refetch()} />;
   if (!search.data) return <ResultsSkeleton />;
   const results = search.data;
   const shelves = shelvesFor(results);
+  // Playing clean, an album listed in both editions is the clean one here too.
+  const top = clean ? cleanEditions(results.top, [...results.top, ...results.albums]) : results.top;
   if (!results.top.length && !shelves.length) {
     return <EmptyState title="No Results" detail={`Try a new search for something other than “${query}”.`} />;
   }
   return (
     <>
-      {results.top.length > 0 && (
+      {top.length > 0 && (
         <section aria-label="Top Results">
           <h2 className={styles.sectionTitle}>Top Results</h2>
           <div className={styles.topGrid}>
-            {results.top.map((item) => (
+            {top.map((item) => (
               <TopResult key={item.id} item={item} />
             ))}
           </div>
