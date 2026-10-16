@@ -3,7 +3,9 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSuggestions } from '@/data/music/queries';
 import type { MusicItem } from '@/data/music/types';
+import { isBlocked, useExplicit } from '@/state/explicit';
 import { Artwork } from './Artwork';
+import { ExplicitBadge } from './ExplicitBadge';
 import { hrefFor } from './links';
 import { playTrack } from './play';
 import styles from './SearchField.module.css';
@@ -23,6 +25,10 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
   const listId = useId();
   const navigate = useNavigate();
   const suggestions = useSuggestions(open ? value : '');
+  const block = useExplicit((s) => s.block);
+  const allowed = useExplicit((s) => s.allowed);
+  const blocked = (item: MusicItem) =>
+    !hrefFor(item) && isBlocked({ videoId: item.id, explicit: item.explicit }, { block, allowed });
 
   useEffect(() => setValue(initial), [initial]);
 
@@ -112,6 +118,7 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
               aria-selected={i === active}
               className={option.kind === 'query' ? styles.hint : styles.lockup}
               data-active={i === active || undefined}
+              data-blocked={(option.kind === 'item' && blocked(option.item)) || undefined}
               onMouseDown={(e) => e.preventDefault()}
               onMouseEnter={() => setActive(i)}
               onClick={() => pick(option)}
@@ -134,7 +141,10 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
                     />
                   </div>
                   <div className={styles.lockupText}>
-                    <span className={styles.lockupTitle}>{option.item.title}</span>
+                    <span className={styles.lockupTitle}>
+                      {option.item.title}
+                      {option.item.explicit && <ExplicitBadge />}
+                    </span>
                     <span className={styles.lockupSubtitle}>{option.item.subtitle || kindLabel(option.item.kind)}</span>
                   </div>
                 </>

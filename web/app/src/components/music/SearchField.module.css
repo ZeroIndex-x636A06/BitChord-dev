@@ -146,3 +146,8 @@
 .lockup[data-active] .lockupSubtitle {
   color: #fff;
 }
+
+/* "Block explicit songs": greyed out, and picking it asks first (state/explicit.ts). */
+.lockup[data-blocked] {
+  opacity: 0.45;
+}

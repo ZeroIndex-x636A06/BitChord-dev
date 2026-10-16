@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { PauseIcon, PlayIcon } from '@/components/icons/Transport';
 import type { ArtistRef, Track } from '@/data/music/types';
+import { playUnlessBlocked, useBlocked } from '@/state/explicit';
 import { usePlayer } from '@/state/player';
 import { Artwork } from './Artwork';
 import { ExplicitBadge } from './ExplicitBadge';
@@ -64,6 +65,7 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow }: RowProps)
   const current = usePlayer((s) => s.nowPlaying?.videoId === track.videoId);
   const playing = usePlayer((s) => s.nowPlaying?.videoId === track.videoId && (s.status === 'playing' || s.status === 'buffering'));
   const togglePlay = usePlayer((s) => s.togglePlay);
+  const blocked = useBlocked(track.videoId, track.explicit);
   const unavailable = track.unavailable;
   const onPlay = () => (unavailable ? undefined : current ? togglePlay() : onPlayRow());
 
@@ -73,6 +75,7 @@ function Row({ track, variant, position, fallbackArtwork, onPlayRow }: RowProps)
       data-variant={variant}
       data-current={current || undefined}
       data-unavailable={unavailable}
+      data-blocked={blocked || undefined}
       title={unavailable === 'matching' ? 'Looking for this on YouTube Music…' : unavailable === 'missing' ? 'Not found on YouTube Music' : undefined}
       onDoubleClick={onPlay}
     >
@@ -169,7 +172,8 @@ export function TrackList({ tracks, variant, fallbackArtwork, fallbackArtists, o
     // Rows from another catalogue that found no YouTube Music song stay out of the queue.
     if (source) {
       const playable = tracks.filter((t) => !t.unavailable);
-      return playList(playable, Math.max(0, playable.indexOf(tracks[i]!)), { source, fallbackArtwork, fallbackArtists });
+      const at = Math.max(0, playable.indexOf(tracks[i]!));
+      return playUnlessBlocked(tracks[i]!, () => playList(playable, at, { source, fallbackArtwork, fallbackArtists }));
     }
     const track = tracks[i]!;
     playTrack(track.artists.length || !fallbackArtists ? track : { ...track, artists: fallbackArtists }, fallbackArtwork);

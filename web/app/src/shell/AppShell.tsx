@@ -12,6 +12,7 @@ import { useUi } from '@/state/ui';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import styles from './AppShell.module.css';
 import { Banner, bannerButtonClass } from './Banner';
+import { ExplicitPrompt } from './ExplicitPrompt';
 import { MobileTopBar } from './MobileTopBar';
 import { PlayerBar } from './PlayerBar';
 import { SidePanel } from './SidePanel';
@@ -79,6 +80,7 @@ export function AppShell() {
         <SidePanel />
       </div>
       {banner}
+      <ExplicitPrompt />
     </div>
   );
 }

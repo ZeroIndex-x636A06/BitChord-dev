@@ -2,6 +2,7 @@ import { useSearchParams } from 'react-router';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { Artwork } from '@/components/music/Artwork';
 import { CategoryTiles } from '@/components/music/CategoryTiles';
+import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { hrefFor } from '@/components/music/links';
 import { playTrack } from '@/components/music/play';
 import { SearchField } from '@/components/music/SearchField';
@@ -9,6 +10,7 @@ import { Shelves } from '@/components/music/ShelfView';
 import { EmptyState, LoadError, NeedsExtension } from '@/components/music/States';
 import { useCategories, useSearch, useYouTubeReady } from '@/data/music/queries';
 import type { MusicItem, SearchResults, Shelf } from '@/data/music/types';
+import { useBlocked } from '@/state/explicit';
 import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 import { ShelfSkeleton } from '@/skeletons/ShelfSkeleton';
 import styles from './SearchPage.module.css';
@@ -40,13 +42,17 @@ function shelvesFor(results: SearchResults): Shelf[] {
 
 function TopResult({ item }: { item: MusicItem }) {
   const href = hrefFor(item);
+  const blocked = useBlocked(item.id, item.explicit && !href);
   const body = (
     <>
       <div className={styles.topArtwork}>
         <Artwork src={item.thumbnail} displayWidth={90} radius={item.kind === 'artist' ? '50%' : 'var(--radius-artwork-small)'} />
       </div>
       <div className={styles.topText}>
-        <span className={styles.topTitle}>{item.title}</span>
+        <span className={styles.topTitle}>
+          {item.title}
+          {item.explicit && <ExplicitBadge />}
+        </span>
         <span className={styles.topKind}>
           {[KIND_LABEL[item.kind], item.kind === 'artist' ? null : item.artists.map((a) => a.name).join(', ')].filter(Boolean).join(' · ')}
         </span>
@@ -58,7 +64,7 @@ function TopResult({ item }: { item: MusicItem }) {
       {body}
     </PrefetchLink>
   ) : (
-    <button className={styles.top} onClick={() => playTrack(item)}>
+    <button className={styles.top} data-blocked={blocked || undefined} onClick={() => playTrack(item)}>
       {body}
     </button>
   );

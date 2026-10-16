@@ -1,6 +1,7 @@
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { PlayIcon } from '@/components/icons/Transport';
 import type { MusicItem } from '@/data/music/types';
+import { useBlocked } from '@/state/explicit';
 import { Artwork } from './Artwork';
 import { ExplicitBadge } from './ExplicitBadge';
 import { artistHref, hrefFor } from './links';
@@ -8,6 +9,9 @@ import styles from './Lockups.module.css';
 import { playTrack } from './play';
 
 const isPlayable = (item: MusicItem) => item.kind === 'song' || item.kind === 'video';
+
+/** Whether "Block explicit songs" greys this card out; only songs and videos can be. */
+const useItemBlocked = (item: MusicItem) => useBlocked(item.id, item.explicit && isPlayable(item));
 
 /** Artist names as links where YouTube links them, else the given subtitle. */
 function Byline({ item }: { item: MusicItem }) {
@@ -69,8 +73,9 @@ function LockupArtwork({ item, width, aspect }: { item: MusicItem; width: number
 /** Square lockup (report §2): artwork, hover scrim with play platter, title and subtitle. */
 export function SquareLockup({ item, width = 220 }: { item: MusicItem; width?: number }) {
   const href = hrefFor(item);
+  const blocked = useItemBlocked(item);
   return (
-    <div className={styles.lockup}>
+    <div className={styles.lockup} data-blocked={blocked || undefined}>
       <LockupArtwork item={item} width={width} aspect={1} />
       <div className={styles.caption}>
         <div className={styles.title}>
@@ -93,8 +98,9 @@ export function SquareLockup({ item, width = 220 }: { item: MusicItem; width?: n
 
 /** 16:9 video lockup (report §2, type C). */
 export function VideoLockup({ item, width = 300 }: { item: MusicItem; width?: number }) {
+  const blocked = useItemBlocked(item);
   return (
-    <div className={styles.lockup}>
+    <div className={styles.lockup} data-blocked={blocked || undefined}>
       <LockupArtwork item={item} width={width} aspect={16 / 9} />
       <div className={styles.caption}>
         <div className={styles.title}>
@@ -120,8 +126,9 @@ export function CircleLockup({ item, width = 160 }: { item: MusicItem; width?: n
 /** A song row inside a shelf (report §2, track lockup): 40px art, title, byline. */
 export function TrackLockup({ item, onPlay }: { item: MusicItem; onPlay?: () => void }) {
   const play = onPlay ?? (() => playTrack(item));
+  const blocked = useItemBlocked(item);
   return (
-    <div className={styles.track}>
+    <div className={styles.track} data-blocked={blocked || undefined}>
       <button className={styles.trackArt} aria-label={`Play ${item.title}`} onClick={play}>
         <Artwork src={item.thumbnail} displayWidth={40} radius="var(--radius-artwork-small)" />
         <span className={styles.trackPlay} aria-hidden="true">

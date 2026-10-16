@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ListEnd, ListPlus, ListStart, MoreHorizontal, Star } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, ListEnd, ListPlus, ListStart, MoreHorizontal, ShieldCheck, Star } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/components/Menu';
 import {
@@ -9,6 +9,7 @@ import {
   useSignedIn,
 } from '@/data/music/queries';
 import type { Track } from '@/data/music/types';
+import { useExplicit } from '@/state/explicit';
 import { usePlayer } from '@/state/player';
 
 function PlaylistChoices({ videoId, onDone, onBack }: { videoId: string; onDone: () => void; onBack: () => void }) {
@@ -79,6 +80,8 @@ function AccountItems({ track, onClose, onPlaylists }: { track: Track; onClose: 
 function TrackMenuItems({ track, onClose }: { track: Track; onClose: () => void }) {
   const [view, setView] = useState<'main' | 'playlists'>('main');
   const signedIn = useSignedIn();
+  const block = useExplicit((s) => s.block);
+  const allowed = useExplicit((s) => s.allowed.includes(track.videoId));
   if (view === 'playlists') {
     return <PlaylistChoices videoId={track.videoId} onDone={onClose} onBack={() => setView('main')} />;
   }
@@ -91,6 +94,15 @@ function TrackMenuItems({ track, onClose }: { track: Track; onClose: () => void 
       <MenuItem icon={<ListEnd size={15} />} onSelect={() => (onClose(), addToQueue([track]))}>
         Add to Queue
       </MenuItem>
+      {block && track.explicit && (
+        // The per-song way past "Block explicit songs", and back.
+        <MenuItem
+          icon={allowed ? <Ban size={15} /> : <ShieldCheck size={15} />}
+          onSelect={() => (onClose(), useExplicit.getState().setAllowed(track.videoId, !allowed))}
+        >
+          {allowed ? 'Block This Explicit Song Again' : 'Allow This Explicit Song'}
+        </MenuItem>
+      )}
       {signedIn && <AccountItems track={track} onClose={onClose} onPlaylists={() => setView('playlists')} />}
     </>
   );
