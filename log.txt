@@ -1,0 +1,142 @@
+console.debug: [vite] connecting...
+console.debug: [vite] connected.
+console.info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+console.debug: [vite] connecting...
+console.debug: [vite] connected.
+console.info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+shot settings-clean
+stored: {"block":true,"playClean":true,"allowed":[]}
+console.debug: [vite] connecting...
+console.debug: [vite] connected.
+console.info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+console.debug: BitChord InnerTube ready in 1070ms (WEB 2.20261016.01.00, player 0229cd64)
+shot search-clean
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.error: Access to fetch at 'https://lyricsplus-seven.vercel.app/v2/lyrics/get?title=HUMBLE.&artist=Kendrick+Lamar&isrc=USUM71703085' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disa
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?title=HUMBLE.&artist=Kendrick+Lamar&isrc=USUM71703085' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS d
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyrics-plus-backend.vercel.app/v2/lyrics/get?title=HUMBLE.&artist=Kendrick+Lamar&isrc=USUM71703085' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS d
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.debug: BitChord [H4RELGc9su8] clean version of 'HUMBLE.': ov4WobPqoSA from YouTube Music, via "humble kendrick lamar"
+console.debug: BitChord [ov4WobPqoSA] explicit song swapped for its clean version
+console.error: Failed to load resource: the server responded with a status of 401 ()
+console.error: Failed to load resource: the server responded with a status of 401 ()
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.debug: BitChord [ov4WobPqoSA] loading at 0.0s
+console.debug: BitChord [ov4WobPqoSA] TIMING InnerTube session: 0ms
+console.warning: BitChord [ov4WobPqoSA] VISIONOS refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (104ms); skipping it for this track
+console.error: Access to fetch at 'https://lyricsplus-seven.vercel.app/v2/lyrics/get?title=HUMBLE.&artist=Kendrick+Lamar&duration=177&album=DAMN.+COLLECTORS+EDITION.' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fetch 
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyrics-plus-backend.vercel.app/v2/lyrics/get?title=HUMBLE.&artist=Kendrick+Lamar&duration=177&album=DAMN.+COLLECTORS+EDITION.' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fet
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?title=HUMBLE.&artist=Kendrick+Lamar&duration=177&album=DAMN.+COLLECTORS+EDITION.' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fet
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.debug: BitChord BotGuard ready; integrity token valid for 720 min
+console.debug: BitChord TIMING BotGuard init: 132ms
+console.debug: BitChord [Cgt2VWpFdmwwSlphMCix2cnWBjIKCgJVUxIEGgAgIWK3Agq0AkN1UUJDQVVTbGdFQjhRWnVaZ1lPNUZZcmg1MzhKcEJ5TzRTRzhobXN2eTMyUGJwTnhmTjZCRUlydVUzY2tiZDdMSDhRR2lBT1dTN1NEYXlvQlMzUFpYT1dkTk53OFFubWhNS1I4M2t0Q2ozbERHNzQ0aHJTbFBCQWEyQk8tYWk0UzFYMENxdTJnMG80aV84OGJVR2RmS01pVm42R2tDXzQwSHdIR1ZFaWVGZlE0OUk0RmttWG8waGg3dGNaOUY2NjdfVTRaZWdjUllLOXVIbjZRV01vQlRKRkFkNnBuVThWS2l1ckZ0VElhRVphSC12Wm1oWC1
+console.warning: BitChord [ov4WobPqoSA] YTMUSIC refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (103ms); skipping it for this track
+console.warning: BitChord [ov4WobPqoSA] WEB refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (82ms); skipping it for this track
+console.warning: BitChord [ov4WobPqoSA] not playable: This track is age-restricted. Sign in to YouTube Music in this browser to play it.; not asking again for 10 minutes
+console.debug: BitChord [ov4WobPqoSA] TIMING player request: 290ms
+console.error: BitChord [ov4WobPqoSA] load failed: This track is age-restricted. Sign in to YouTube Music in this browser to play it.
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.error: Failed to load resource: the server responded with a status of 404 ()
+shot playing-clean
+console.debug: [vite] connecting...
+console.debug: [vite] connected.
+console.info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+console.debug: BitChord InnerTube ready in 120ms (WEB 2.20260623.01.00, player 0229cd64)
+shot search-editions
+console.error: Access to fetch at 'https://lyricsplus-seven.vercel.app/v2/lyrics/get?title=Wesley%27s+Theory&artist=Kendrick+Lamar&duration=288&album=To+Pimp+A+Butterfly' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fe
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyrics-plus-backend.vercel.app/v2/lyrics/get?title=Wesley%27s+Theory&artist=Kendrick+Lamar&duration=288&album=To+Pimp+A+Butterfly' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.error: Access to fetch at 'https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?title=Wesley%27s+Theory&artist=Kendrick+Lamar&duration=288&album=To+Pimp+A+Butterfly' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: the server responded with a status of 401 ()
+console.debug: BitChord [g0NVaX8DRN4] clean version of 'King Kunta': AC4bb9Q9-04 from YouTube Music, via "king kunta kendrick lamar"
+console.debug: BitChord [AC4bb9Q9-04] explicit song swapped for its clean version
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.debug: BitChord [7L1POXocFIQ] clean version of 'Institutionalized (feat. Bilal, Anna Wise & Snoop Dogg)': Ti9LYkpZLsw from YouTube Music, via "institutionalized kendrick lamar"
+console.debug: BitChord [Ti9LYkpZLsw] explicit song swapped for its clean version
+console.debug: BitChord [l9fN-8NjrvI] clean version of 'Wesley's Theory (feat. George Clinton & Thundercat)': JxIlsOmLakg from YouTube Music, via "wesleys theory kendrick lamar"
+console.debug: BitChord [JxIlsOmLakg] explicit song swapped for its clean version
+console.debug: BitChord [JxIlsOmLakg] loading at 0.0s
+console.debug: BitChord [JxIlsOmLakg] TIMING InnerTube session: 0ms
+console.error: Access to fetch at 'https://lyricsplus-seven.vercel.app/v2/lyrics/get?title=Wesley%27s+Theory&artist=Kendrick+Lamar&duration=288&album=To+Pimp+A+Butterfly' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fe
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?title=Wesley%27s+Theory&artist=Kendrick+Lamar&duration=288&album=To+Pimp+A+Butterfly' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyrics-plus-backend.vercel.app/v2/lyrics/get?title=Wesley%27s+Theory&artist=Kendrick+Lamar&duration=288&album=To+Pimp+A+Butterfly' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.error: Failed to load resource: the server responded with a status of 401 ()
+console.warning: BitChord [JxIlsOmLakg] VISIONOS refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (112ms); skipping it for this track
+console.debug: BitChord BotGuard ready; integrity token valid for 720 min
+console.debug: BitChord TIMING BotGuard init: 167ms
+console.debug: BitChord [Cgt2VWpFdmwwSlphMCix2cnWBjIKCgJVUxIEGgAgIWK3Agq0AkN1UUJDQVVTbGdFQjhRWnVaZ1lPNUZZcmg1MzhKcEJ5TzRTRzhobXN2eTMyUGJwTnhmTjZCRUlydVUzY2tiZDdMSDhRR2lBT1dTN1NEYXlvQlMzUFpYT1dkTk53OFFubWhNS1I4M2t0Q2ozbERHNzQ0aHJTbFBCQWEyQk8tYWk0UzFYMENxdTJnMG80aV84OGJVR2RmS01pVm42R2tDXzQwSHdIR1ZFaWVGZlE0OUk0RmttWG8waGg3dGNaOUY2NjdfVTRaZWdjUllLOXVIbjZRV01vQlRKRkFkNnBuVThWS2l1ckZ0VElhRVphSC12Wm1oWC1
+console.warning: BitChord [JxIlsOmLakg] YTMUSIC refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (120ms); skipping it for this track
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.warning: BitChord [JxIlsOmLakg] WEB refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (73ms); skipping it for this track
+console.warning: BitChord [JxIlsOmLakg] not playable: This track is age-restricted. Sign in to YouTube Music in this browser to play it.; not asking again for 10 minutes
+console.debug: BitChord [JxIlsOmLakg] TIMING player request: 320ms
+console.error: BitChord [JxIlsOmLakg] load failed: This track is age-restricted. Sign in to YouTube Music in this browser to play it.
+console.debug: BitChord [qh4nXtTpTEE] clean version of 'For Free? (Interlude)': uwvSw8wX1fY from YouTube Music, via "for free kendrick lamar clean"
+console.debug: BitChord [uwvSw8wX1fY] explicit song swapped for its clean version
+console.debug: BitChord [uwvSw8wX1fY] explicit song swapped for its clean version
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.error: Failed to load resource: the server responded with a status of 404 ()
+shot album-playing
+shot up-next
+shot menu
+console.debug: [vite] connecting...
+console.debug: [vite] connected.
+console.info: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+console.debug: BitChord InnerTube ready in 107ms (WEB 2.20260623.01.00, player 0229cd64)
+console.error: Access to fetch at 'https://lyrics-plus-backend.vercel.app/v2/lyrics/get?title=Gold+Digger&artist=Kanye+West&isrc=USUM70500143' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS d
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.error: Access to fetch at 'https://lyricsplus-seven.vercel.app/v2/lyrics/get?title=Gold+Digger&artist=Kanye+West&isrc=USUM70500143' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS disa
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID
+console.error: Access to fetch at 'https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?title=Gold+Digger&artist=Kanye+West&isrc=USUM70500143' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors' to fetch the resource with CORS d
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: the server responded with a status of 401 ()
+console.error: Failed to load resource: the server responded with a status of 401 ()
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.debug: BitChord [uVL4d8P44eM] clean version of 'Gold Digger (feat. Jamie Foxx)': LFFcyWGWz14 from YouTube Music, via "gold digger kanye west"
+console.debug: BitChord [LFFcyWGWz14] explicit song swapped for its clean version
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.debug: BitChord [LFFcyWGWz14] loading at 0.0s
+console.debug: BitChord [LFFcyWGWz14] TIMING InnerTube session: 0ms
+console.error: Failed to load resource: the server responded with a status of 404 ()
+console.debug: BitChord BotGuard ready; integrity token valid for 720 min
+console.debug: BitChord TIMING BotGuard init: 111ms
+console.warning: BitChord [LFFcyWGWz14] VISIONOS refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (118ms); skipping it for this track
+console.debug: BitChord [Cgt2VWpFdmwwSlphMCix2cnWBjIKCgJVUxIEGgAgIWK3Agq0AkN1UUJDQVVTbGdFQjhRWnVaZ1lPNUZZcmg1MzhKcEJ5TzRTRzhobXN2eTMyUGJwTnhmTjZCRUlydVUzY2tiZDdMSDhRR2lBT1dTN1NEYXlvQlMzUFpYT1dkTk53OFFubWhNS1I4M2t0Q2ozbERHNzQ0aHJTbFBCQWEyQk8tYWk0UzFYMENxdTJnMG80aV84OGJVR2RmS01pVm42R2tDXzQwSHdIR1ZFaWVGZlE0OUk0RmttWG8waGg3dGNaOUY2NjdfVTRaZWdjUllLOXVIbjZRV01vQlRKRkFkNnBuVThWS2l1ckZ0VElhRVphSC12Wm1oWC1
+console.error: Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID
+console.error: Access to fetch at 'https://lyrics-plus-backend.vercel.app/v2/lyrics/get?title=Gold+Digger&artist=Kanye+West&duration=208&album=Late+Registration&isrc=USUM70500143' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-co
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyricsplus-seven.vercel.app/v2/lyrics/get?title=Gold+Digger&artist=Kanye+West&duration=208&album=Late+Registration&isrc=USUM70500143' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-cors'
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Access to fetch at 'https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?title=Gold+Digger&artist=Kanye+West&duration=208&album=Late+Registration&isrc=USUM70500143' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. If an opaque response serves your needs, set the request's mode to 'no-co
+console.error: Failed to load resource: net::ERR_FAILED
+console.error: Failed to load resource: the server responded with a status of 400 ()
+console.warning: BitChord [LFFcyWGWz14] YTMUSIC refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (87ms); skipping it for this track
+console.warning: BitChord [LFFcyWGWz14] WEB refused: LOGIN_REQUIRED: Sign in to confirm you’re not a bot (79ms); skipping it for this track
+console.warning: BitChord [LFFcyWGWz14] not playable: This track is age-restricted. Sign in to YouTube Music in this browser to play it.; not asking again for 10 minutes
+console.debug: BitChord [LFFcyWGWz14] TIMING player request: 292ms
+console.error: BitChord [LFFcyWGWz14] load failed: This track is age-restricted. Sign in to YouTube Music in this browser to play it.
+console.error: Failed to load resource: the server responded with a status of 404 ()
+shot gold-digger
