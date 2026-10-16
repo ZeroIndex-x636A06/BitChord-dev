@@ -289,3 +289,8 @@
     animation: none;
   }
 }
+
+/* "Block explicit songs": greyed out, and tapping asks first (state/explicit.ts). */
+.row[data-blocked] {
+  opacity: 0.45;
+}

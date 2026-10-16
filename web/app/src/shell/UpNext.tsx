@@ -3,6 +3,7 @@ import { Infinity as InfinityIcon, MoreHorizontal, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/components/Menu';
 import { Artwork } from '@/components/music/Artwork';
+import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { formatDuration } from '@/components/music/links';
 import { autoplaySectionStart, upcomingUserQueueIndices, type QueueEntry } from '@/playback/queue/timeline';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
@@ -56,7 +57,10 @@ function Row({
         </button>
       </div>
       <button className={styles.text} onClick={() => jumpTo(at)} aria-label={`Play ${track.title}`}>
-        <span className={styles.title}>{track.title}</span>
+        <span className={styles.title}>
+          {track.title}
+          {track.explicit && <ExplicitBadge />}
+        </span>
         <span className={styles.subtitle}>{track.artists.map((a) => a.name).join(', ')}</span>
       </button>
       <div className={styles.end}>

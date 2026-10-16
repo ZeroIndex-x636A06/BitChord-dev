@@ -4,6 +4,7 @@ import { PrefetchLink } from '@/components/PrefetchLink';
 import shelfStyles from '@/components/Shelf.module.css';
 import type { MusicItem, Shelf, Track } from '@/data/music/types';
 import type { QueueSource } from '@/playback/queue/timeline';
+import { playUnlessBlocked } from '@/state/explicit';
 import { browseHref } from './links';
 import { CircleLockup, SquareLockup, TrackLockup, VideoLockup } from './Lockups';
 import { playList } from './play';
@@ -127,7 +128,7 @@ export function TrackShelf({ title, to, tracks, source }: { title: string; to?: 
       <ShelfScroller key={tracks.length} layoutClass={shelfStyles.tracks}>
         {tracks.map((track, i) => (
           <li key={track.videoId}>
-            <TrackLockup item={trackItem(track)} onPlay={() => playList(tracks, i, { source })} />
+            <TrackLockup item={trackItem(track)} onPlay={() => playUnlessBlocked(track, () => playList(tracks, i, { source }))} />
           </li>
         ))}
       </ShelfScroller>

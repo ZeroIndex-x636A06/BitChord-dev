@@ -9,6 +9,7 @@ import { useExtension } from '@/extension/useExtension';
 import { useYtAuth } from '@/extension/useYtAuth';
 import { useParty } from '@/party/useParty';
 import { useHistorySettings } from '@/playback/historyReporting';
+import { useExplicit } from '@/state/explicit';
 import { CROSSFADE_CHOICES, usePlayer } from '@/state/player';
 import { CanvasToggle, DiscordIntegration, SpotifyIntegration, Toggle } from './IntegrationSettings';
 import styles from './ExtensionPage.module.css';
@@ -61,6 +62,7 @@ export default function SettingsPage() {
   const shareHistory = useHistorySettings((s) => s.share);
   const setShareHistory = useHistorySettings((s) => s.setShare);
   const { setAutoplay, setCrossfade } = usePlayer.getState();
+  const blockExplicit = useExplicit((s) => s.block);
   const [lyrics, setLyrics] = useState(false);
   const present = extension.state === 'present';
   const discordText =
@@ -129,6 +131,12 @@ export default function SettingsPage() {
             detail="When the queue ends, keep playing similar music."
             checked={autoplay}
             onChange={setAutoplay}
+          />
+          <Toggle
+            label="Block Explicit Songs"
+            detail="Skip songs marked explicit in AutoPlay, radio and your queue. Allow one from its menu."
+            checked={blockExplicit}
+            onChange={useExplicit.getState().setBlock}
           />
           <label className={styles.row}>
             <span>Crossfade</span>

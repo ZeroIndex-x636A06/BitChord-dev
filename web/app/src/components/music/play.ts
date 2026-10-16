@@ -1,5 +1,6 @@
 import type { ArtistRef, MusicItem, Track } from '@/data/music/types';
 import type { QueueSource } from '@/playback/queue/timeline';
+import { playUnlessBlocked } from '@/state/explicit';
 import { usePlayer } from '@/state/player';
 
 /** A shelf or search item as a queue track. */
@@ -21,7 +22,7 @@ export function toTrack(item: Track | MusicItem, fallbackArtwork?: string | null
 /** One song on its own (Search, Home, a shelf): the queue is that song, then AutoPlay. */
 export function playTrack(item: Track | MusicItem, fallbackArtwork?: string | null, source?: QueueSource) {
   const track = toTrack(item, fallbackArtwork);
-  usePlayer.getState().playTrack(track, source ?? { title: track.title, type: 'other' });
+  playUnlessBlocked(track, () => usePlayer.getState().playTrack(track, source ?? { title: track.title, type: 'other' }));
 }
 
 export interface ListContext {

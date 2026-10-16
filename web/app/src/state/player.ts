@@ -21,6 +21,7 @@ import {
   type QueueSource,
 } from '@/playback/queue/timeline';
 import { trackLog } from '@/playback/trackLog';
+import { isBlocked, useExplicit } from '@/state/explicit';
 import type { LoadedTrack, YouTubeEngine } from '@/playback/youtube/engine';
 
 export interface NowPlaying {
@@ -438,6 +439,12 @@ async function startAt(at: number, { startSec = 0, auto = false, autoplay = true
   const state = usePlayer.getState();
   const entry = state.queue[at];
   if (!entry) return;
+  const instead = skipBlocked(at);
+  if (instead === 'stop') {
+    getAudio()?.pause();
+    return void usePlayer.setState({ status: 'paused' });
+  }
+  if (instead !== null) return startAt(instead, { startSec, auto, autoplay });
   cancelCrossfade();
   const token = ++loadToken;
 
@@ -564,7 +571,8 @@ function refillAutoplay(force = false): Promise<void> {
   refilling ??= (async () => {
     try {
       const { fetchRadio } = await import('@/data/music/api');
-      const candidates = await fetchRadio(seed.videoId);
+      // "Block explicit songs" leaves them out of AutoPlay altogether.
+      const candidates = (await fetchRadio(seed.videoId)).filter((c) => !isBlocked(c.track));
       const current = usePlayer.getState();
       const extra = extendStation(
         current.queue.map((e) => e.track),
@@ -592,6 +600,36 @@ function refillAutoplay(force = false): Promise<void> {
   })();
   return refilling;
 }
+
+// ---- "Block explicit songs" ----------------------------------------------------------
+
+/**
+ * "Block explicit songs" on the queue (PlaybackService.skipBlockedExplicit):
+ * blocked songs after [at] are dropped, and a blocked [at] itself is moved
+ * past. Returns where to play instead, 'stop' when nothing follows it, or
+ * null to play [at] as it is. Not in a party, whose queue is everyone's.
+ */
+function skipBlocked(at: number): number | 'stop' | null {
+  if (!useExplicit.getState().block || partyHooks?.inParty()) return null;
+  const { queue } = usePlayer.getState();
+  const kept = queue.filter((e, i) => i <= at || !isBlocked(e.track));
+  if (kept.length !== queue.length) usePlayer.setState({ queue: kept });
+  const entry = kept[at];
+  if (!entry || !isBlocked(entry.track)) return null;
+  trackLog.i('explicit song blocked; skipping', entry.track.videoId);
+  useExplicit.getState().notify('Explicit song skipped');
+  return at + 1 < kept.length ? at + 1 : 'stop';
+}
+
+// Turning blocking on, or un-allowing a song, applies to the queue already lined up.
+useExplicit.subscribe((now, before) => {
+  if (now.block === before.block && now.allowed === before.allowed) return;
+  const { index } = usePlayer.getState();
+  if (index < 0) return;
+  const instead = skipBlocked(index);
+  if (instead === 'stop') getAudio()?.pause();
+  else if (instead !== null) void startAt(instead);
+});
 
 // ---- Crossfade ----------------------------------------------------------------------
 
@@ -632,6 +670,8 @@ function maybeCrossfade() {
 
   const back = decks[1 - active]!;
   const entry = plan.queue[plan.index]!;
+  // A blocked explicit song is never faded in: it waits for the track to end, where startAt deals with it.
+  if (isBlocked(entry.track) && !partyHooks?.inParty()) return;
   const token = ++loadToken;
   fade = { token, frame: 0, pending: true };
   back.gain = 0;

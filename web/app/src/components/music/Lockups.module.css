@@ -173,3 +173,9 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* "Block explicit songs": greyed out, and tapping asks first (state/explicit.ts). */
+.lockup[data-blocked],
+.track[data-blocked] {
+  opacity: 0.45;
+}

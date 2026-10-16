@@ -97,3 +97,8 @@
   gap: 20px;
   margin: 46px var(--body-gutter) 32px;
 }
+
+/* "Block explicit songs": greyed out, and tapping asks first (state/explicit.ts). */
+.top[data-blocked] {
+  opacity: 0.45;
+}
