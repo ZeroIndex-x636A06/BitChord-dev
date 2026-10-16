@@ -222,6 +222,8 @@
     <string name="stop_music_on_close_subtitle">從最近任務中划走應用時停止播放</string>
     <string name="hide_volume_bar">隱藏音量條</string>
     <string name="hide_volume_bar_subtitle">從主播放器中移除音量滑塊</string>
+    <string name="hide_status_bar_in_player">在播放器中隱藏狀態列</string>
+    <string name="hide_status_bar_in_player_subtitle">主播放器開啟時隱藏時鐘、電量和通知圖示</string>
     <string name="hide_song_status">隱藏歌曲狀態</string>
     <string name="hide_song_status_subtitle">隱藏主播放器中的“播放自”或“播放者”文字</string>
     <string name="off">關閉</string>
@@ -236,6 +238,15 @@
     <string name="full_screen_cover_art_subtitle">讓封面延伸至播放器邊緣，而不是顯示為方形</string>
     <string name="animated_cover_art_subtitle">播放部分發行版自帶的迴圈影片，而不是靜態封面</string>
     <string name="dont_repeat_songs_subtitle">自動播放不會在本次會話中重複推薦已播放或已推薦過的歌曲</string>
+    <string name="block_explicit">封鎖露骨歌曲</string>
+    <string name="block_explicit_subtitle">在自動播放、電台和播放佇列中略過標示為露骨的歌曲。可在歌曲選單中個別允許</string>
+    <string name="allow_explicit_song">允許這首露骨歌曲</string>
+    <string name="block_explicit_song">重新封鎖這首露骨歌曲</string>
+    <string name="explicit_song_skipped">已略過露骨歌曲</string>
+    <string name="explicit_song_blocked">露骨歌曲</string>
+    <string name="explicit_song_blocked_message">「%1$s」被標記為露骨，你的過濾器正在封鎖它。</string>
+    <string name="allow_this_song">允許這首歌曲</string>
+    <string name="turn_off_blocking">關閉封鎖</string>
     <string name="download_quality_subtitle">無論何種網路連線，每首曲目均為%1$s</string>
     <string name="filter_non_music_audio">過濾非音樂音訊</string>
     <string name="filter_non_music_audio_subtitle">隱藏時長低於 30 秒的片段、WAV 檔案、語音備忘錄、錄音和系統提示音</string>
@@ -1267,6 +1278,4 @@
     <string name="spotify_library_subtitle">你的 Spotify 播放列表</string>
     <string name="spotify_sign_in">使用 Spotify 登入</string>
     <string name="spotify_track_unavailable">在 YouTube Music 上找不到該歌曲</string>
-    <string name="lyrics_original_title">用原標題搜歌詞</string>
-    <string name="lyrics_original_title_desc">先還原 YouTube 原標題再搜歌詞，翻譯過的標題也能找到</string>
 </resources>

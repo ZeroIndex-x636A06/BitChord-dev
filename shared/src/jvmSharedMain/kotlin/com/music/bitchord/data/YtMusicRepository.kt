@@ -122,6 +122,7 @@ object YtMusicRepository {
                     thumbnailUrl = it.thumbnailUrl,
                     videoId = it.videoId,
                     browseId = null,
+                    isExplicit = it.isExplicit,
                 )
             },
         )
@@ -293,10 +294,10 @@ object YtMusicRepository {
      * search responsive; the UI asks [searchContinuation] for later pages as
      * the listener reaches the end of the list.
      */
-    suspend fun searchPage(query: String, filter: SearchFilter): Result<SearchPage> =
+    suspend fun searchPage(query: String, filter: SearchFilter, anonymous: Boolean = true): Result<SearchPage> =
         call("search:${filter.name}") {
             InnertubeParser.parseSearchPage(
-                Innertube.search(query, filter.params),
+                Innertube.search(query, filter.params, anonymous),
                 includeVideos = filter == SearchFilter.VIDEOS,
             ).let { page ->
                 SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)

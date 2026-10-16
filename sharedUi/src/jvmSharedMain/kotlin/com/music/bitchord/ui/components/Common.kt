@@ -331,8 +331,20 @@ fun SongRow(
     searchPlayingStyle: Boolean = false,
     /** True while a Downloads row belongs to the current multi-selection. */
     selected: Boolean = false,
+    /**
+     * Leads the artist line with the tier the row's source offered — Lossless,
+     * Hi-Res Lossless, Dolby Atmos, High quality — for lists where rows from
+     * different catalogues sit side by side: the Addons search.
+     */
+    showSourceQuality: Boolean = false,
+    /**
+     * The song is explicit and "Block explicit songs" is keeping it from
+     * playing: the row is greyed out, and a tap asks before playing it.
+     */
+    explicitBlocked: Boolean = isExplicitBlocked(song),
 ) {
     val haptics = rememberHaptics()
+    val click = explicitGatedClick(song, explicitBlocked, onClick)
     val swipeStateHolder = remember { mutableStateOf<SwipeToDismissBoxState?>(null) }
     var boxWidth by remember { mutableFloatStateOf(0f) }
 
@@ -357,7 +369,7 @@ fun SongRow(
     if (onSwipeToQueue == null) {
         SongRowContent(
             song = song,
-            onClick = onClick,
+            onClick = click,
             onLongPress = onLongPress,
             onMore = onMore ?: onLongPress,
             modifier = modifier,
@@ -369,6 +381,8 @@ fun SongRow(
             activeTint = activeTint,
             searchPlayingStyle = searchPlayingStyle,
             selected = selected,
+            showSourceQuality = showSourceQuality,
+            explicitBlocked = explicitBlocked,
         )
         return
     }
@@ -404,7 +418,7 @@ fun SongRow(
     ) {
         SongRowContent(
             song = song,
-            onClick = onClick,
+            onClick = click,
             onLongPress = onLongPress,
             onMore = onMore ?: onLongPress,
             modifier = Modifier.background(rowBackground),
@@ -416,6 +430,8 @@ fun SongRow(
             activeTint = activeTint,
             searchPlayingStyle = searchPlayingStyle,
             selected = selected,
+            showSourceQuality = showSourceQuality,
+            explicitBlocked = explicitBlocked,
         )
     }
 }
@@ -483,6 +499,8 @@ private fun SongRowContent(
     activeTint: Color = MaterialTheme.colorScheme.primary,
     searchPlayingStyle: Boolean = false,
     selected: Boolean = false,
+    showSourceQuality: Boolean = false,
+    explicitBlocked: Boolean = false,
 ) {
     val titleColor by animateColorAsState(
         targetValue = if (isCurrent) activeTint else MaterialTheme.colorScheme.onBackground,
@@ -499,7 +517,7 @@ private fun SongRowContent(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .alpha(if (unavailable) 0.45f else 1f)
+            .alpha(if (unavailable || explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .background(activeBackground)
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onMore ?: onLongPress)
@@ -559,16 +577,27 @@ private fun SongRowContent(
                 color = titleColor,
             )
             Spacer(Modifier.height(2.dp))
-            Text(
-                text = listOfNotNull(
-                    song.artist.takeIf { it.isNotBlank() },
-                    song.downloadFormat,
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.bodyMedium,
-                color = subtitleColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val subtitle = listOfNotNull(
+                song.artist.takeIf { it.isNotBlank() },
+                song.downloadFormat,
+            ).joinToString(" · ")
+            val quality = if (showSourceQuality) song.sourceQualityBadge() else null
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (quality != null) {
+                    SourceQualityBadge(
+                        quality = quality,
+                        color = subtitleColor,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Text(
+                    text = if (quality != null && subtitle.isNotEmpty()) " · $subtitle" else subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = subtitleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         if (downloadedTint != null) {
             DownloadedBadge(song.videoId, downloadedTint)
@@ -610,7 +639,7 @@ private fun SongRowContent(
         }
         // Same sheet the long-press opens, for anyone who doesn't think to hold.
         if (onMore != null && !matching && !unavailable) {
-            RowMoreButton(onClick = onMore)
+            RowMoreButton(onClick = onMore, tint = subtitleColor)
         }
     }
 }
