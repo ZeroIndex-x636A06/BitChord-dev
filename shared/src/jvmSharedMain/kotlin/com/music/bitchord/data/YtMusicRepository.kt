@@ -24,6 +24,7 @@ import com.music.bitchord.data.model.Song
 import com.music.bitchord.data.model.SongMenu
 import com.music.bitchord.data.model.UserPlaylist
 import com.music.bitchord.data.sources.TrackMatcher
+import com.music.bitchord.playback.CleanVersions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -122,6 +123,7 @@ object YtMusicRepository {
                     thumbnailUrl = it.thumbnailUrl,
                     videoId = it.videoId,
                     browseId = null,
+                    isExplicit = it.isExplicit,
                 )
             },
         )
@@ -293,14 +295,26 @@ object YtMusicRepository {
      * search responsive; the UI asks [searchContinuation] for later pages as
      * the listener reaches the end of the list.
      */
-    suspend fun searchPage(query: String, filter: SearchFilter): Result<SearchPage> =
+    suspend fun searchPage(query: String, filter: SearchFilter, anonymous: Boolean = true): Result<SearchPage> =
         call("search:${filter.name}") {
             InnertubeParser.parseSearchPage(
-                Innertube.search(query, filter.params),
+                Innertube.search(query, filter.params, anonymous),
                 includeVideos = filter == SearchFilter.VIDEOS,
             ).let { page ->
                 SearchPage(page.rows.distinctBy { it.identityKey() }, page.continuation)
             }
+        }
+
+    /**
+     * The first page of a search as a signed-out listener gets it, for the
+     * clean-version lookup only. See [Innertube.searchSignedOut].
+     */
+    suspend fun searchSignedOut(query: String, filter: SearchFilter): Result<List<SearchResult>> =
+        call("search-signed-out:${filter.name}") {
+            InnertubeParser.parseSearchPage(
+                Innertube.searchSignedOut(query, filter.params),
+                includeVideos = filter == SearchFilter.VIDEOS,
+            ).rows
         }
 
     /** Fetches the next page of a search only when the result list needs it. */
@@ -386,6 +400,16 @@ object YtMusicRepository {
      */
     suspend fun resolveAudio(song: Song): Song {
         if (!song.isVideo) return song
+        // A clean edit someone uploaded becomes the clean version of its song,
+        // never the explicit original it matches.
+        CleanVersions.uploadAsSong(song.videoId)?.let { return it }
+        val audio = matchAudio(song)
+        if (audio.isExplicit == true && CleanVersions.saysClean(song)) return CleanVersions.asCleanUpload(audio, song)
+        return audio
+    }
+
+    /** The catalogue song [song], a video, is a recording of; or [song] itself when there's none. */
+    private suspend fun matchAudio(song: Song): Song {
         audioVersionCache[song.videoId]?.let { return it }
         val target = TrackMatcher.targetOf(song)
         for (query in TrackMatcher.queries(target)) {

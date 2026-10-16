@@ -1,5 +1,7 @@
 package com.music.bitchord.ui.screens
 
+import com.music.bitchord.ui.components.BLOCKED_ROW_ALPHA
+import com.music.bitchord.ui.components.ExplicitTitle
 import com.music.bitchord.ui.components.contextClick
 import com.music.bitchord.ui.AppUi
 import com.music.bitchord.sharedui.resources.*
@@ -11,6 +13,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.music.bitchord.ui.components.explicitGatedClick
+import com.music.bitchord.ui.components.isExplicitBlocked
+import com.music.bitchord.ui.components.playsCleanVersions
+import com.music.bitchord.playback.CleanEditions
 import com.music.bitchord.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +53,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -96,10 +103,14 @@ private val HOME_TITLE_LIFT = 28.dp
 private const val RECENTS_TITLE = "Recents"
 private const val RECENT_TRACKS_PER_COLUMN = 4
 
-private fun ShelfItem.matchesCurrentlyPlaying(song: Song?): Boolean {
-    song ?: return false
-    if (videoId == null) return false
-    return videoId == song.videoId || (title == song.title && subtitle == song.artist)
+private fun List<ShelfItem>.playingItemMatcher(song: Song?): (ShelfItem) -> Boolean {
+    song ?: return { false }
+    // The card that was played, when the shelf holds it, and only that one —
+    // see [com.music.bitchord.data.model.playingRowMatcher], which rows use.
+    if (any { it.videoId == song.videoId }) return { it.videoId == song.videoId }
+    val byName = firstOrNull { it.videoId != null && it.title == song.title && it.subtitle == song.artist }
+        ?: return { false }
+    return { it == byName }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,6 +151,7 @@ fun HomeScreen(
     isPlaying: Boolean = false,
 ) {
     val recentsViewType by AppUi.host.homeRecentsViewType.collectAsStateWithLifecycle()
+    val playsClean = playsCleanVersions()
 
     PullToRefresh(
         refreshing = refreshing,
@@ -192,7 +204,7 @@ fun HomeScreen(
                     // Recently Played lands, every real shelf must retain its
                     // compact-card layout instead of briefly becoming a hero.
                     itemsIndexedShelves(
-                        shelves = state.data,
+                        shelves = if (playsClean) CleanEditions.shelves(state.data) else state.data,
                         onItemClick = onItemClick,
                         onItemLongPress = onItemLongPress,
                         currentSong = currentSong,
@@ -301,6 +313,7 @@ private fun RecentShelf(
             viewType = viewType,
             onViewTypeToggle = onViewTypeToggle,
         )
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         if (viewType == LibraryViewType.LIST) {
             BoxWithConstraints {
                 val columnWidth = trackColumnWidth(maxWidth)
@@ -315,8 +328,8 @@ private fun RecentShelf(
                                     item = item,
                                     onClick = { onItemClick(item) },
                                     onLongPress = onItemLongPress?.let { { it(item) } },
-                                    isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                                    isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                                    isCurrent = isCurrentItem(item),
+                                    isPlaying = isCurrentItem(item) && isPlaying,
                                 )
                             }
                         }
@@ -336,8 +349,8 @@ private fun RecentShelf(
                             onClick = { onItemClick(item) },
                             onLongPress = onItemLongPress?.let { { it(item) } },
                             modifier = Modifier.width(cardWidth),
-                            isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                            isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                            isCurrent = isCurrentItem(item),
+                            isPlaying = isCurrentItem(item) && isPlaying,
                         )
                     }
                 }
@@ -412,15 +425,18 @@ private fun RecentTrackRow(
     onLongPress: (() -> Unit)?,
     isCurrent: Boolean,
     isPlaying: Boolean,
+    explicitBlocked: Boolean = isExplicitBlocked(item),
 ) {
     CompactTrackRow(
         title = item.title,
         subtitle = item.subtitle,
         thumbnailUrl = item.thumbnailUrl,
-        onClick = onClick,
+        onClick = explicitGatedClick(item, explicitBlocked, onClick),
         onLongPress = onLongPress,
         isCurrent = isCurrent,
         isPlaying = isPlaying,
+        isExplicit = item.isExplicit == true,
+        explicitBlocked = explicitBlocked,
     )
 }
 
@@ -438,10 +454,15 @@ fun CompactTrackRow(
     onLongPress: (() -> Unit)?,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    /** Draws the explicit badge before the title, as song rows do. */
+    isExplicit: Boolean = false,
+    /** Greys the row out; see [isExplicitBlocked]. */
+    explicitBlocked: Boolean = false,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
             .contextClick(onLongPress)
             .padding(vertical = 4.dp),
@@ -462,12 +483,11 @@ fun CompactTrackRow(
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(
-                text = title,
+            ExplicitTitle(
+                title = title,
+                explicit = isExplicit,
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = subtitle,
@@ -746,6 +766,7 @@ private fun HeroShelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         SectionHeader(shelf.title, shelf.subtitle)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         // Measured rather than taken as a share of the parent, because the card
         // has a ceiling as well as a fraction — see [heroCardWidth]. A fixed
         // width is also the only one of the two the aspect ratio below can turn
@@ -763,8 +784,8 @@ private fun HeroShelf(
                         onClick = { onItemClick(item) },
                         onLongPress = onItemLongPress?.let { { it(item) } },
                         modifier = Modifier.width(cardWidth),
-                        isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                        isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                        isCurrent = isCurrentItem(item),
+                        isPlaying = isCurrentItem(item) && isPlaying,
                     )
                 }
             }
@@ -782,14 +803,19 @@ private fun HeroCard(
     modifier: Modifier = Modifier,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    explicitBlocked: Boolean = isExplicitBlocked(item),
 ) {
     Box(
         modifier = modifier
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
             .aspectRatio(HERO_CARD_RATIO)
             .clip(RoundedCornerShape(18.dp))
             .thumbnailBorder(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .longPressMenuClickable(
+                onClick = explicitGatedClick(item, explicitBlocked, onClick),
+                onLongClick = onLongPress,
+            )
             .contextClick(onLongPress),
     ) {
         AsyncImage(
@@ -810,12 +836,11 @@ private fun HeroCard(
                 )
                 .padding(start = 16.dp, end = 16.dp, top = 34.dp, bottom = 14.dp),
         ) {
-            Text(
-                text = item.title,
+            ExplicitTitle(
+                title = item.title,
+                explicit = item.isExplicit == true,
                 style = MaterialTheme.typography.titleLarge,
                 color = if (isCurrent) PlayingAccent else Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             if (item.subtitle.isNotBlank()) {
                 val displaySubtitle = localizeCardSubtitle(item.subtitle)
@@ -850,6 +875,7 @@ internal fun Shelf(
 ) {
     Column(Modifier.padding(bottom = 26.dp)) {
         SectionHeader(shelf.title, shelf.subtitle)
+        val isCurrentItem = shelf.items.playingItemMatcher(currentSong)
         ShelfRow(
             contentPadding = PaddingValues(horizontal = PAGE_GUTTER),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -860,8 +886,8 @@ internal fun Shelf(
                     item = item,
                     onClick = { onItemClick(item) },
                     onLongPress = onItemLongPress?.let { { it(item) } },
-                    isCurrent = item.matchesCurrentlyPlaying(currentSong),
-                    isPlaying = item.matchesCurrentlyPlaying(currentSong) && isPlaying,
+                    isCurrent = isCurrentItem(item),
+                    isPlaying = isCurrentItem(item) && isPlaying,
                 )
             }
         }
@@ -971,10 +997,15 @@ internal fun ShelfCard(
     isPinned: Boolean = false,
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
+    explicitBlocked: Boolean = isExplicitBlocked(item),
 ) {
     Column(
         modifier = modifier
-            .longPressMenuClickable(onClick = onClick, onLongClick = onLongPress)
+            .alpha(if (explicitBlocked) BLOCKED_ROW_ALPHA else 1f)
+            .longPressMenuClickable(
+                onClick = explicitGatedClick(item, explicitBlocked, onClick),
+                onLongClick = onLongPress,
+            )
             .contextClick(onLongPress),
     ) {
         when (item.browseId) {
@@ -1054,12 +1085,11 @@ internal fun ShelfCard(
                 )
                 Spacer(Modifier.width(4.dp))
             }
-            Text(
-                text = item.title,
+            ExplicitTitle(
+                title = item.title,
+                explicit = item.isExplicit == true,
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isCurrent) PlayingAccent else MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
         }

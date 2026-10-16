@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -35,6 +36,8 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Downloading
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Explicit
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.FileUpload
@@ -171,6 +174,18 @@ fun SongActionsSheet(
     /** Which cut is playing now, so the row can offer the other one. */
     isAudioVersion: Boolean = false,
     onShare: (() -> Unit)? = null,
+    /**
+     * Allows this explicit song past "Block explicit songs", or blocks it
+     * again. Null hides the row: it is only offered while blocking is on.
+     */
+    onToggleExplicitAllowed: (() -> Unit)? = null,
+    /** Whether the song is already allowed, so the row offers the other way. */
+    explicitAllowed: Boolean = false,
+    /**
+     * Where this song's clean version came from ("YouTube Music", "YouTube"),
+     * while "Play clean versions instead" plays it. Null hides the row.
+     */
+    cleanVersionSource: String? = null,
     /**
      * Copies what the app logged while starting this track. Null everywhere
      * except the player, where "this track" means something.
@@ -350,6 +365,26 @@ fun SongActionsSheet(
             ActionRow(
                 icon = Icons.Rounded.Tune,
                 label = stringResource(R.string.lyrics_offset),
+                accent = palette.accent,
+                onClick = it,
+            )
+        }
+        cleanVersionSource?.let { source ->
+            ActionRow(
+                icon = Icons.Rounded.Info,
+                label = stringResource(R.string.clean_version),
+                value = source,
+                accent = palette.accent,
+                enabled = false,
+                onClick = {},
+            )
+        }
+        onToggleExplicitAllowed?.let {
+            ActionRow(
+                icon = if (explicitAllowed) Icons.Rounded.Block else Icons.Rounded.Explicit,
+                label = stringResource(
+                    if (explicitAllowed) R.string.block_explicit_song else R.string.allow_explicit_song,
+                ),
                 accent = palette.accent,
                 onClick = it,
             )

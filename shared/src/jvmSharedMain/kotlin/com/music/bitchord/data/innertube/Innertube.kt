@@ -609,10 +609,28 @@ object Innertube {
         put("params", Base64.getEncoder().encodeToString(bytes))
     }
 
-    suspend fun search(query: String, params: String? = null): JsonObject =
-        postMusic("search") {
+    /**
+     * A search as someone with no account sees it: no cookie and no visitor id.
+     * Signed in, YouTube Music can leave the clean release of an explicit song
+     * out of the results, which is what the clean-version lookup looks for.
+     */
+    suspend fun searchSignedOut(query: String, params: String? = null): JsonObject =
+        postMusicAnonymous("search", shareVisitor = false) {
             put("query", query)
             params?.let { put("params", it) }
+        }
+
+    suspend fun search(query: String, params: String? = null, anonymous: Boolean = true): JsonObject =
+        if (anonymous) {
+            postMusicAnonymous("search") {
+                put("query", query)
+                params?.let { put("params", it) }
+            }
+        } else {
+            postMusic("search") {
+                put("query", query)
+                params?.let { put("params", it) }
+            }
         }
 
     /** The next page of a filtered search result. */
@@ -1167,8 +1185,11 @@ object Innertube {
      */
     private suspend fun postMusicAnonymous(
         endpoint: String,
+        /** Whether to send this install's visitor id, which can carry the account's preferences. */
+        shareVisitor: Boolean = true,
         bodyExtras: JsonObjectBuilder.() -> Unit,
     ): JsonObject {
+        val sentVisitor = visitorData.takeIf { shareVisitor }
         val clientVersion = webRemixVersion
         return withRetry {
             client.post("$MUSIC_BASE/$endpoint") {
@@ -1181,7 +1202,7 @@ object Innertube {
                 header("X-YouTube-Client-Version", clientVersion)
                 header("Accept-Language", acceptLanguageHeader)
                 parameter("hl", currentLanguage)
-                visitorData?.let { header("X-Goog-Visitor-Id", it) }
+                sentVisitor?.let { header("X-Goog-Visitor-Id", it) }
                 // No Cookie / Authorization headers — anonymous request.
                 setBody(
                     buildJsonObject {
@@ -1191,7 +1212,7 @@ object Innertube {
                                 put("clientVersion", clientVersion)
                                 put("hl", currentLanguage)
                                 put("gl", currentRegion)
-                                visitorData?.let { put("visitorData", it) }
+                                sentVisitor?.let { put("visitorData", it) }
                             }
                             putJsonObject("user") {
                                 put("lockedSafetyMode", false)
