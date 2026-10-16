@@ -1,0 +1,40 @@
+name: web drive (temporary)
+on:
+  push:
+    branches: [probe/web-drive]
+permissions:
+  contents: write
+jobs:
+  drive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: |
+          npm i -g pnpm@12.11.2
+          pnpm --dir web install
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i playwright@1.49.1 >/dev/null
+          npx playwright install --with-deps chromium
+      - name: Build the extension
+        run: pnpm --dir web/extension exec wxt build
+      - name: Start the site
+        run: |
+          (pnpm --dir web/app dev > /tmp/vite.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://localhost:5173 >/dev/null && break; sleep 1; done
+      - name: Drive
+        env:
+          EXT_DIR: ${{ github.workspace }}/web/extension/.output/chrome-mv3
+          OUT_DIR: /tmp/shots
+        run: |
+          cp .github/drive/drive.mjs /tmp/pw/
+          cd /tmp/pw && xvfb-run -a node drive.mjs || true
+          cp /tmp/vite.log /tmp/shots/ || true
+      - name: Publish
+        run: |
+          cd /tmp/shots
+          git init -q && git add -A
+          git -c user.name=drive -c user.email=drive@localhost commit -qm "shots ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:probe/web-shots
