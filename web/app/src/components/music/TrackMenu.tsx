@@ -1,4 +1,4 @@
-import { Ban, ChevronLeft, ChevronRight, ListEnd, ListPlus, ListStart, MoreHorizontal, ShieldCheck, Star } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, Info, ListEnd, ListPlus, ListStart, MoreHorizontal, ShieldCheck, Star } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/components/Menu';
 import {
@@ -9,7 +9,8 @@ import {
   useSignedIn,
 } from '@/data/music/queries';
 import type { Track } from '@/data/music/types';
-import { useExplicit } from '@/state/explicit';
+import { cleanSourceOf } from '@/playback/cleanVersions';
+import { useExplicit, usePlaysClean } from '@/state/explicit';
 import { usePlayer } from '@/state/player';
 
 function PlaylistChoices({ videoId, onDone, onBack }: { videoId: string; onDone: () => void; onBack: () => void }) {
@@ -82,6 +83,8 @@ function TrackMenuItems({ track, onClose }: { track: Track; onClose: () => void 
   const signedIn = useSignedIn();
   const block = useExplicit((s) => s.block);
   const allowed = useExplicit((s) => s.allowed.includes(track.videoId));
+  const clean = usePlaysClean();
+  const cleanSource = clean ? cleanSourceOf(track.videoId) : null;
   if (view === 'playlists') {
     return <PlaylistChoices videoId={track.videoId} onDone={onClose} onBack={() => setView('main')} />;
   }
@@ -94,7 +97,13 @@ function TrackMenuItems({ track, onClose }: { track: Track; onClose: () => void 
       <MenuItem icon={<ListEnd size={15} />} onSelect={() => (onClose(), addToQueue([track]))}>
         Add to Queue
       </MenuItem>
-      {block && track.explicit && (
+      {cleanSource && (
+        // Where the clean version playing for this song came from.
+        <MenuItem icon={<Info size={15} />} trailing={cleanSource} disabled onSelect={() => {}}>
+          Clean Version
+        </MenuItem>
+      )}
+      {block && !clean && track.explicit && (
         // The per-song way past "Block explicit songs", and back.
         <MenuItem
           icon={allowed ? <Ban size={15} /> : <ShieldCheck size={15} />}

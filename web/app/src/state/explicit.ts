@@ -8,6 +8,8 @@ import { create } from 'zustand';
  */
 interface ExplicitState {
   block: boolean;
+  /** "Play clean versions instead": blocked songs play their clean version (playback/cleanVersions.ts). */
+  playClean: boolean;
   /** Video ids let through one at a time. */
   allowed: string[];
   /** A tapped blocked song waiting on the prompt; [play] is the tap, run once it's allowed. */
@@ -15,6 +17,7 @@ interface ExplicitState {
   /** A short notice ("Explicit song skipped"), cleared after a few seconds. */
   notice: string | null;
   setBlock: (block: boolean) => void;
+  setPlayClean: (playClean: boolean) => void;
   setAllowed: (videoId: string, allowed: boolean) => void;
   ask: (prompt: NonNullable<ExplicitState['prompt']>) => void;
   /** The prompt's answer: let the song through, turn blocking off, or (null) cancel. */
@@ -24,12 +27,16 @@ interface ExplicitState {
 
 const KEY = 'bitchord:explicit';
 
-function load(): Pick<ExplicitState, 'block' | 'allowed'> {
+function load(): Pick<ExplicitState, 'block' | 'playClean' | 'allowed'> {
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<ExplicitState>;
-    return { block: saved.block === true, allowed: Array.isArray(saved.allowed) ? saved.allowed : [] };
+    return {
+      block: saved.block === true,
+      playClean: saved.playClean === true,
+      allowed: Array.isArray(saved.allowed) ? saved.allowed : [],
+    };
   } catch {
-    return { block: false, allowed: [] };
+    return { block: false, playClean: false, allowed: [] };
   }
 }
 
@@ -41,6 +48,10 @@ export const useExplicit = create<ExplicitState>()((set, get) => ({
   notice: null,
   setBlock(block) {
     set({ block });
+    save();
+  },
+  setPlayClean(playClean) {
+    set({ playClean });
     save();
   },
   setAllowed(videoId, allowed) {
@@ -67,9 +78,9 @@ export const useExplicit = create<ExplicitState>()((set, get) => ({
 }));
 
 function save() {
-  const { block, allowed } = useExplicit.getState();
+  const { block, playClean, allowed } = useExplicit.getState();
   try {
-    localStorage.setItem(KEY, JSON.stringify({ block, allowed }));
+    localStorage.setItem(KEY, JSON.stringify({ block, playClean, allowed }));
   } catch {
     // Storage off (a private window): the setting lasts for this visit.
   }
@@ -83,13 +94,24 @@ export function isBlocked(
   return block && song.explicit && !allowed.includes(song.videoId);
 }
 
-/** [isBlocked] for a row, kept up to date as the setting or the allowed list changes. */
+/**
+ * Whether explicit songs play their clean versions: blocking and "Play clean
+ * versions instead" both on. Then nothing looks explicit: rows aren't greyed
+ * or gated, the E becomes a C, and an album listed in both editions shows only
+ * the clean one.
+ */
+export const playsClean = ({ block, playClean }: Pick<ExplicitState, 'block' | 'playClean'> = useExplicit.getState()) =>
+  block && playClean;
+
+export const usePlaysClean = () => useExplicit(playsClean);
+
+/** Whether a row is greyed out and asks before playing: [isBlocked], unless it will play clean. */
 export function useBlocked(videoId: string, explicit: boolean): boolean {
-  return useExplicit((s) => isBlocked({ videoId, explicit }, s));
+  return useExplicit((s) => !playsClean(s) && isBlocked({ videoId, explicit }, s));
 }
 
 /** A row's tap: [play] as usual, unless the song is blocked, when it asks first. */
 export function playUnlessBlocked(song: { videoId: string; title: string; explicit: boolean }, play: () => void) {
-  if (isBlocked(song)) useExplicit.getState().ask({ videoId: song.videoId, title: song.title, play });
+  if (isBlocked(song) && !playsClean()) useExplicit.getState().ask({ videoId: song.videoId, title: song.title, play });
   else play();
 }

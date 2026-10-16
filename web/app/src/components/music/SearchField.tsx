@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSuggestions } from '@/data/music/queries';
 import type { MusicItem } from '@/data/music/types';
-import { isBlocked, useExplicit } from '@/state/explicit';
+import { isBlocked, playsClean, useExplicit } from '@/state/explicit';
 import { Artwork } from './Artwork';
 import { ExplicitBadge } from './ExplicitBadge';
 import { hrefFor } from './links';
@@ -27,8 +27,9 @@ export function SearchField({ initial, onSearch }: { initial: string; onSearch: 
   const suggestions = useSuggestions(open ? value : '');
   const block = useExplicit((s) => s.block);
   const allowed = useExplicit((s) => s.allowed);
+  const clean = useExplicit(playsClean);
   const blocked = (item: MusicItem) =>
-    !hrefFor(item) && isBlocked({ videoId: item.id, explicit: item.explicit }, { block, allowed });
+    !clean && !hrefFor(item) && isBlocked({ videoId: item.id, explicit: item.explicit }, { block, allowed });
 
   useEffect(() => setValue(initial), [initial]);
 

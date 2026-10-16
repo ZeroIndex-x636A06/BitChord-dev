@@ -90,6 +90,18 @@ export async function searchSongs(query: string): Promise<Track[]> {
   return mapPlaylistTracks((shelf as { contents?: readonly unknown[] } | undefined)?.contents ?? []);
 }
 
+/**
+ * YouTube Music's Songs or Videos for [query] as someone with no account sees
+ * them, for the clean-version lookup: signed in, YouTube Music can leave a
+ * song's clean release out of the results.
+ */
+export async function searchSignedOut(query: string, type: 'song' | 'video'): Promise<Track[]> {
+  const yt = await getInnertube();
+  const search = await yt.music.search(query, { type });
+  const shelf = (type === 'song' ? search.songs : search.videos) ?? search.contents?.find((c) => c.type === 'MusicShelf');
+  return mapPlaylistTracks((shelf as { contents?: readonly unknown[] } | undefined)?.contents ?? []);
+}
+
 export async function fetchSuggestions(input: string): Promise<Suggestions> {
   const yt = await getInnertube();
   return mapSuggestions(await yt.music.getSearchSuggestions(input));
