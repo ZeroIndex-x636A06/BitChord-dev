@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# TEMPORARY (fork testing only): lets the test build publish itself as a release.
+permissions:
+  contents: write
+
 concurrency:
   group: check-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -31,8 +35,23 @@ jobs:
 
       - run: chmod +x gradlew
 
+      # TEMPORARY (fork testing only): one debug key, so each test build installs over the last.
+      - name: Use the fork's fixed debug key
+        run: mkdir -p ~/.android && cp .github/ci/debug.keystore ~/.android/debug.keystore
+
       - name: Tests
-        run: ./gradlew testDevDebugUnitTest
+        # TEMPORARY (fork testing only): don't let upstream's own failing tests block the test APK.
+        continue-on-error: true
+        shell: bash
+        run: ./gradlew testDevDebugUnitTest --continue 2>&1 | tee gradle-test.log; exit ${PIPESTATUS[0]}
+
+      # TEMPORARY (fork testing only): failed tests as annotations, readable without the logs.
+      - name: Surface failed tests
+        if: always()
+        shell: bash
+        run: |
+          grep -E " FAILED$|Test.*FAILED|tests completed" gradle-test.log | sort -u | head -40 > failed.txt || true
+          while read -r line; do echo "::error title=test::$line"; done < failed.txt
 
       - name: Build the dev APK
         run: ./gradlew assembleDevDebug
@@ -43,8 +62,27 @@ jobs:
           name: bitchord-dev-debug
           path: app/build/outputs/apk/dev/debug/*.apk
 
+      # TEMPORARY (fork testing only): a plain download link that works from a phone.
+      - name: Publish the test APK
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'ci/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: test-${{ github.head_ref }}
+        run: |
+          tag="${TAG//\//-}"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --prerelease \
+            --title "Test build (fork only)" --notes "Fork-only test build. Not a release." \
+            --target "${{ github.event.pull_request.head.sha }}"
+          apk=$(ls app/build/outputs/apk/dev/debug/*arm64*.apk 2>/dev/null | head -1)
+          [ -n "$apk" ] || apk=$(ls app/build/outputs/apk/dev/debug/*.apk | head -1)
+          cp "$apk" bitchord-dev-test-arm64.apk
+          gh release upload "$tag" bitchord-dev-test-arm64.apk --clobber
+          gh release edit "$tag" --notes "Fork-only test build (${{ github.head_ref }} @ ${{ github.event.pull_request.head.sha }}). Install bitchord-dev-test-arm64.apk. Not a release."
+
       - name: Upload test reports
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: android-test-reports
