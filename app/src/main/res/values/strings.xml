@@ -30,6 +30,8 @@
     <string name="downloaded_songs">Downloaded songs</string>
     <string name="local_music">Local Music</string>
     <string name="search_source_youtube" translatable="false">YouTube</string>
+    <string name="search_source_addons">Addons</string>
+    <string name="search_addons_none">No addons are enabled. Add one in Settings → Sources.</string>
     <string name="audio_files_on_device">Audio files on device</string>
     <string name="on_device">On Device</string>
     <string name="playlists">Playlists</string>
@@ -311,6 +313,20 @@
     <string name="eq_preset_custom">Custom</string>
     <string name="show_nerd_stats">Show stats for nerds</string>
     <string name="show_nerd_stats_subtitle">Codec, bitrate and sample rate on the player</string>
+    <string name="app_icon">App icon</string>
+    <string name="app_icon_default">Default</string>
+    <string name="app_icon_liquid_glass" translatable="false">Liquid Glass</string>
+    <string name="app_icon_liquid_glass_dark" translatable="false">Liquid Glass Dark</string>
+    <string name="app_icon_liquid_glass_clear" translatable="false">Liquid Glass Clear</string>
+    <string name="app_icon_liquid_glass_clear_dark" translatable="false">Liquid Glass Clear Dark</string>
+    <string name="app_icon_samsung_glass" translatable="false">Samsung Glass</string>
+    <string name="app_icon_samsung_glass_dark" translatable="false">Samsung Glass Dark</string>
+    <string name="app_icon_samsung_glass_clear" translatable="false">Samsung Glass Clear</string>
+    <string name="app_icon_samsung_glass_clear_dark" translatable="false">Samsung Glass Clear Dark</string>
+    <string name="app_icon_pixel_glass" translatable="false">Pixel Glass</string>
+    <string name="app_icon_pixel_glass_dark" translatable="false">Pixel Glass Dark</string>
+    <string name="app_icon_pixel_glass_clear" translatable="false">Pixel Glass Clear</string>
+    <string name="app_icon_pixel_glass_clear_dark" translatable="false">Pixel Glass Clear Dark</string>
     <string name="theme">Theme</string>
     <string name="reduce_animation">Reduce animation</string>
     <string name="reduce_animation_subtitle">Freezes the main player\'s gradient instead of drifting</string>
@@ -323,6 +339,12 @@
     <string name="legacy_mesh_gradient">Legacy mesh gradient</string>
     <string name="legacy_mesh_gradient_subtitle">Brings back the drifting colour blobs behind the player from v1.5</string>
     <string name="animated_cover_art">Animated cover art</string>
+    <string name="artist_signatures">Artist signatures</string>
+    <string name="artist_signatures_subtitle">Shows a handwritten signature when Apple Music has no title logo</string>
+    <string name="artist_signatures_url">Signature API URL</string>
+    <string name="artist_signatures_url_hint">https://signatures.example.com</string>
+    <string name="artist_signatures_unconfigured">Not configured — tap to set the API URL</string>
+    <string name="artist_signatures_test_failed">Could not reach the API at that URL</string>
     <string name="synced_lyrics">Synced lyrics</string>
     <string name="synced_lyrics_subtitle">Lights up the words on the player as they’re sung</string>
     <string name="lyrics_sources">Lyrics sources</string>
@@ -337,6 +359,8 @@
     <string name="stop_music_on_close_subtitle">Stops playback when swiped away from recent apps</string>
     <string name="hide_volume_bar">Hide volume bar</string>
     <string name="hide_volume_bar_subtitle">Removes the volume slider from the main player</string>
+    <string name="hide_status_bar_in_player">Hide status bar in player</string>
+    <string name="hide_status_bar_in_player_subtitle">Hides the clock, battery and notification icons while the main player is open</string>
     <string name="hide_song_status">Hide Song Status</string>
     <string name="show_queue_history">Show queue history</string>
     <string name="show_queue_history_subtitle">Show up to 25 previously played songs above Now playing in the queue</string>
@@ -353,6 +377,15 @@
     <string name="full_screen_cover_art_subtitle">Runs the cover to the edges of the player instead of a square sleeve</string>
     <string name="animated_cover_art_subtitle">Plays the looping video some releases ship instead of a still sleeve</string>
     <string name="dont_repeat_songs_subtitle">AutoPlay won’t suggest a song already played or suggested this session</string>
+    <string name="block_explicit">Block explicit songs</string>
+    <string name="block_explicit_subtitle">Skip songs marked explicit in AutoPlay, radio and your queue. Allow one from its menu</string>
+    <string name="allow_explicit_song">Allow this explicit song</string>
+    <string name="block_explicit_song">Block this explicit song again</string>
+    <string name="explicit_song_skipped">Explicit song skipped</string>
+    <string name="explicit_song_blocked">Explicit song</string>
+    <string name="explicit_song_blocked_message">“%1$s” is marked explicit and your filter is blocking it.</string>
+    <string name="allow_this_song">Allow this song</string>
+    <string name="turn_off_blocking">Turn off blocking</string>
     <string name="download_quality_subtitle">%1$s per track, whatever the connection</string>
     <string name="filter_non_music_audio">Filter non-music audio</string>
     <string name="filter_non_music_audio_subtitle">Hides clips under 30 seconds, WAV files, voice notes, recordings and system sounds</string>
@@ -849,6 +882,10 @@
     <string name="counted_on_device_with_bitchord">Counted on this device with BitChord</string>
     <string name="this_month">This month</string>
     <string name="replay_this_week">This week</string>
+    <string name="replay_period_weekly">Weekly</string>
+    <string name="replay_period_monthly">Monthly</string>
+    <string name="replay_period_yearly">Yearly</string>
+    <string name="replay_period_lifetime">Lifetime</string>
     <string name="this_year">This year</string>
     <string name="all_time">All time</string>
     <string name="switch_account">Switch account</string>
@@ -1107,10 +1144,14 @@
     <string name="lossless_output_permission">Check Bluetooth codec</string>
     <string name="lossless_output_permission_denied">Nearby devices permission is off</string>
     <string name="lossless_output_permission_denied_detail">Tap to open Settings and allow Nearby devices — without it we can’t read your Bluetooth codec</string>
-    <string name="lossless_output_permission_detail">Allow Nearby devices so LDAC or LHDC headphones can unlock lossless-only addons</string>
+    <string name="lossless_output_permission_detail">Allow Nearby devices so LDAC, LHDC or Samsung UHQ headphones can unlock lossless-only addons</string>
     <string name="cached_songs">Cached songs</string>
     <string name="cached_songs_subtitle">Songs from YouTube and JioSaavn in the song cache</string>
     <string name="cached_songs_empty">No cached songs yet. Songs you play from YouTube or JioSaavn will show up here.</string>
+    <string name="cached_song_partial">Partial</string>
+    <string name="remove_from_cache">Remove from cache</string>
+    <string name="cached_song_remove">Remove</string>
+    <string name="removed_from_cache">Removed from the song cache</string>
     <string name="show_cache_folder">Show cached songs folder</string>
     <string name="show_cache_folder_subtitle">Adds a Cached songs folder to Library with the YouTube and JioSaavn songs kept in the song cache</string>
     <string name="song_cache_unlimited">Unlimited</string>
@@ -1134,6 +1175,8 @@
     <string name="spotify_import_unmatched">%1$d songs weren\'t found on YouTube Music</string>
     <string name="local_playlist_subtitle">%1$d songs · On this device</string>
     <string name="spotify_import_empty_playlist">No songs in this playlist</string>
+    <string name="spotify_import_language_preference" translatable="false">Language preference</string>
+    <string name="spotify_import_language_hint" translatable="false">e.g. Punjabi, Marathi, Korean…</string>
     <string name="spotify_library_subtitle">Your Spotify playlists</string>
     <string name="onboarding_title">Millions of songs, stream on BitChord</string>
     <string name="onboarding_name_prompt">What should we call you?</string>
@@ -1145,4 +1188,48 @@
     <string name="onboarding_sign_in_google">Sign in with Google</string>
     <string name="onboarding_skip_sign_in">Skip sign in</string>
     <string name="onboarding_back">Back</string>
+    <string name="song_info">Song Info</string>
+    <string name="song_info_album">Album</string>
+    <string name="song_info_release_date">Release date</string>
+    <string name="song_info_views">Plays / views</string>
+    <string name="song_info_likes">Likes</string>
+    <string name="song_info_comments">Comments</string>
+    <string name="song_info_unavailable">Not available</string>
+    <string name="song_info_error">Some information could not be loaded.</string>
+    <string name="song_info_retry">Retry</string>
+    <!-- Settings: BitChord for Wear OS -->
+    <string name="wear_os_section">BitChord for Wear OS</string>
+    <string name="wear_os_page_title">Wear OS</string>
+    <string name="wear_os_your_watches">Your watches</string>
+    <string name="wear_os_value_none">No watch</string>
+    <string name="wear_os_value_not_installed">Not installed</string>
+    <string name="wear_os_value_up_to_date">Up to date</string>
+    <string name="wear_os_looking">Looking for watches…</string>
+    <string name="wear_os_no_watch">No watch connected</string>
+    <string name="wear_os_no_watch_subtitle">Pair a Wear OS watch with this phone in its companion app first.</string>
+    <string name="wear_os_checking">Checking…</string>
+    <string name="wear_os_not_installed">BitChord isn’t on this watch</string>
+    <string name="wear_os_up_to_date">Up to date · %1$s</string>
+    <string name="wear_os_update_available">Update available</string>
+    <string name="wear_os_unknown">Installed · couldn’t check the version</string>
+    <string name="wear_os_sending">Sending to your watch…</string>
+    <string name="wear_os_sent">Sent — finish on your watch if it asks</string>
+    <string name="wear_os_send_failed">Couldn’t send the update (%1$s)</string>
+    <string name="wear_os_install">Install</string>
+    <string name="wear_os_update">Update</string>
+    <string name="wear_os_install_title">Install on your watch</string>
+    <string name="wear_os_step_wifi">Connect your watch to the same Wi-Fi as this phone.</string>
+    <string name="wear_os_step_developer">Turn on Developer options on the watch. Galaxy Watch: Settings → About watch → Software information → tap Software version five times. Pixel Watch: Settings → System → About → tap Build number seven times.</string>
+    <string name="wear_os_step_debugging">In Developer options, turn on ADB debugging and Wireless debugging.</string>
+    <string name="wear_os_step_pair">Tap Pair new device, then enter the six-digit code the watch shows.</string>
+    <string name="wear_os_searching">Looking for your watch on Wi-Fi…</string>
+    <string name="wear_os_found">Found your watch</string>
+    <string name="wear_os_pairing">Pairing…</string>
+    <string name="wear_os_installing">Installing BitChord on your watch…</string>
+    <string name="wear_os_installed">Installed. You can turn Wireless debugging off again.</string>
+    <string name="wear_os_failed">That didn’t work (%1$s). Check the code and try again.</string>
+    <string name="wear_os_unsupported">Installing on a watch needs Android 11 or later on this phone.</string>
+    <string name="wear_os_code_hint">Pairing code</string>
+    <string name="wear_os_done">Done</string>
+    <string name="signed_by">Signed by %1$s</string>
 </resources>

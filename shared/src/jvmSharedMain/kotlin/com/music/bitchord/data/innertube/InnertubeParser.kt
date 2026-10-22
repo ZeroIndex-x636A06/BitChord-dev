@@ -289,7 +289,7 @@ object InnertubeParser {
                 ?: parseResponsiveListItem(item.o("musicResponsiveListItemRenderer"))
                     ?.takeUnless { it.isVideo }
                     ?.let { song ->
-                        ShelfItem(song.title, song.artist, song.thumbnailUrl, song.videoId, null)
+                        ShelfItem(song.title, song.artist, song.thumbnailUrl, song.videoId, null, song.isExplicit)
                     }
                 // A chart row with nothing to play — "Top artists" lists the
                 // artist alone, no track — falls through parseResponsiveListItem
@@ -305,7 +305,7 @@ object InnertubeParser {
         val items = shelf.a("contents").orEmpty().mapNotNull {
             parseResponsiveListItem(it.o("musicResponsiveListItemRenderer"))
         }.filterNot { it.isVideo }
-            .map { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null) }
+            .map { ShelfItem(it.title, it.artist, it.thumbnailUrl, it.videoId, null, it.isExplicit) }
         return if (items.isEmpty()) null else HomeShelf(title.ifBlank { "For you" }, items)
     }
 
@@ -549,11 +549,7 @@ object InnertubeParser {
         // batch rather than paging it (see its "Refresh" button, wired to a
         // `reloadContinuationData` token). Only the playlist shelf's own
         // continuation means more real tracks.
-        val token = playlistScope?.let { playlist ->
-            collectRenderers(playlist, "continuationItemRenderer").firstOrNull()
-                .o("continuationEndpoint").o("continuationCommand").s("token")
-                ?: collectRenderers(playlist, "nextContinuationData").firstOrNull().s("continuation")
-        }
+        val token = playlistScope?.let { continuationToken(it) }
         return PlaylistShelfPage(songs, suggested, token)
     }
 
@@ -587,12 +583,29 @@ object InnertubeParser {
 
     /**
      * Token for the next page of a paged response, or null once it has run out.
+     *
+     * Two token formats are in circulation. The older one:
+     *   continuationItemRenderer → continuationEndpoint → continuationCommand → token
+     *
+     * The newer one, where YouTube wraps the command in a commandExecutorCommand
+     * alongside a playlist-voting popup command:
+     *   continuationItemRenderer → continuationEndpoint → commandExecutorCommand
+     *     → commands[n] → continuationCommand → token
+     *
      * Both the modern `continuationItemRenderer` and the older `continuations`
-     * array are in circulation, sometimes within the same account.
+     * array are also in circulation at the same time.
+     *
+     * Only the first renderer's endpoint is read, at exactly those two depths.
+     * A page with several shelves can carry several renderers, and a token
+     * found anywhere deeper may page a different shelf than the one asked for.
      */
     fun continuationToken(root: JsonElement): String? {
-        collectRenderers(root, "continuationItemRenderer").firstOrNull()
-            .o("continuationEndpoint").o("continuationCommand").s("token")
+        val endpoint = collectRenderers(root, "continuationItemRenderer").firstOrNull()
+            .o("continuationEndpoint")
+        (endpoint.o("continuationCommand")
+            ?: endpoint.o("commandExecutorCommand").a("commands")
+                ?.firstNotNullOfOrNull { it.o("continuationCommand") })
+            .s("token")
             ?.let { return it }
         return collectRenderers(root, "nextContinuationData").firstOrNull().s("continuation")
     }
@@ -614,6 +627,8 @@ object InnertubeParser {
                 .o("musicPlayButtonRenderer").o("playNavigationEndpoint")
                 .o("watchEndpoint").s("videoId")
             ?: return null
+
+        if (renderer.isPrivateUpload()) UploadedTracks.mark(videoId)
 
         val columns = renderer.a("flexColumns").orEmpty()
         val title = columns.getOrNull(0)
@@ -1393,6 +1408,7 @@ object InnertubeParser {
             thumbnailUrl = thumbnails.best(),
             videoId = videoId,
             browseId = resolvedBrowseId,
+            isExplicit = renderer["subtitleBadges"].hasExplicitBadge(),
         )
     }
 
@@ -1486,6 +1502,18 @@ private fun JsonElement?.findString(key: String): String? = when (this) {
     is JsonArray -> firstNotNullOfOrNull { it.findString(key) }
     else -> null
 }
+
+/** Whether [key] appears as an object key anywhere in the subtree. */
+private fun JsonElement?.hasKey(key: String): Boolean = when (this) {
+    is JsonObject -> containsKey(key) || values.any { it.hasKey(key) }
+    is JsonArray -> any { it.hasKey(key) }
+    else -> false
+}
+
+/** Whether a track row is one of the signed-in user's own uploads. */
+private fun JsonObject.isPrivateUpload(): Boolean =
+    hasKey("musicDeletePrivatelyOwnedEntityCommand") ||
+        findString("musicVideoType")?.contains("PRIVATELY_OWNED", ignoreCase = true) == true
 
 private fun JsonElement?.runs(): String =
     this.a("runs")?.joinToString("") { it.s("text").orEmpty() }.orEmpty()
